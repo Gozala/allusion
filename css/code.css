@@ -1,0 +1,10 @@
+.CodeMirror {
+  font-family: Consolas, "Lucida Console", Monaco, monospace;
+  border: none;
+  height: auto;
+  padding-left: 20px;
+}
+
+.CodeMirror pre {
+  white-space: pre !important;
+}

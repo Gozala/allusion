@@ -1,0 +1,13 @@
+[ignore]
+
+.*/node_modules/tap/*
+.*/node_modules/documentation/*
+
+[libs]
+
+[include]
+
+[options]
+module.name_mapper='allusion' -> '<PROJECT_ROOT>/src/allusion'
+suppress_comment= \\(.\\|\n\\)*\\@FlowIssue
+suppress_comment= \\(.\\|\n\\)*\\@FlowIgnore

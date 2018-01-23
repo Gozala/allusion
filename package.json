@@ -1,0 +1,85 @@
+{
+  "version": "0.0.0",
+  "name": "allusion",
+  "description": "Example app",
+  "keywords": [
+    "allusion",
+    "typed",
+    "flow"
+  ],
+  "main": "lib/allusion",
+  "module": "src/allusion",
+  "author": "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com)",
+  "repository": "https://github.com/Gozala/allusion",
+  "license": "MIT",
+  "devDependencies": {
+    "alias-quokka-plugin": "^0.1.0",
+    "babel-cli": "^6.26.0",
+    "babel-preset-flow-node": "^1.0.2",
+    "babel-preset-flow-syntax": "1.0.1",
+    "babel-register": "^6.26.0",
+    "blue-tape": "^1.0.0",
+    "documentation": "^5.3.2",
+    "flow-bin": "^0.61.0",
+    "flow-copy-source": "^1.2.1",
+    "husky": "^0.14.0",
+    "lint-staged": "^6.0.0",
+    "prettier": "^1.9.2",
+    "rollup": "0.52.3",
+    "rollup-plugin-babel": "3.0.3",
+    "rollup-plugin-commonjs": "8.2.6",
+    "rollup-plugin-flow": "1.1.1",
+    "rollup-plugin-json": "2.3.0",
+    "rollup-plugin-legacy": "1.0.0",
+    "rollup-plugin-node-resolve": "3.0.0",
+    "rollup-plugin-postcss": "1.2.4",
+    "rollup-plugin-serve": "0.4.2"
+  },
+  "scripts": {
+    "test": "npm run test:flow && npm run test:tape",
+    "test:tape": "blue-tape -r babel-register 'test/**/*.js'",
+    "test:flow": "flow check",
+    "build:clear": "rm -rf lib",
+    "build:types": "flow-copy-source --verbose src lib",
+    "build:node": "babel --out-dir lib src",
+    "build:api": "documentation readme --section=API src/allusion.js",
+    "build:docs": "documentation build --document-exported src/** -f html --o docs",
+    "build": "npm run build:node && npm run build:types",
+    "prepublish": "npm run build && npm test",
+    "precommit": "lint-staged",
+    "start": "rollup -w -c --worker Main --embed UI/Main",
+    "start:legacy": "flow-copy-source --watch --verbose src lib & babel --watch --out-dir lib src"
+  },
+  "lint-staged": {
+    "*.js": [
+      "prettier --parser flow --no-semi --write",
+      "git add"
+    ]
+  },
+  "quokka": {
+    "alias": {
+      "allusion": "src/allusion"
+    },
+    "pro": true,
+    "babel": true,
+    "plugins": [
+      "alias-quokka-plugin"
+    ]
+  },
+  "dependencies": {
+    "codemirror": "5.33.0",
+    "prosemirror-commands": "1.0.3",
+    "prosemirror-dropcursor": "1.0.0",
+    "prosemirror-gapcursor": "1.0.0",
+    "prosemirror-history": "1.0.0",
+    "prosemirror-inputrules": "1.0.1",
+    "prosemirror-keymap": "1.0.0",
+    "prosemirror-markdown": "1.0.3",
+    "prosemirror-menu": "1.0.1",
+    "prosemirror-model": "1.1.0",
+    "prosemirror-schema-basic": "1.0.0",
+    "prosemirror-schema-list": "1.0.0",
+    "prosemirror-state": "1.0.2",
+    "prosemirror-view": "1.0.8"
+  }
+}

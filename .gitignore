@@ -1,0 +1,8 @@
+lib
+js
+dat.json
+dist
+!src/**/*.js
+!src/**/*.flow
+!test/**/*.js
+!test/**/*.flow
