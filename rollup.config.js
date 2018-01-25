@@ -12,7 +12,7 @@ import postcss from "rollup-plugin-postcss"
 // const flatbuffersPath = require.resolve("dominion/node_modules/flatbuffers")
 
 const alias = mapping => ({
-  resolveId(importee, importer) {
+  resolveId(importee /*: string */, importer /*: string */) {
     const alias = mapping[importee]
     return alias == null ? null : require.resolve(alias)
   }

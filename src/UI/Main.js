@@ -1,16 +1,35 @@
 // @flow
 
-import editor from "./EditorView"
+import editor from "./Editor"
 import "prosemirror-view/style/prosemirror.css"
 import "../../css/editor.css"
 import "../../css/code.css"
 
 self.view = editor(
   document.body,
-  `## The code block is a code editor
+  `# Welcome to Allusion
 
-This editor has been wired up to render code blocks as instances of the
-  [CodeMirror](http://codemirror.net) code editor, which provides syntax highlighting, auto-indentation, and similar.
+This an experimental text editor for note taking and thought organization.
+It would ❤️ to do many things & has some ideas how, but for now it does very
+little.
+
+### Text editing
+
+Allusion is learning to speak [Markdown](http://commonmark.org/help/).
+
+- It creates Heading if you type \`# \`, \`## \`, \`### \`
+- It creates Unordered List if you type \`- \` & Ordered List if you type  \`1. \`
+- It creates Blockquote if you type \`> \`
+- It creates **Bold text** if you type \`**text\`
+- It creates *Italic text* if you type \`*text\`
+- It creates ~~Strikethrough~~ text if you type \`~~text\`
+- It creates \`Inline code\` if you type "\`text"
+- It creates Horizontal Rule line if you type \`---\`
+---
+### Code editing
+
+Markdown code blocks are rendered with code editor, which provides syntaxt
+highlighting, auto-indentation, and more.
 
 \`\`\`
 function max(a, b) {

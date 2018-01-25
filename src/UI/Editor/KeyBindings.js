@@ -97,7 +97,9 @@ export default (
   if ((type = schema.nodes.list_item)) {
     bind("Enter", splitListItem(type))
     bind("Mod-[", liftListItem(type))
+    bind("Shift-Tab", liftListItem(type))
     bind("Mod-]", sinkListItem(type))
+    bind("Tab", sinkListItem(type))
   }
   if ((type = schema.nodes.paragraph)) bind("Shift-Ctrl-0", setBlockType(type))
   if ((type = schema.nodes.code_block))

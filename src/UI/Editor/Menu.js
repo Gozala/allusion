@@ -18,7 +18,7 @@ import {
 import { NodeSelection } from "prosemirror-state"
 import { toggleMark } from "prosemirror-commands"
 import { wrapInList } from "prosemirror-schema-list"
-import { TextField, openPrompt } from "./prompt"
+import { TextField, openPrompt } from "./Prompt"
 import type { Plugin } from "prosemirror-state"
 import { schema } from "prosemirror-schema-basic"
 

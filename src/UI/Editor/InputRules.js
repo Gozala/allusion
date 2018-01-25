@@ -9,8 +9,7 @@ import {
   ellipsis,
   InputRule
 } from "prosemirror-inputrules"
-import { schema } from "prosemirror-schema-basic"
-import type { NodeType } from "prosemirror-model"
+import type { NodeType, Schema } from "prosemirror-model"
 
 // : (NodeType) → InputRule
 // Given a blockquote node type, returns an input rule that turns `"> "`
@@ -43,11 +42,50 @@ export function bulletListRule(nodeType: NodeType) {
 // Given a code block node type, returns an input rule that turns a
 // textblock starting with three backticks into a code block.
 export function codeBlockRule(nodeType: NodeType) {
-  return textblockTypeInputRule(/^#!$/, nodeType)
+  return textblockTypeInputRule(/^```$/, nodeType)
 }
 
-export const codeRule = (nodeType: NodeType) =>
-  textblockTypeInputRule(/^```$/, nodeType)
+export const codeInlineRule = (nodeType: NodeType) =>
+  new InputRule(/(?:^|[^`])(`[^`]+)$/, (state, match, start, end) => {
+    let [input, insert] = match
+    if (insert) {
+      const offset = input.lastIndexOf(insert)
+      insert += input.slice(offset + input.length)
+      start += offset
+      const cutOff = start - end
+      if (cutOff > 0) {
+        insert = match[0].slice(offset - cutOff, offset) + insert
+        start = end
+      }
+    }
+    const marks = state.doc.resolve(start).marks()
+    const content = state.schema.text(insert.substr(1))
+    const node = state.schema.node("code_inline", null, content, marks)
+    const transact = state.tr.replaceWith(start, end, node)
+    const { selection } = transact
+    return transact
+      .replaceSelectionWith(state.schema.text(" "), true)
+      .setSelection(selection)
+  })
+
+export const wrappingMarkerRule = (pattern: RegExp, nodeType: NodeType) =>
+  new InputRule(pattern, (state, match, start, end) => {
+    let [input, insert] = match
+    const marks = state.doc.resolve(start).marks()
+    const content = state.schema.text(insert)
+    const node = state.schema.node(nodeType, null, content, marks)
+    const transaction = state.tr.replaceWith(start, end, node)
+    const { selection } = transaction
+    const space = state.schema.text(" ")
+    return transaction.replaceSelectionWith(space, true).setSelection(selection)
+  })
+
+export const wrappingMarker = (pattern: RegExp) => (nodeType: NodeType) =>
+  wrappingMarkerRule(pattern, nodeType)
+
+export const strongRule = wrappingMarker(/\*\*([^\*]+)$/)
+export const emRule = wrappingMarker(/\*([^\*]+)$/)
+export const strikeRule = wrappingMarker(/\~\~([^\~]+)$/)
 
 // : (NodeType, number) → InputRule
 // Given a node type and a maximum level, creates an input rule that
@@ -63,16 +101,23 @@ export function headingRule(nodeType: NodeType, maxLevel: number) {
 }
 
 export const horizontalRule = (nodeType: NodeType) =>
-  new InputRule(/^---$/m, nodeType)
+  new InputRule(/^(—-)$/, (state, match, start, end) => {
+    const node = state.schema.node("horizontal_rule", null)
+    return state.tr.replaceWith(start, end, node)
+  })
 
 // : (Schema) → Plugin
 // A set of input rules for creating the basic block quotes, lists,
 // code blocks, and heading.
-export default (schema: typeof schema) => {
-  let rules = smartQuotes.concat(ellipsis)
+export default (schema: Schema) => {
+  let rules = smartQuotes.concat(ellipsis, emDash)
   let type
 
-  if ((type = schema.nodes.code)) rules.push(codeRule(type))
+  if ((type = schema.nodes.strong)) rules.push(strongRule(type))
+  if ((type = schema.nodes.em)) rules.push(emRule(type))
+  if ((type = schema.nodes.strike_through)) rules.push(strikeRule(type))
+  // if ((type = schema.nodes.link)) rules.push(linkRule(type))
+  if ((type = schema.nodes.code_inline)) rules.push(codeInlineRule(type))
   if ((type = schema.nodes.horizontal_rule)) rules.push(horizontalRule(type))
   if ((type = schema.nodes.blockquote)) rules.push(blockQuoteRule(type))
   if ((type = schema.nodes.ordered_list)) rules.push(orderedListRule(type))

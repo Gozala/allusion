@@ -5,7 +5,6 @@ import { Selection } from "prosemirror-state"
 
 function arrowHandler(dir) {
   return (state, dispatch, view) => {
-    console.log("arrowHandler", state, dispatch, view)
     if (state.selection.empty && view.endOfTextblock(dir)) {
       let side = dir == "left" || dir == "up" ? -1 : 1,
         $head = state.selection.$head

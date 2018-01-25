@@ -4,7 +4,9 @@ export function openPrompt(options) {
   let wrapper = document.body.appendChild(document.createElement("div"))
   wrapper.className = prefix
 
-  let mouseOutside = e => { if (!wrapper.contains(e.target)) close() }
+  let mouseOutside = e => {
+    if (!wrapper.contains(e.target)) close()
+  }
   setTimeout(() => window.addEventListener("mousedown", mouseOutside), 50)
   let close = () => {
     window.removeEventListener("mousedown", mouseOutside)
@@ -25,7 +27,8 @@ export function openPrompt(options) {
   cancelButton.addEventListener("click", close)
 
   let form = wrapper.appendChild(document.createElement("form"))
-  if (options.title) form.appendChild(document.createElement("h5")).textContent = options.title
+  if (options.title)
+    form.appendChild(document.createElement("h5")).textContent = options.title
   domFields.forEach(field => {
     form.appendChild(document.createElement("div")).appendChild(field)
   })
@@ -36,8 +39,8 @@ export function openPrompt(options) {
   buttons.appendChild(cancelButton)
 
   let box = wrapper.getBoundingClientRect()
-  wrapper.style.top = ((window.innerHeight - box.height) / 2) + "px"
-  wrapper.style.left = ((window.innerWidth - box.width) / 2) + "px"
+  wrapper.style.top = (window.innerHeight - box.height) / 2 + "px"
+  wrapper.style.left = (window.innerWidth - box.width) / 2 + "px"
 
   let submit = () => {
     let params = getValues(options.fields, domFields)
@@ -71,10 +74,13 @@ export function openPrompt(options) {
 }
 
 function getValues(fields, domFields) {
-  let result = Object.create(null), i = 0
+  let result = Object.create(null),
+    i = 0
   for (let name in fields) {
-    let field = fields[name], dom = domFields[i++]
-    let value = field.read(dom), bad = field.validate(value)
+    let field = fields[name],
+      dom = domFields[i++]
+    let value = field.read(dom),
+      bad = field.validate(value)
     if (bad) {
       reportInvalid(dom, bad)
       return null
@@ -88,8 +94,8 @@ function reportInvalid(dom, message) {
   // FIXME this is awful and needs a lot more work
   let parent = dom.parentNode
   let msg = parent.appendChild(document.createElement("div"))
-  msg.style.left = (dom.offsetLeft + dom.offsetWidth + 2) + "px"
-  msg.style.top = (dom.offsetTop - 5) + "px"
+  msg.style.left = dom.offsetLeft + dom.offsetWidth + 2 + "px"
+  msg.style.top = dom.offsetTop - 5 + "px"
   msg.className = "ProseMirror-invalid"
   msg.textContent = message
   setTimeout(() => parent.removeChild(msg), 1500)
@@ -113,23 +119,29 @@ export class Field {
   // **`validate`**`: ?(any) → ?string`
   //   : A function to validate the given value. Should return an
   //     error message if it is not valid.
-  constructor(options) { this.options = options }
+  constructor(options) {
+    this.options = options
+  }
 
   // render:: (state: EditorState, props: Object) → dom.Node
   // Render the field to the DOM. Should be implemented by all subclasses.
 
   // :: (dom.Node) → any
   // Read the field's value from its DOM node.
-  read(dom) { return dom.value }
+  read(dom) {
+    return dom.value
+  }
 
   // :: (any) → ?string
   // A field-type-specific validation function.
   validateType(_value) {}
 
   validate(value) {
-    if (!value && this.options.required)
-      return "Required field"
-    return this.validateType(value) || (this.options.validate && this.options.validate(value))
+    if (!value && this.options.required) return "Required field"
+    return (
+      this.validateType(value) ||
+      (this.options.validate && this.options.validate(value))
+    )
   }
 
   clean(value) {
@@ -148,7 +160,6 @@ export class TextField extends Field {
     return input
   }
 }
-
 
 // ::- A field class for dropdown fields based on a plain `<select>`
 // tag. Expects an option `options`, which should be an array of

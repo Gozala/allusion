@@ -47,7 +47,7 @@
     "build": "npm run build:node && npm run build:types",
     "prepublish": "npm run build && npm test",
     "precommit": "lint-staged",
-    "start": "rollup -w -c --worker Main --embed UI/Main",
+    "start": "rollup -w -c --embed UI/Main",
     "start:legacy": "flow-copy-source --watch --verbose src lib & babel --watch --out-dir lib src"
   },
   "lint-staged": {
