@@ -79,7 +79,9 @@ export default (
 
   if ((type = schema.marks.strong)) bind("Mod-b", toggleMark(type))
   if ((type = schema.marks.em)) bind("Mod-i", toggleMark(type))
-  if ((type = schema.marks.code)) bind("Mod-`", toggleMark(type))
+  if ((type = schema.marks.code)) bind("Ctrl-`", toggleMark(type))
+  if ((type = schema.marks.strike_through))
+    bind("Alt-Shift-`", toggleMark(type))
 
   if ((type = schema.nodes.bullet_list)) bind("Shift-Ctrl-8", wrapInList(type))
   if ((type = schema.nodes.ordered_list)) bind("Shift-Ctrl-9", wrapInList(type))

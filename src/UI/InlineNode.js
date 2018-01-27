@@ -7,7 +7,7 @@ export default class InlineNode {
   node: Node
   view: EditorView
   getPos: () => number
-  dom: HTMLElement
+  dom: ?HTMLElement
   contentDOM: HTMLElement
   prefix: string
   suffix: string
@@ -26,13 +26,13 @@ export default class InlineNode {
     node: Node,
     view: EditorView,
     getPos: () => number,
-    dom: HTMLElement,
+    dom: ?HTMLElement,
     contentDOM: HTMLElement
   ) {
     this.view = view
     this.node = node
     this.getPos = getPos
-    this.dom = dom
+    this.dom = null
     this.contentDOM = contentDOM
   }
 
@@ -40,6 +40,7 @@ export default class InlineNode {
     return this.view.state.doc.resolve(this.getPos())
   }
   update(node: Node) {
+    console.log(node)
     return true
   }
 }

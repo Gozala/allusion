@@ -358,7 +358,15 @@ li.ProseMirror-selectednode:after {
 .ProseMirror strong::before,
 .ProseMirror em::before,
 .ProseMirror del::before,
-.ProseMirror code::before {
+.ProseMirror code::before,
+.ProseMirror blockquote p::before,
+.ProseMirror h1::before,
+.ProseMirror h2::before,
+.ProseMirror h3::before,
+.ProseMirror h4::before,
+.ProseMirror h5::before,
+.ProseMirror h6::before
+{
   content:attr(data-prefix);
   opacity: 0.1;
   font-weight: normal;
@@ -377,12 +385,54 @@ li.ProseMirror-selectednode:after {
   text-decoration: none;
 }
 
-.ProseMirror .code {
-  background-color: rgba(0, 0, 0, 0.02);
-  border-radius: 4px;
+.ProseMirror h1::before,
+.ProseMirror h2::before,
+.ProseMirror h3::before,
+.ProseMirror h4::before,
+.ProseMirror h5::before,
+.ProseMirror h6::before,
+.ProseMirror blockquote p::before
+{
+  position: absolute;
+  left: 0px;
+  text-align: right;
+  margin-left: -45px;
+  width: 50px;
+}
+
+.ProseMirror h1::before {
+  content: "#";
+}
+.ProseMirror h2::before {
+  content: "##"
+}
+
+.ProseMirror h3::before {
+  content: "###"
+}
+
+.ProseMirror h4::before {
+  content: "####"
+}
+
+.ProseMirror h5::before {
+  content: "#####"
+}
+
+.ProseMirror h6::before {
+  content: "######"
+}
+
+.ProseMirror blockquote p::before {
+  content: ">";
+  opacity: 0.04;
+  white-space: pre;
+  font-family: Consolas, "Lucida Console", Monaco, monospace;
 }
 
 .ProseMirror code {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
   outline: none;
   white-space: pre !important;
   font-family: Consolas, "Lucida Console", Monaco, monospace;

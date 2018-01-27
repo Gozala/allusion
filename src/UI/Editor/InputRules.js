@@ -9,7 +9,17 @@ import {
   ellipsis,
   InputRule
 } from "prosemirror-inputrules"
-import type { NodeType, Schema } from "prosemirror-model"
+// import { toggleMark } from "prosemirror-commands"
+import type {
+  NodeType,
+  MarkType,
+  Mark,
+  Schema,
+  EditorState,
+  Transaction,
+  Range,
+  Node
+} from "prosemirror-model"
 
 // : (NodeType) → InputRule
 // Given a blockquote node type, returns an input rule that turns `"> "`
@@ -87,6 +97,103 @@ export const strongRule = wrappingMarker(/\*\*([^\*]+)$/)
 export const emRule = wrappingMarker(/\*([^\*]+)$/)
 export const strikeRule = wrappingMarker(/\~\~([^\~]+)$/)
 
+export const markerRule = (pattern: RegExp, markType: MarkType) =>
+  new InputRule(
+    pattern,
+    (state: EditorState, match: string[], start: number, end: number) => {
+      const { schema, tr, doc } = state
+      const [input, insert] = match
+      const marks = doc.resolve(start).marks()
+      const content = schema.text(insert, [...marks, schema.mark(markType)])
+      // const node = state.schema.node(nodeType, null, content, marks)
+      const transaction = tr.replaceWith(start, end, content)
+      // const { selection } = transaction
+      // const space = state.schema.text(" ")
+      // return transaction.replaceSelectionWith(space, true).setSelection(selection)
+      return transaction
+    }
+  )
+
+export const makeMarker = (pattern: RegExp) => (markType: MarkType) =>
+  markerRule(pattern, markType)
+
+const markApplies = (doc: Node, ranges: Range[], type: MarkType) => {
+  for (let i = 0; i < ranges.length; i++) {
+    let { $from, $to } = ranges[i]
+    let can = $from.depth == 0 ? doc.type.allowsMarkType(type) : false
+    doc.nodesBetween($from.pos, $to.pos, node => {
+      if (can) return false
+      can = node.inlineContent && node.type.allowsMarkType(type)
+    })
+    if (can) return true
+  }
+  return false
+}
+
+const Mark$excludes = (marks: Mark[], markType: MarkType): boolean => {
+  for (let mark of marks) {
+    if (mark.type.excludes(markType)) {
+      return true
+    }
+  }
+  return false
+}
+
+export const toggleMark = (
+  tr: Transaction,
+  markType: MarkType,
+  attrs: ?{}
+): ?Transaction => {
+  let { empty, $cursor } = tr.selection
+  if (!empty) {
+    console.log("!!!! Does not apply")
+    return null
+  } else if (!$cursor) {
+    return null
+  } else {
+    const marks = $cursor.marks()
+    if (markType.isInSet(tr.storedMarks || marks)) {
+      console.log(`tr.removeStoredMark(${markType.name})`)
+      return tr.removeStoredMark(markType)
+    } else if (!Mark$excludes(marks, markType)) {
+      console.log(`tr.addStoredMark(${markType.name})`)
+      return tr.addStoredMark(markType.create(attrs))
+    } else {
+      return null
+    }
+  }
+}
+
+class MarkerRule {
+  match: RegExp
+  markType: MarkType
+  static match(match: RegExp) {
+    return (markType: MarkType) => this.new(match, markType)
+  }
+  static new(match: RegExp, markType: MarkType) {
+    return new MarkerRule(match, markType)
+  }
+  constructor(match: RegExp, markType: MarkType) {
+    this.match = match
+    this.markType = markType
+  }
+  handler(
+    state: EditorState,
+    match: string[],
+    start: number,
+    end: number
+  ): ?Transaction {
+    const { schema, tr, doc } = state
+    const [input] = match
+    return toggleMark(tr.delete(start, end), this.markType)
+  }
+}
+
+export const strongMarkRule = MarkerRule.match(/\*\*$/)
+export const codeMarkRule = MarkerRule.match(/`$/)
+export const strikeMarkRule = MarkerRule.match(/~~$/)
+export const emMarkRule = MarkerRule.match(/\_$/)
+
 // : (NodeType, number) → InputRule
 // Given a node type and a maximum level, creates an input rule that
 // turns up to that number of `#` characters followed by a space at
@@ -112,6 +219,11 @@ export const horizontalRule = (nodeType: NodeType) =>
 export default (schema: Schema) => {
   let rules = smartQuotes.concat(ellipsis, emDash)
   let type
+
+  if ((type = schema.marks.em)) rules.push(emMarkRule(type))
+  if ((type = schema.marks.strong)) rules.push(strongMarkRule(type))
+  if ((type = schema.marks.code)) rules.push(codeMarkRule(type))
+  if ((type = schema.marks.strike_through)) rules.push(strikeMarkRule(type))
 
   if ((type = schema.nodes.strong)) rules.push(strongRule(type))
   if ((type = schema.nodes.em)) rules.push(emRule(type))

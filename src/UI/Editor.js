@@ -29,6 +29,7 @@ export default (
   options: EditorOptions = {}
 ): EditorView =>
   new EditorView(target, {
+    mount: target,
     state: EditorState.create({
       doc: markdownParser.parse(content),
       plugins: [

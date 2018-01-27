@@ -30,9 +30,9 @@ export const parser = new MarkdownParser(schema, tokenizer, {
   },
   hardbreak: { node: "hard_break" },
 
-  em: { block: "em" },
-  strong: { block: "strong" },
-  s: { block: "strike_through" },
+  em: { mark: "em" },
+  strong: { mark: "strong" },
+  s: { mark: "strike_through" },
   link: {
     mark: "link",
     getAttrs: tok => ({
@@ -40,7 +40,7 @@ export const parser = new MarkdownParser(schema, tokenizer, {
       title: tok.attrGet("title") || null
     })
   },
-  code_inline: { block: "code_inline" }
+  code_inline: { mark: "code" }
 })
 parser.tokenizer = new parser.tokenizer.constructor({ html: false })
 
