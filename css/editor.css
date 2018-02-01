@@ -353,6 +353,25 @@ li.ProseMirror-selectednode:after {
 }
 
 
+.ProseMirror blockquote,
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6,
+.ProseMirror header {
+  position: relative;
+}
+
+.ProseMirror article {
+  position: relative;
+  border-left: 1px solid #eee;
+  margin-left: -18px;
+  padding-left: 40px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
 
 
 .ProseMirror strong::before,
@@ -365,7 +384,8 @@ li.ProseMirror-selectednode:after {
 .ProseMirror h3::before,
 .ProseMirror h4::before,
 .ProseMirror h5::before,
-.ProseMirror h6::before
+.ProseMirror h6::before,
+.ProseMirror header::before
 {
   content:attr(data-prefix);
   opacity: 0.1;
@@ -391,13 +411,18 @@ li.ProseMirror-selectednode:after {
 .ProseMirror h4::before,
 .ProseMirror h5::before,
 .ProseMirror h6::before,
-.ProseMirror blockquote p::before
+.ProseMirror blockquote p::before,
+.ProseMirror header::before
 {
   position: absolute;
   left: 0px;
   text-align: right;
-  margin-left: -45px;
+  margin-left: -60px;
   width: 50px;
+}
+
+.ProseMirror header::before {
+  content: "/";
 }
 
 .ProseMirror h1::before {
@@ -437,4 +462,14 @@ li.ProseMirror-selectednode:after {
   white-space: pre !important;
   font-family: Consolas, "Lucida Console", Monaco, monospace;
   margin: 0 .2rem;
+}
+
+.ProseMirror header {
+  font-size: 1.7em;
+  font-weight: bold;
+}
+
+body {
+  /* background-color: rgb(240, 240, 240); */
+  color: rgb(28, 28, 23);
 }

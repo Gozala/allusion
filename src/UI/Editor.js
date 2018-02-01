@@ -9,7 +9,7 @@ import { Plugin } from "prosemirror-state"
 import { dropCursor } from "prosemirror-dropcursor"
 import { gapCursor } from "prosemirror-gapcursor"
 import { menuBar, type MenuItem } from "prosemirror-menu"
-import schema from "./Markdown/Schema"
+import schema from "./Allusion/Schema"
 import markdownParser from "./Markdown/Parser"
 
 import { menu, type MenuOptions } from "./Editor/Menu"
@@ -31,7 +31,11 @@ export default (
   new EditorView(target, {
     mount: target,
     state: EditorState.create({
-      doc: markdownParser.parse(content),
+      // doc: markdownParser.parse(content),
+      doc: schema.node("root", null, [
+        schema.node("article", null, [schema.node("header")])
+      ]),
+      // doc: schema.node('doc', null, [schema.node('paragraph')]),
       plugins: [
         Allusion(),
         inputRules(schema),
