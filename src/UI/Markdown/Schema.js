@@ -5,13 +5,14 @@ import { schema } from "prosemirror-markdown"
 
 const override = {
   code: {
-    inline: true,
+    // inline: true,
     code: true,
-    group: "inline",
-    content: "text*",
-    selectable: true,
+    isCode: true,
+    // group: "inline",
+    // content: "text*",
+    // selectable: true,
 
-    excludes: "_",
+    // excludes: "_",
     attrs: {
       "data-prefix": { default: "`" },
       "data-suffix": { default: "`" }

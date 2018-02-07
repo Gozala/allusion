@@ -23,7 +23,7 @@ const bundle = (file, ...plugins) => ({
   output: {
     file: `./js/${file}.js`,
     format: "iife",
-    sourcemap: true
+    sourcemap: "inline"
   },
   // moduleContext: {
   //   [flatbuffersPath]: "({})"
@@ -41,7 +41,21 @@ const bundle = (file, ...plugins) => ({
     //   }
     // },
     alias({
-      "markdown-it": "markdown-it/dist/markdown-it"
+      "markdown-it": "markdown-it/dist/markdown-it",
+      "prosemirror-view": "prosemirror-view/src/index",
+      "prosemirror-commands": "prosemirror-commands/src/commands",
+      "prosemirror-dropcursor": "prosemirror-dropcursor/src/dropcursor",
+      "prosemirror-gapcursor": "prosemirror-gapcursor/src/index",
+      "prosemirror-history": "prosemirror-history/src/history",
+      "prosemirror-inputrules": "prosemirror-inputrules/src/index",
+      "prosemirror-keymap": "prosemirror-keymap/src/keymap",
+      "prosemirror-markdown": "prosemirror-markdown/src/index",
+      "prosemirror-menu": "prosemirror-menu/src/index",
+      "prosemirror-model": "prosemirror-model/src/index",
+      "prosemirror-schema-basic": "prosemirror-schema-basic/src/schema-basic",
+      "prosemirror-schema-list": "prosemirror-schema-list/src/schema-list",
+      "prosemirror-state": "prosemirror-state/src/index",
+      "prosemirror-transform": "prosemirror-transform/src/index"
     }),
     babel({
       babelrc: false,

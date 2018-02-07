@@ -1,7 +1,7 @@
 {
   "version": "0.0.0",
   "name": "allusion",
-  "description": "Example app",
+  "description": "Notebook app",
   "keywords": [
     "allusion",
     "typed",
@@ -33,11 +33,12 @@
     "rollup-plugin-legacy": "1.0.0",
     "rollup-plugin-node-resolve": "3.0.2",
     "rollup-plugin-postcss": "1.2.7",
-    "rollup-plugin-serve": "0.4.2"
+    "rollup-plugin-serve": "0.4.2",
+    "source-map-support": "0.5.3"
   },
   "scripts": {
-    "test": "npm run test:flow && npm run test:tape",
-    "test:tape": "blue-tape -r babel-register 'test/**/*.js'",
+    "test": "npm run build:node && npm run test:flow && npm run test:tape",
+    "test:tape": "blue-tape -r babel-register -r source-map-support/register 'test/**/*.js'",
     "test:flow": "flow check",
     "build:clear": "rm -rf lib",
     "build:types": "flow-copy-source --verbose src lib",
@@ -67,6 +68,7 @@
     ]
   },
   "dependencies": {
+    "@beaker/webdb": "4.1.0",
     "codemirror": "5.34.0",
     "prosemirror-commands": "1.0.4",
     "prosemirror-dropcursor": "1.0.0",

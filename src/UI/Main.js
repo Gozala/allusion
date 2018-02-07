@@ -5,9 +5,9 @@ import "prosemirror-view/style/prosemirror.css"
 import "../../css/editor.css"
 import "../../css/code.css"
 
-self.view = editor(
+self.editor = editor(
   document.body,
-  `# Welcome to Allusion
+  `/ Welcome to Allusion
 
 This an experimental text editor for note taking and thought organization.
 It would ❤️ to do many things & has some ideas how, but for now it does very
@@ -40,4 +40,4 @@ function max(a, b) {
 The content of the code editor is kept in sync with the content of the code block in the rich text editor, so that it
 is as if you're directly editing the outer document, using a more convenient interface.`
 )
-self.view.focus()
+self.editor.focus()

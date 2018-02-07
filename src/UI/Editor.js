@@ -10,11 +10,11 @@ import { dropCursor } from "prosemirror-dropcursor"
 import { gapCursor } from "prosemirror-gapcursor"
 import { menuBar, type MenuItem } from "prosemirror-menu"
 import schema from "./Allusion/Schema"
-import markdownParser from "./Markdown/Parser"
+import Parser from "./Allusion/Parser"
 
 import { menu, type MenuOptions } from "./Editor/Menu"
 import Allusion from "./Allusion"
-import keyBindings from "./Editor/KeyBindings"
+import keyBindings from "./Allusion/KeyBindings"
 import inputRules from "./Editor/InputRules"
 
 interface EditorOptions {
@@ -31,15 +31,16 @@ export default (
   new EditorView(target, {
     mount: target,
     state: EditorState.create({
-      // doc: markdownParser.parse(content),
-      doc: schema.node("root", null, [
-        schema.node("article", null, [schema.node("header")])
-      ]),
+      doc: schema.node("doc", null, [schema.node("header")]),
+      // doc: Parser.parse(content),
+      // doc: schema.node("root", null, [
+      //   schema.node("article", null, [schema.node("header")])
+      // ]),
       // doc: schema.node('doc', null, [schema.node('paragraph')]),
       plugins: [
         Allusion(),
         inputRules(schema),
-        keymap(keyBindings(schema, options.keyMap)),
+        keyBindings(schema, options.keyMap),
         keymap(baseKeymap),
         dropCursor(),
         gapCursor(),

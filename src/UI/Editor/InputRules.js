@@ -19,7 +19,7 @@ import type {
   Transaction,
   Range,
   Node
-} from "prosemirror-model"
+} from "prosemirror-state"
 
 // : (NodeType) → InputRule
 // Given a blockquote node type, returns an input rule that turns `"> "`
@@ -213,13 +213,15 @@ export const horizontalRule = (nodeType: NodeType) =>
     return state.tr.replaceWith(start, end, node)
   })
 
-export const articleRule = (nodeType: NodeType) =>
-  new InputRule(/^\/\s$/, (state, match, start, end) => {
-    const node = state.schema.node("article", null, [
-      state.schema.node("header")
-    ])
-    return state.tr.replaceWith(start - 1, end + 1, node)
-  })
+export const headerRule = (nodeType: NodeType) =>
+  // new InputRule(/^\/\s$/, (state, match, start, end) => {
+  //   // console.log('!!!!!!!!!!!!!!!')
+  //   const node = //state.schema.node("article", null, [
+  //     state.schema.node("header")
+  //   // ])
+  //   return state.tr.replaceWith(start - 1, end + 1, node)
+  // })
+  textblockTypeInputRule(/^\/\s$/, nodeType)
 
 // : (Schema) → Plugin
 // A set of input rules for creating the basic block quotes, lists,
@@ -233,7 +235,7 @@ export default (schema: Schema) => {
   if ((type = schema.marks.code)) rules.push(codeMarkRule(type))
   if ((type = schema.marks.strike_through)) rules.push(strikeMarkRule(type))
 
-  if ((type = schema.nodes.article)) rules.push(articleRule(type))
+  if ((type = schema.nodes.header)) rules.push(headerRule(type))
   if ((type = schema.nodes.strong)) rules.push(strongRule(type))
   if ((type = schema.nodes.em)) rules.push(emRule(type))
   if ((type = schema.nodes.strike_through)) rules.push(strikeRule(type))

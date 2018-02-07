@@ -1,11 +1,22 @@
 // @flow
 
-import { Plugin, PluginKey, Transaction } from "prosemirror-state"
+import { Plugin, PluginKey } from "prosemirror-state"
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view"
-import type { EditorState, Schema, Node, Selection } from "prosemirror-state"
+import type {
+  EditorState,
+  Schema,
+  Node,
+  Selection,
+  Transaction
+} from "prosemirror-state"
 import CodeBlock from "./CodeBlock"
 import InlineNode from "./InlineNode"
 import keyDownHandler from "./CodeBlock/KeyDownHandler"
+import Archive from "./DatArchive"
+import type { DatArchive } from "./DatArchive"
+import type { Program } from "./Allusion/Program"
+import * as program from "./Allusion/Program"
+import pluginKey from "./Allusion/Key"
 
 export type EditorConfig = {
   schema?: Schema,
@@ -14,72 +25,14 @@ export type EditorConfig = {
   plugins?: Plugin[]
 }
 
-export type JSONModel = {}
-
-export class Model {
-  static init(config: EditorConfig, state: EditorState): Model {
-    console.log("plugin init", config, state)
-    return Model.new()
-  }
-  static apply(
-    tr: Transaction,
-    self: Model,
-    last: EditorState,
-    next: EditorState
-  ): Model {
-    console.log(`transact!`, {
-      isSelectionChanged: tr.selectionSet,
-      selection: tr.selection.toJSON(),
-      isDocChanged: tr.docChanged,
-      tr: tr
-    })
-
-    const meta = tr.getMeta(pluginKey)
-    return meta ? Model.withRoot(self, meta.root, next) : Model.update(self, tr)
-  }
-  static toJSON(self: Model): JSONModel {
-    return self
-  }
-  static fromJSON(
-    config: EditorConfig,
-    json: JSONModel,
-    state: EditorState
-  ): Model {
-    return Model.new()
-  }
-  static new() {
-    return new Model(null, DecorationSet.empty)
-  }
-
-  static withRoot(self: Model, root: Document, state: EditorState) {
-    return self.root === root ? self : Model.withDecorations(root, state)
-  }
-  static update(self: Model, tr: Transaction) {
-    return new Model(self.root, self.decorations.map(tr.mapping, tr.doc))
-  }
-  static withDecorations(root: Document, state: EditorState) {
-    const node = root.createElement("span")
-    node.textContent = "🕺🕺🕺"
-    const widget = Decoration.widget(26, node, {
-      side: 1
-    })
-    const decorations = DecorationSet.create(state.doc, [widget])
-    return new Model(root, decorations)
-  }
-  decorations: DecorationSet
-  root: ?Document
-  constructor(root: ?Document, decorations: DecorationSet) {
-    this.decorations = decorations
-  }
-}
-export const pluginKey = new PluginKey("allusion")
 export default (): Plugin =>
   new Plugin({
     key: pluginKey,
-    state: Model,
+    state: Allusion,
     view(editor: EditorView) {
-      const tr = editor.state.tr.setMeta(pluginKey, { root: editor.root })
-      editor.dispatch(tr)
+      const allusion = this.key.getState(editor.state)
+      allusion.editor = editor
+
       return {}
     },
     props: {
@@ -97,3 +50,88 @@ export default (): Plugin =>
       }
     }
   })
+
+interface ProsemirrorProgram<message, model>
+  extends Program<message, model, Transaction, EditorState> {
+  transact(model, Transaction, EditorState, EditorState): message[];
+}
+
+class Allusion<message, model> {
+  program: ProsemirrorProgram<message, model>
+  state: model
+  inbox: message[]
+  editor: ?EditorView
+  constructor(
+    program: ProsemirrorProgram<message, model>,
+    state: model,
+    inbox: message[],
+    editor: ?EditorView
+  ) {
+    this.program = program
+    this.state = state
+    this.inbox = inbox
+    this.editor = editor
+  }
+  static init(
+    config: EditorConfig,
+    editor: EditorState
+  ): Allusion<program.Message, program.Model> {
+    const state = program.init(editor)
+    const self = new Allusion(program, state, [], null)
+    return Allusion.transct(self, state)
+  }
+  static apply(
+    tr: Transaction,
+    self: Allusion<message, model>,
+    last: EditorState,
+    next: EditorState
+  ): Allusion<message, model> {
+    const { program } = self
+    let { state } = self
+    const messages = program.transact(state, tr, last, next)
+    const meta = tr.getMeta(pluginKey) || []
+
+    if (messages != null) {
+      for (let payload of [...messages, ...meta]) {
+        state = program.update(state, payload)
+      }
+    }
+
+    return Allusion.transct(self, state)
+  }
+
+  static transct(
+    self: Allusion<message, model>,
+    state: model
+  ): Allusion<message, model> {
+    self.state = state
+    Allusion.receive(self)
+    Allusion.send(self)
+    return self
+  }
+
+  static async receive(self: Allusion<message, model>) {
+    const { state, inbox, program } = self
+    const messages = await program.receive(state)
+    if (messages.length > 0) {
+      inbox.push(...messages)
+    }
+
+    // Note on first receive self does not has editor set yet, accessing
+    // property here allows it to be set in the meantime.
+    const { editor } = self
+    if (editor != null && inbox.length > 0) {
+      const messages = inbox.splice(0)
+      editor.dispatch(editor.state.tr.setMeta(pluginKey, messages))
+    }
+  }
+  static async send(self: Allusion<message, model>) {
+    const { state, program, editor } = self
+    const transactions = await program.send(state)
+    if (editor != null) {
+      for (const transaction of transactions) {
+        editor.dispatch(transaction)
+      }
+    }
+  }
+}

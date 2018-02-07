@@ -13,7 +13,7 @@ export default class InlineNode {
   suffix: string
   static new(node: Node, view: EditorView, getPos: () => number): InlineNode {
     const document = view.dom.ownerDocument
-    const [name, attrs] = node.type.spec.toDOM(node)
+    const [name, attrs] = (node.type.spec: any).toDOM(node)
     const contentDOM = document.createElement(name)
     contentDOM.textContent = node.textContent
     for (const name in attrs) {
