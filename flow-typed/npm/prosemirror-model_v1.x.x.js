@@ -1,5 +1,5 @@
-// flow-typed signature: 824a4894226716319113792119dbfc3b
-// flow-typed version: c42269b0a2/prosemirror-model_v1.x.x/flow_>=v0.59.x
+// flow-typed signature: 6ee0ce76018c984b09438274897a178b
+// flow-typed version: 6fc4237e01/prosemirror-model_v1.x.x/flow_>=v0.59.x
 
 // @flow
 declare module "prosemirror-model" {
@@ -435,6 +435,18 @@ declare module "prosemirror-model" {
     static fromSchema(schema: Schema): DOMSerializer;
   }
 
-  // The real type of this is something like [string, Object, ...(DOMOutputSpec | 0)]
-  declare export type DOMOutputSpec = Array<string | Object | DOMOutputSpec | 0>
+  declare type Attributes = { [string]: ?string }
+
+  declare export type DOMOutputSpec =
+    | string // node.text
+    | Element // document.createElement("div")
+    | [string] // ["br"]
+    // ["p", 0]
+    // ["img", node.attrs]
+    // ["div", ["hr"]]
+    | [string, 0 | Attributes | DOMOutputSpec | DOMOutputSpec[]]
+    // ["ul", { "data-tight": node.attrs.tight ? "true" : null }, 0]
+    // ["pre", node.attrs.params ? {"data-params": node.attrs.params} : {}, ["code", 0]]
+    // ["li", { "data-task": "true" }, [["input", {"type":"checkbox"}], 0]]
+    | [string, Attributes, 0 | DOMOutputSpec | DOMOutputSpec[]]
 }
