@@ -1,14 +1,15 @@
 // @flow
 
 import {
-  inputRules,
   wrappingInputRule,
   textblockTypeInputRule,
   smartQuotes,
   emDash,
-  ellipsis,
-  InputRule
+  ellipsis
 } from "prosemirror-inputrules"
+
+import { inputRules, InputRule } from "../ProseMirror/InputRules"
+
 // import { toggleMark } from "prosemirror-commands"
 import type {
   NodeType,
@@ -93,9 +94,9 @@ export const wrappingMarkerRule = (pattern: RegExp, nodeType: NodeType) =>
 export const wrappingMarker = (pattern: RegExp) => (nodeType: NodeType) =>
   wrappingMarkerRule(pattern, nodeType)
 
-export const strongRule = wrappingMarker(/\*\*([^\*]+)$/)
-export const emRule = wrappingMarker(/\*([^\*]+)$/)
-export const strikeRule = wrappingMarker(/\~\~([^\~]+)$/)
+// export const strongRule = wrappingMarker(/\*\*([^\*]+)$/)
+// export const emRule = wrappingMarker(/\*([^\*]+)$/)
+// export const strikeRule = wrappingMarker(/\~\~([^\~]+)$/)
 
 export const markerRule = (pattern: RegExp, markType: MarkType) =>
   new InputRule(
@@ -189,10 +190,59 @@ class MarkerRule {
   }
 }
 
-export const strongMarkRule = MarkerRule.match(/\*\*$/)
-export const codeMarkRule = MarkerRule.match(/`$/)
-export const strikeMarkRule = MarkerRule.match(/~~$/)
-export const emMarkRule = MarkerRule.match(/\_$/)
+var re = (strings: string[], ...keys: string[]) => {
+  const [pattern, flags] = String.raw(
+    (strings: any),
+    ...keys.map(escape)
+  ).split("/")
+  return new RegExp(pattern, flags)
+}
+
+var escape = string => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+class MarkRule {
+  marker: string
+  match: RegExp
+  markType: MarkType
+  preventDefault: boolean
+  static match(marker: string) {
+    return (markType: MarkType) => this.new(marker, markType)
+  }
+  static new(marker: string, markType: MarkType) {
+    return new MarkRule(marker, markType)
+  }
+  constructor(
+    marker: string,
+    markType: MarkType,
+    preventDefault: boolean = true
+  ) {
+    this.marker = marker
+    this.match = re`${marker}([^${marker.substr(-1)}]+)${marker}$`
+    this.markType = markType
+    this.preventDefault = preventDefault
+  }
+  handler(
+    state: EditorState,
+    match: string[],
+    start: number,
+    end: number
+  ): ?Transaction {
+    const { markType, marker } = this
+    const { schema, tr, doc } = state
+    const [input] = match
+    return tr
+      .replaceWith(start, end, schema.text(input))
+      .addMark(start, end + 1, markType.create())
+      .removeStoredMark(markType)
+    // .delete(end - marker.length, marker.length)
+    // .delete(start, start + marker.length)
+  }
+}
+
+export const strongMarkRule = MarkRule.match("**")
+// export const codeMarkRule = MarkerRule.match(/`$/)
+// export const strikeMarkRule = MarkerRule.match(/~~$/)
+// export const emMarkRule = MarkerRule.match(/\_$/)
 
 // : (NodeType, number) → InputRule
 // Given a node type and a maximum level, creates an input rule that
@@ -230,16 +280,16 @@ export default (schema: Schema) => {
   let rules = smartQuotes.concat(ellipsis, emDash)
   let type
 
-  if ((type = schema.marks.em)) rules.push(emMarkRule(type))
+  // if ((type = schema.marks.em)) rules.push(emMarkRule(type))
   if ((type = schema.marks.strong)) rules.push(strongMarkRule(type))
-  if ((type = schema.marks.code)) rules.push(codeMarkRule(type))
-  if ((type = schema.marks.strike_through)) rules.push(strikeMarkRule(type))
+  // if ((type = schema.marks.code)) rules.push(codeMarkRule(type))
+  // if ((type = schema.marks.strike_through)) rules.push(strikeMarkRule(type))
 
-  if ((type = schema.nodes.header)) rules.push(headerRule(type))
-  if ((type = schema.nodes.strong)) rules.push(strongRule(type))
-  if ((type = schema.nodes.em)) rules.push(emRule(type))
-  if ((type = schema.nodes.strike_through)) rules.push(strikeRule(type))
-  // if ((type = schema.nodes.link)) rules.push(linkRule(type))
+  // if ((type = schema.nodes.header)) rules.push(headerRule(type))
+  // if ((type = schema.nodes.strong)) rules.push(strongRule(type))
+  // if ((type = schema.nodes.em)) rules.push(emRule(type))
+  // if ((type = schema.nodes.strike_through)) rules.push(strikeRule(type))
+  // // if ((type = schema.nodes.link)) rules.push(linkRule(type))
   if ((type = schema.nodes.code_inline)) rules.push(codeInlineRule(type))
   if ((type = schema.nodes.horizontal_rule)) rules.push(horizontalRule(type))
   if ((type = schema.nodes.blockquote)) rules.push(blockQuoteRule(type))
