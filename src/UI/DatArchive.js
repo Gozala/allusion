@@ -17,7 +17,7 @@ export interface DatArchiveFactory {
   resolveName(URL): Promise<DatURL>;
 }
 
-interface ArchiveInfo {
+export interface ArchiveInfo {
   key: string;
   url: DatURL;
   version: number;
@@ -68,7 +68,7 @@ interface ActivitiStream {
   close(): void;
 }
 
-interface FileActivity {
+export interface FileActivity {
   path: Path;
 }
 

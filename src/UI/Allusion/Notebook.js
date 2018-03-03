@@ -84,10 +84,10 @@ export class Notebook {
         return state.document.path
     }
   }
-  static name(state: Model): ?string {
+  static name(state: Model, url: DatURL): string {
     switch (state.status) {
       case "unmount":
-        return null
+        return url.replace("dat://", "")
       default:
         return state.document.name
     }
@@ -169,12 +169,13 @@ export const update = (state: Model, message: Message): Model => {
     case "selected": {
       const archive = message.selected
       const path = Notebook.path(state)
-      return load(archive.url, path, archive)
+      const name = Notebook.name(state, archive.url)
+      return load(name, path, archive)
     }
     case "mounted": {
       const archive = message.mounted
       const path = Notebook.path(state)
-      const name = Notebook.name(state) || archive.url
+      const name = Notebook.name(state, archive.url)
       return load(name, path, archive)
     }
     case "loaded": {
