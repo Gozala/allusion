@@ -11,6 +11,7 @@ import type {
 } from "prosemirror-state"
 import CodeBlock from "./CodeBlock"
 import InlineNode from "./InlineNode"
+import HeadingView from "./Allusion/NodeView/Heading"
 import keyDownHandler from "./CodeBlock/KeyDownHandler"
 import Archive from "./DatArchive"
 import type { DatArchive } from "./DatArchive"
@@ -37,11 +38,33 @@ export default (): Plugin =>
     },
     props: {
       decorations(state: EditorState) {
-        return this.getState(state).decorations
+        return this.getState(state).decorations()
       },
       handleKeyDown: keyDownHandler,
+      handleTextInput(
+        view: EditorView,
+        from: number,
+        to: number,
+        text: string
+      ): boolean {
+        if (/[\*~#_\[\]\(\)`]/.test(text)) {
+          const { schema, tr, selection } = view.state
+          const { from, to } = selection
+          const mark = schema.mark("formatting")
+          view.dispatch(
+            tr
+              .addStoredMark(mark)
+              .insertText(text)
+              .removeStoredMark(mark)
+              .setMeta(pluginKey, { type: "syntaxInput", text })
+          )
+          return true
+        }
+        return false
+      },
       nodeViews: {
         code_block: CodeBlock.new,
+        heading: HeadingView.new,
         code: InlineNode.new,
         strong: InlineNode.new,
         em: InlineNode.new,
@@ -72,6 +95,9 @@ class Allusion<message, model> {
     this.inbox = inbox
     this.editor = editor
   }
+  decorations() {
+    return this.program.decorations(this.state)
+  }
   static init(
     config: EditorConfig,
     editor: EditorState
@@ -83,16 +109,22 @@ class Allusion<message, model> {
   static apply(
     tr: Transaction,
     self: Allusion<message, model>,
-    last: EditorState,
-    next: EditorState
+    before: EditorState,
+    after: EditorState
   ): Allusion<message, model> {
-    const { program } = self
+    const { program, inbox } = self
     let { state } = self
-    const messages = program.transact(state, tr, last, next)
-    const meta = tr.getMeta(pluginKey) || []
+    const meta = tr.getMeta(pluginKey) || { type: "noop" }
+    const messages = program.transact(state, {
+      transaction: tr,
+      before,
+      after,
+      meta
+    })
 
     if (messages != null) {
-      for (let payload of [...messages, ...meta]) {
+      const queued = inbox.splice(0)
+      for (let payload of [...messages, ...queued]) {
         state = program.update(state, payload)
       }
     }
@@ -121,14 +153,13 @@ class Allusion<message, model> {
     // property here allows it to be set in the meantime.
     const { editor } = self
     if (editor != null && inbox.length > 0) {
-      const messages = inbox.splice(0)
-      editor.dispatch(editor.state.tr.setMeta(pluginKey, messages))
+      editor.dispatch(editor.state.tr)
     }
   }
   static async send(self: Allusion<message, model>) {
     const { state, program, editor } = self
-    const transactions = await program.send(state)
     if (editor != null) {
+      const transactions = await program.send(state)
       for (const transaction of transactions) {
         editor.dispatch(transaction)
       }

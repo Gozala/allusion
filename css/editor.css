@@ -22,6 +22,53 @@
   position: relative;
 }
 
+.ProseMirror li input[type="checkbox"] {
+  -webkit-appearance: none;
+  border: 1px solid #ccc;
+  border-radius: 100%;
+  height: 15px;
+  width: 15px;
+  box-sizing: border-box;
+  vertical-align: bottom;
+  outline: none;
+  position: relative;
+}
+
+.ProseMirror li input[type="checkbox"]:checked {
+  background-color: #999;
+  border: none;
+}
+
+.ProseMirror li input[type="checkbox"]:checked::before,
+.ProseMirror li input[type="checkbox"]:checked::after {
+  content: "";
+  box-sizing: border-box;
+  /* display: block; */
+  position: absolute;
+  /* width: 8px; */
+  height: 1px;
+  margin: 0 auto;
+  top: 0px;
+  /* left: 0; */
+  right: 0;
+  background-color: #fff;
+  border-radius: 5px;
+}
+
+.ProseMirror li input[type="checkbox"]:checked::before {
+  width: 5px;
+  top: 8px;
+  left: -4px;
+  transform: rotateZ(45deg);
+}
+
+.ProseMirror li input[type="checkbox"]:checked::after {
+  width: 7px;
+  left: 4px;
+  top: 7px;
+  transform: rotateZ(-45deg);
+}
+
 .ProseMirror-hideselection *::selection {
   background: transparent;
 }
@@ -245,7 +292,7 @@ li.ProseMirror-selectednode:after {
   content: "";
   display: block;
   height: 3px;
-  background-color: #E1E1E1;
+  background-color: #e1e1e1;
   line-height: 2px;
 }
 
@@ -352,7 +399,6 @@ li.ProseMirror-selectednode:after {
   margin-bottom: 1em;
 }
 
-
 .ProseMirror blockquote,
 .ProseMirror h1,
 .ProseMirror h2,
@@ -373,11 +419,10 @@ li.ProseMirror-selectednode:after {
   padding-bottom: 10px;
 }
 
-
-.ProseMirror strong::before,
-.ProseMirror em::before,
+/* .ProseMirror strong::before, */
+/* .ProseMirror em::before,
 .ProseMirror del::before,
-.ProseMirror code::before,
+.ProseMirror code::before, */
 .ProseMirror blockquote p::before,
 .ProseMirror h1::before,
 .ProseMirror h2::before,
@@ -385,17 +430,16 @@ li.ProseMirror-selectednode:after {
 .ProseMirror h4::before,
 .ProseMirror h5::before,
 .ProseMirror h6::before,
-.ProseMirror header::before
-{
-  content:attr(data-prefix);
+.ProseMirror header::before {
+  content: attr(data-prefix);
   opacity: 0.1;
   font-weight: normal;
   font-style: normal;
   text-decoration: none;
 }
 
-.ProseMirror strong::after,
-.ProseMirror em::after,
+/* .ProseMirror strong::after, */
+/* .ProseMirror em::after,
 .ProseMirror del::after,
 .ProseMirror code::after {
   content:attr(data-suffix);
@@ -403,17 +447,23 @@ li.ProseMirror-selectednode:after {
   font-weight: normal;
   font-style: normal;
   text-decoration: none;
-}
+} */
 
-.ProseMirror h1::before,
+/* .ProseMirror h1::before,
 .ProseMirror h2::before,
 .ProseMirror h3::before,
 .ProseMirror h4::before,
 .ProseMirror h5::before,
-.ProseMirror h6::before,
+.ProseMirror h6::before, */
 .ProseMirror blockquote p::before,
-.ProseMirror header::before
-{
+.ProseMirror header::before,
+/* .ProseMirror h1 mark,
+.ProseMirror h2 mark,
+.ProseMirror h3 mark,
+.ProseMirror h4 mark,
+.ProseMirror h5 mark,
+.ProseMirror h6 mark */
+ {
   position: absolute;
   left: 0px;
   text-align: right;
@@ -425,27 +475,46 @@ li.ProseMirror-selectednode:after {
   content: "/";
 }
 
-.ProseMirror h1::before {
+/* .ProseMirror h1::before {
   content: "#";
 }
 .ProseMirror h2::before {
-  content: "##"
+  content: "##";
 }
 
 .ProseMirror h3::before {
-  content: "###"
+  content: "###";
 }
 
 .ProseMirror h4::before {
-  content: "####"
+  content: "####";
 }
 
 .ProseMirror h5::before {
-  content: "#####"
+  content: "#####";
 }
 
 .ProseMirror h6::before {
-  content: "######"
+  content: "######";
+} */
+
+.ProseMirror h1 mark,
+.ProseMirror h2 mark,
+.ProseMirror h3 mark,
+.ProseMirror h4 mark,
+.ProseMirror h5 mark,
+.ProseMirror h6 mark {
+  display: none;
+  position: relative;
+}
+
+.ProseMirror h1.expand mark,
+.ProseMirror h2.expand mark,
+.ProseMirror h3.expand mark,
+.ProseMirror h4.expand mark,
+.ProseMirror h5.expand mark,
+.ProseMirror h6.expand mark {
+  display: inline;
 }
 
 .ProseMirror blockquote p::before {
@@ -461,7 +530,7 @@ li.ProseMirror-selectednode:after {
   outline: none;
   white-space: pre !important;
   font-family: Consolas, "Lucida Console", Monaco, monospace;
-  margin: 0 .2rem;
+  margin: 0 0.2rem;
 }
 
 .ProseMirror header {
@@ -472,4 +541,16 @@ li.ProseMirror-selectednode:after {
 body {
   /* background-color: rgb(240, 240, 240); */
   color: rgb(28, 28, 23);
+}
+
+mark {
+  background: none;
+  color: rgb(150, 150, 150);
+  font-family: Consolas, "Lucida Console", Monaco, monospace;
+}
+
+u {
+  text-decoration: underline;
+  text-decoration-color: green;
+  text-decoration-style: dotted;
 }

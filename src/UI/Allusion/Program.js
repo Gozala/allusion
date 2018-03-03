@@ -1,17 +1,36 @@
-// @flow
+// @flow strict
 
-import type { Transaction, EditorState } from "prosemirror-state"
+import type { Transaction, EditorState, Mappping } from "prosemirror-state"
+import { Decoration, DecorationSet } from "prosemirror-view"
 import type { DatArchive, DatURL } from "../DatArchive"
 import Archive from "../DatArchive"
+import { Selection } from "prosemirror-state"
 import * as Notebook from "./Notebook"
 import Parser from "./Parser"
 import Serializer from "./Serializer"
+import {
+  editableRange,
+  beginEdit,
+  endEdit,
+  editOffRange,
+  Range
+} from "../ProseMirror/EditRange"
 
 export interface Program<inn, model, out = empty, options = void> {
   init(options): model;
+  decorations(model): DecorationSet;
   update(model, inn): model;
   receive(model): Promise<inn[]>;
-  send(model): Promise<out[]>;
+  send(model): out[];
+}
+
+type Meta = { type: "noop" } | { type: "syntaxInput" }
+
+type Edit = {
+  transaction: Transaction,
+  before: EditorState,
+  after: EditorState,
+  meta: Meta
 }
 
 export type Message =
@@ -20,70 +39,177 @@ export type Message =
   | { type: "info", info: Info }
   | { type: "load", load: string }
   | { type: "loaded", loaded: Notebook.Document }
-  | { type: "save", save: Transaction }
-  | { type: "edit", edit: EditorState }
+  | { type: "save" }
+  | { type: "edit", edit: Edit }
+  | { type: "selectionChange", change: Edit }
 
 export type JSONModel = {}
+
+class EditRange extends Range {
+  decorations: DecorationSet
+  doc: Node
+  constructor(index: number, length: number, decorations: DecorationSet) {
+    super(index, length)
+    this.decorations = decorations
+  }
+  static empty: EditRange = new EditRange(Infinity, 0, DecorationSet.empty)
+  static options = { nodeName: "u" }
+  static new(index: number, length: number, doc: Node) {
+    if (length === 0) {
+      return EditRange.empty
+    } else {
+      const decoration = Decoration.inline(
+        index,
+        index + length,
+        EditRange.options
+      )
+      return new EditRange(
+        index,
+        length,
+        DecorationSet.create(doc, [decoration])
+      )
+    }
+  }
+  map(mapping: Mappping, doc: Node) {
+    if (this.length === 0) {
+      return this
+    } else {
+      const decorations = this.decorations.map(mapping, doc)
+      const decoration = decorations.find()[0]
+      if (!decoration) {
+        return EditRange.empty
+      } else {
+        const { from, to } = decoration
+        const length = to - from
+        if (this.index !== from || this.length !== length) {
+          return new EditRange(from, length, decorations)
+        } else {
+          return this
+        }
+      }
+    }
+  }
+  patch({ index, length }: Range, doc: Node) {
+    if (length === 0) {
+      return EditRange.empty
+    } else if (this.index === index && this.length === length) {
+      return this
+    } else {
+      return EditRange.new(index, length, doc)
+    }
+  }
+  includesSelection({ from, to }: Selection): boolean {
+    const { index, length } = this
+    return from >= index && index + length >= to
+  }
+  includes({ index, length }: Range): boolean {
+    if (length === 0) {
+      return true
+    } else if (this.length === 0) {
+      return false
+    } else {
+      return index >= this.index && this.index + this.length >= index + length
+    }
+  }
+}
 
 export class Model {
   notebook: Notebook.Model
   editor: EditorState
   transaction: ?Transaction
-  time: number
+  editRange: EditRange
+  cursorActivityTime: number
   constructor(
     notebook: Notebook.Model,
     editor: EditorState,
     transaction: ?Transaction,
-    time: number
+    editRange: EditRange,
+    cursorActivityTime: number
   ) {
     this.notebook = notebook
     this.editor = editor
     this.transaction = transaction
-    this.time = time
+    this.editRange = editRange
+    this.cursorActivityTime = cursorActivityTime
   }
 
   static new(
     notebook: Notebook.Model,
     editor: EditorState,
     transaction: ?Transaction,
-    time: number
+    editRange: EditRange,
+    cursorActivityTime: number
   ) {
-    return new Model(notebook, editor, transaction, time)
+    return new Model(
+      notebook,
+      editor,
+      transaction,
+      editRange,
+      cursorActivityTime
+    )
   }
   static load(self: Model, notebook: Notebook.Model) {
     return Model.setNotebook(self, notebook)
   }
-  static save(self: Model, notebook: Notebook.Model, time: number) {
-    return new Model(notebook, self.editor, null, time)
+  static loaded(self: Model, notebook: Notebook.Model, tr: Transaction) {
+    return new Model(
+      notebook,
+      self.editor,
+      tr,
+      self.editRange,
+      self.cursorActivityTime
+    )
   }
   static setNotebook(self: Model, notebook: Notebook.Model) {
-    return new Model(notebook, self.editor, null, self.time)
+    return new Model(
+      notebook,
+      self.editor,
+      null,
+      self.editRange,
+      self.cursorActivityTime
+    )
   }
   static setEditor(self: Model, editor: EditorState) {
-    return new Model(self.notebook, editor, null, self.time)
+    return new Model(
+      self.notebook,
+      editor,
+      null,
+      self.editRange,
+      editor.tr.time
+    )
   }
 }
 
-export const init = (state: EditorState): Model =>
-  new Model(Notebook.unmount(), state, state.tr, state.time)
+export const init = (editor: EditorState): Model =>
+  new Model(
+    Notebook.unmount(),
+    editor,
+    editor.tr,
+    EditRange.empty,
+    editor.tr.time
+  )
+
+export const decorations = (
+  state: Model //DecorationSet.empty
+) => state.editRange.decorations
 
 export const transact = (
   state: Model,
-  tr: Transaction,
-  last: EditorState,
-  next: EditorState
+  edit: {
+    transaction: Transaction,
+    before: EditorState,
+    after: EditorState,
+    meta: Meta
+  }
 ): Message[] => {
-  if (tr.docChanged && tr.time - state.time > 100) {
-    return [{ type: "save", save: tr }]
+  if (edit.transaction.docChanged) {
+    return [{ type: "edit", edit }]
   } else {
-    return [{ type: "edit", edit: next }]
+    return [{ type: "selectionChange", change: edit }]
   }
 }
 
 export const update = (state: Model, message: Message): Model => {
-  if (message.type !== "edit") {
-    console.log(message, state)
-  }
   switch (message.type) {
     case "info": {
       return Model.setNotebook(state, Notebook.init(message.info))
@@ -107,18 +233,17 @@ export const update = (state: Model, message: Message): Model => {
         content
       )
       const notebook = Notebook.update(state.notebook, message)
-      return Model.new(notebook, self.editor, transaction, transaction.time)
+      return Model.loaded(state, notebook, transaction)
     }
     case "save": {
-      const content = Serializer.serialize(message.save.doc)
-      return Model.save(
-        state,
-        Notebook.save(state.notebook, content),
-        message.save.time
-      )
+      const content = Serializer.serialize(state.editor.doc)
+      return Model.setNotebook(state, Notebook.save(state.notebook, content))
     }
     case "edit": {
-      return Model.setEditor(state, message.edit)
+      return edit(state, message.edit)
+    }
+    case "selectionChange": {
+      return selectionChange(state, message.change)
     }
     case "notebook": {
       return Model.setNotebook(
@@ -132,20 +257,73 @@ export const update = (state: Model, message: Message): Model => {
   }
 }
 
-export const receive = async (state: Model): Promise<Message[]> => {
-  try {
-    if (state.notebook.status === "unmount") {
-      return [{ type: "info", info: await readInfo() }]
+export const edit = (state: Model, edit: Edit): Model => {
+  const { after, transaction, meta } = edit
+  const { schema } = after
+
+  const { selection, doc } = transaction
+  const range = state.editRange.map(transaction.mapping, transaction.doc)
+  return Model.new(state.notebook, after, null, range, transaction.time)
+}
+
+export const selectionChange = (state: Model, change: Edit): Model => {
+  const { editRange } = state
+  const { after, transaction, meta } = change
+  const { schema } = after
+  const { selection, doc } = transaction
+
+  if (editRange.includesSelection(selection)) {
+    return Model.setEditor(state, after)
+  } else {
+    const range = editableRange(selection)
+
+    let tr = after.tr
+    if (editRange.length > 0 && range.length === 0) {
+      tr = endEdit(tr, editRange, schema)
+    } else if (editRange.length === 0 && range.length > 0) {
+      tr = beginEdit(tr, range, schema)
+    } else if (editRange.includes(range)) {
+      tr = null
     } else {
-      const notebookMessages = await Notebook.receive(state.notebook)
-      return notebookMessages.map(toNotebookMessage)
+      // Need to do replace range that is further off in the document
+      // so that other edit ranges won't get shifted.
+      if (range.index + range.length > editRange.index + editRange.length) {
+        tr = beginEdit(tr, range, schema)
+        tr = endEdit(tr, editRange, schema)
+      } else {
+        tr = endEdit(tr, editRange, schema)
+        tr = beginEdit(tr, range, schema)
+      }
     }
-  } catch (error) {
-    return [{ type: "error", error }]
+
+    return Model.new(
+      state.notebook,
+      after,
+      tr,
+      editRange.patch(range, doc),
+      transaction.time
+    )
   }
 }
 
-export const send = async (state: Model): Promise<Transaction[]> => {
+export const receive = async (state: Model): Promise<Message[]> => {
+  if (state.notebook.status === "unmount" && !state.notebook.select) {
+    return [{ type: "info", info: await readInfo() }]
+  } else {
+    const { notebook, editor } = state
+    if (notebook.status !== "unmount") {
+      const { document } = notebook
+      if (editor.tr.time - document.time > 100) {
+        // return [{ type: "save" }]
+      }
+    }
+
+    const notebookMessages = await Notebook.receive(state.notebook)
+    return notebookMessages.map(toNotebookMessage)
+  }
+}
+
+export const send = (state: Model): Transaction[] => {
   return state.transaction ? [state.transaction] : []
 }
 
@@ -187,11 +365,13 @@ const readInfo = async (): Promise<Info> => {
 }
 
 const parseDocument = (document: Notebook.Document) => {
-  const { content } = Parser.parse(document.content)
+  const node = Parser.parse(document.content)
+  const { content } = node
+  console.log(node)
   // Parser seems to right trim content of the document. As a simple workaround
   // we check if last child is header and if so we add empty paragraph.
-  if (content.lastChild.type.name === "header") {
-    return content.addToEnd(Parser.schema.node("paragraph"))
+  if (content.lastChild && content.lastChild.type.name === "header") {
+    return (content: any).addToEnd(Parser.schema.node("paragraph"))
   } else {
     return content
   }
