@@ -239,12 +239,13 @@ declare module "prosemirror-model" {
   declare export class Schema {
     spec: SchemaSpec;
     nodes: { [name: string]: NodeType };
-    marks: ?{ [name: string]: MarkType };
+    marks: { [name: string]: MarkType };
     topNodeType: NodeType;
     cached: Object;
 
     constructor(spec: SchemaSpec): Schema;
 
+    nodeType(string): NodeType;
     node(
       type: string | NodeType,
       attrs?: ?{ [key: string]: any },
