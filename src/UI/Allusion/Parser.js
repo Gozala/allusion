@@ -1,18 +1,42 @@
 // @flow
 
-import { MarkdownParser, defaultMarkdownParser } from "prosemirror-markdown"
+import MarkdownIt from "markdown-it"
+import { MarkdownParser } from "../Markdown/Parser"
 import schema from "./Schema"
-import header from "./Parser/header"
+import Header from "./Parser/Header"
+import TaskList from "./Parser/TaskList"
 
-const { tokenizer, tokens } = defaultMarkdownParser
-export const parser = new MarkdownParser(schema, tokenizer, {
+const tokenizer = new MarkdownIt({ html: false })
+tokenizer.block.ruler.after("heading", "header", Header)
+tokenizer.use(TaskList, { label: true, labelAfter: true, enabled: true })
+
+export default new MarkdownParser(schema, tokenizer, {
   blockquote: { block: "blockquote" },
   paragraph: { block: "paragraph" },
-  list_item: { block: "list_item" },
-  bullet_list: { block: "bullet_list" },
+  list_item: {
+    block: "list_item",
+    getAttrs(tok) {
+      return {
+        class: tok.attrGet("class")
+      }
+    }
+  },
+  bullet_list: {
+    block: "bullet_list",
+    getAttrs(tok) {
+      return {
+        class: tok.attrGet("class")
+      }
+    }
+  },
   ordered_list: {
     block: "ordered_list",
-    getAttrs: tok => ({ order: +tok.attrGet("order") || 1 })
+    getAttrs(tok) {
+      return {
+        class: tok.attrGet("class"),
+        order: +tok.attrGet("order") || 1
+      }
+    }
   },
   heading: {
     block: "heading",
@@ -26,19 +50,44 @@ export const parser = new MarkdownParser(schema, tokenizer, {
   hr: { node: "horizontal_rule" },
   image: {
     node: "image",
-    getAttrs: tok => ({
-      src: tok.attrGet("src"),
-      title: tok.attrGet("title") || null,
-      alt: (tok.children[0] && tok.children[0].content) || null
-    })
+    getAttrs: tok => {
+      const src = String(tok.attrGet("src"))
+      const url = src.includes(":")
+        ? src
+        : `${window.location.href.replace(
+            `${window.location.hostname}/`,
+            ""
+          )}/${src}`
+
+      return {
+        src: url,
+        title: tok.attrGet("title") || null,
+        alt: (tok.children[0] && tok.children[0].content) || null
+      }
+    }
   },
   hardbreak: { node: "hard_break" },
+  checkbox_input: {
+    node: "checkbox",
+    getAttrs: tok => ({
+      checked: tok.attrGet("checked"),
+      type: tok.attrGet("type"),
+      id: tok.attrGet("id"),
+      disabled: tok.attrGet("disabled")
+    })
+  },
+  label: {
+    block: "label",
+    getAttrs: tok => ({
+      for: tok.attrGet("for")
+    })
+  },
 
   em: { mark: "em" },
   strong: { mark: "strong" },
   s: { mark: "strike_through" },
   link: {
-    mark: "link",
+    block: "anchor",
     getAttrs: tok => ({
       href: tok.attrGet("href"),
       title: tok.attrGet("title") || null
@@ -46,7 +95,3 @@ export const parser = new MarkdownParser(schema, tokenizer, {
   },
   code_inline: { mark: "code" }
 })
-parser.tokenizer = new parser.tokenizer.constructor({ html: false })
-parser.tokenizer.block.ruler.after("heading", "header", header)
-
-export default parser

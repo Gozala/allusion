@@ -1,5 +1,6 @@
 // @flow
 
+import type { StateBlock, Token } from "markdown-it"
 export const SLASH = "/".charCodeAt(0)
 
 export const isSpace = (code: number) => {
@@ -11,28 +12,8 @@ export const isSpace = (code: number) => {
   return false
 }
 
-interface State {
-  line: number;
-  bMarks: number[];
-  eMarks: number[];
-  tShift: number[];
-  sCount: number[];
-  blkIndent: number;
-  src: string;
-  skipSpacesBack(number, number): number;
-  skipCharsBack(number, number, number): number;
-  push(string, string, number): Token;
-}
-
-interface Token {
-  markup: string;
-  map: number[];
-  content: string;
-  children: Token[];
-}
-
 export default (
-  state: State,
+  state: StateBlock,
   startLine: number,
   endLine: number,
   silent: boolean
