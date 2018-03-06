@@ -53,7 +53,8 @@ class EditRange extends Range {
     this.decorations = decorations
   }
   static empty: EditRange = new EditRange(Infinity, 0, DecorationSet.empty)
-  static options = { nodeName: "u" }
+  static attributes = { nodeName: "u" }
+  static options = { inclusiveStart: true, inclusiveEnd: true }
   static new(index: number, length: number, doc: Node) {
     if (length === 0) {
       return EditRange.empty
@@ -61,6 +62,7 @@ class EditRange extends Range {
       const decoration = Decoration.inline(
         index,
         index + length,
+        EditRange.attributes,
         EditRange.options
       )
       return new EditRange(
