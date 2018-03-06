@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import { keydownHandler } from "prosemirror-keymap"
 import { Selection } from "prosemirror-state"

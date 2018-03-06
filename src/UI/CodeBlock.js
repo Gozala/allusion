@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import CodeMirror from "codemirror"
 import "codemirror/mode/javascript/javascript"

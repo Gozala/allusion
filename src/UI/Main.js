@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import editor from "./Editor"
 import "prosemirror-view/style/prosemirror.css"

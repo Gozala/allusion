@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import {
   wrappingInputRule,
@@ -57,7 +57,9 @@ export function codeBlockRule(nodeType: NodeType) {
 }
 
 export const codeInlineRule = (nodeType: NodeType) =>
-  new InputRule(/(?:^|[^`])(`[^`]+)$/, (state, match, start, end) => {
+  new InputRule(/(?:^|[^`])(`[^`]+)$/, (state, match, from, to) => {
+    let start = from
+    const end = to
     let [input, insert] = match
     if (insert) {
       const offset = input.lastIndexOf(insert)

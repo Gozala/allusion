@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import type { EditorView } from "prosemirror-view"
 import type { Node } from "prosemirror-model"

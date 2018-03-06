@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import {
   wrapIn,
@@ -58,7 +58,8 @@ export default (
 ) => {
   let keys = {},
     type
-  function bind(key: string, cmd) {
+  function bind(name: string, cmd) {
+    let key = name
     if (mapKeys) {
       let mapped = mapKeys[key]
       if (mapped === false) return

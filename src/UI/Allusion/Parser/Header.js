@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import type { StateBlock, Token } from "markdown-it"
 export const SLASH = "/".charCodeAt(0)

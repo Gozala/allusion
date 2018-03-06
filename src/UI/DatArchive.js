@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 interface InitOptions { title: string; description: string }
 interface ChooseOptions {

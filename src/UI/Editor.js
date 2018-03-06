@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import { EditorState, Selection, TextSelection } from "prosemirror-state"
 import { EditorView } from "prosemirror-view"
