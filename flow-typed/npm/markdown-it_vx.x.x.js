@@ -154,6 +154,7 @@ declare module "markdown-it" {
     attrJoin(string: string, value: mixed): void;
     attrPush(name: string, value: mixed): void;
     attrSet(name: string, value: mixed): void;
+    attrGet(name: string): mixed;
     attrs: Array<[string, mixed]>;
     block: boolean;
     children: Token[];
