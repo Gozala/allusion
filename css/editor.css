@@ -498,7 +498,7 @@ li.ProseMirror-selectednode:after {
   content: "######";
 } */
 
-.ProseMirror h1 mark,
+/* .ProseMirror h1 mark,
 .ProseMirror h2 mark,
 .ProseMirror h3 mark,
 .ProseMirror h4 mark,
@@ -515,7 +515,7 @@ li.ProseMirror-selectednode:after {
 .ProseMirror h5.expand mark,
 .ProseMirror h6.expand mark {
   display: inline;
-}
+} */
 
 .ProseMirror blockquote p::before {
   content: ">";

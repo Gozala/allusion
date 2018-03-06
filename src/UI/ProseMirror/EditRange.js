@@ -5,7 +5,7 @@ import type { Mark, Node, Schema } from "prosemirror-model"
 import { Decoration, DecorationSet } from "prosemirror-view"
 import { getSelectionMarkers } from "./Marks"
 import { Selection } from "prosemirror-state"
-import { Fragment } from "prosemirror-model"
+import { Fragment, Slice } from "prosemirror-model"
 import Parser from "../Allusion/Parser"
 import Serializer from "../Allusion/Serializer"
 
@@ -67,146 +67,203 @@ export const markedRange = (selection: Selection): Range => {
 
 export const endEdit = (
   tr: Transaction,
-  { index, length }: Range,
+  range: Range,
   schema: Schema
 ): Transaction => {
-  const end = index + length
-  const slice = tr.doc.slice(index, end)
-  // const fragment = collapse(slice.content, schema)
-  const markup = tr.doc.textBetween(index, end)
-  const fragment = Parser.parseInline(markup)
-  if (slice.content.eq(fragment)) {
-    return tr
-  } else {
-    return tr.replaceRangeWith(index, end, fragment)
-  }
+  return collapse(tr, range, schema)
 }
 
 export const beginEdit = (
   tr: Transaction,
-  { index, length }: Range,
+  range: Range,
   schema: Schema
 ): Transaction => {
-  const end = index + length
-  const slice = tr.doc.slice(index, end)
-  // const markup = Serializer.serializeInline(slice.content)
-  // return tr.replaceRangeWith(start, end, Parser.schema.text(markup))
-
-  return tr.replaceRangeWith(index, end, expand(slice.content, schema))
+  return expand(range, tr, schema)
 }
 
-export const expand = (content: Fragment, schema: Schema): Fragment =>
-  Fragment.fromArray(expandInto([], content, schema))
-
-const expandInto = (
-  nodes: Node[],
-  content: Fragment,
+class ChangeList {
+  tr: Transaction
+  index: number
+  format: Mark[]
   schema: Schema
-): Node[] => {
-  let index = 0
-  let offset = 0
-  const count = content.childCount
-  const openMarks = new Map()
+  storedMarks: Map<string, boolean>
+  constructor(
+    index: number,
+    tr: Transaction,
+    schema: Schema,
+    format: Mark[],
+    storedMarks: Map<string, boolean>
+  ) {
+    this.index = index
+    this.format = format
+    this.schema = schema
+    this.tr = tr
+    this.storedMarks = storedMarks
+  }
+  updateMarks(marks: Mark[]) {
+    const newMarks = new Map()
+    const { storedMarks } = this
 
-  const formatting = [schema.mark("formatting")]
-  while (index < count) {
-    const node = content.child(index)
-    const marks = node.marks
     for (let mark of marks) {
-      const marker: ?string = mark.attrs["data-prefix"] || null
-      if (marker != null) {
-        if (!openMarks.has(marker)) {
-          nodes.push(schema.text(marker, formatting))
-        }
-        openMarks.set(marker, index)
+      const markup: string = mark.attrs["markup"] || ""
+      if (markup != "") {
+        newMarks.set(markup, true)
       }
     }
 
-    offset = nodes.length
+    for (let mark of storedMarks.keys()) {
+      if (newMarks.has(mark)) {
+        newMarks.delete(mark)
+      } else {
+        storedMarks.delete(mark)
+        this.insertMarkup(mark)
+        console.log("--", mark)
+      }
+    }
+
+    for (const mark of newMarks.keys()) {
+      storedMarks.set(mark, true)
+      this.insertMarkup(mark)
+      console.log("++", mark)
+    }
+
+    return this
+  }
+  removeMark(mark: string) {}
+  insertMarkup(markup: string) {
+    this.insertNode(this.schema.text(markup, this.format))
+    return this
+  }
+  insertNode(node: Node) {
+    this.tr = this.tr.insert(this.index, node)
+    console.log(`+${node.toString()}@${this.index}`)
+    this.index += node.nodeSize
+    return this
+  }
+  retainNode(node: Node) {
+    this.index += node.nodeSize
+    return this
+  }
+  markupNode(markup: string, node: Node) {
+    this.index += 1
+    this.insertMarkup(markup)
+    this.index += node.nodeSize - 1
+    this.retainNode(node)
+    return this
+  }
+  deleteNode(node: Node) {
+    this.tr = this.tr.delete(this.index, this.index + node.nodeSize)
+    console.log(`-${node.toString()}@${this.index}`)
+    return this
+  }
+}
+
+export const expand = (
+  range: Range,
+  transaction: Transaction,
+  schema: Schema
+): Transaction => {
+  const { selection, doc } = transaction
+  const { content } = doc.slice(range.index, range.index + range.length)
+  const changeList = new ChangeList(
+    range.index,
+    transaction,
+    schema,
+    [schema.mark("markup")],
+    new Map()
+  )
+
+  const count = content.childCount
+  let index = 0
+
+  while (index < count) {
+    const node = content.child(index)
+    changeList.updateMarks(node.marks)
+
     switch (node.type) {
       case schema.nodes.anchor: {
-        nodes.push(schema.text("[", formatting))
-        expandInto(nodes, node.content, schema)
-        nodes.push(schema.text("](", formatting))
+        changeList
+          .insertMarkup("[")
+          .retainNode(node)
+          .insertMarkup("](")
+
         const title =
           node.attrs.title == null
             ? ""
             : JSON.stringify(String(node.attrs.title))
-        nodes.push(schema.text(`${node.attrs.href} ${title}`))
-        nodes.push(schema.text(")", formatting))
+        changeList
+          .insertNode(schema.text(`${node.attrs.href} ${title}`))
+          .insertMarkup(")")
+
         break
       }
       case schema.nodes.heading: {
         const level: number = node.attrs.level || 1
-        nodes.push(
-          schema.node(
-            schema.nodes.heading,
-            { level: node.attrs.level, expand: true },
-            Fragment.from(
-              schema.text(`${"#".repeat(level)} `, formatting)
-            ).append(node.content)
-          )
-        )
+        changeList.markupNode(`${"#".repeat(level)} `, node)
         break
       }
-      case schema.nodes.horizontal_rule: {
-        nodes.push(schema.text("---", formatting))
-        break
-      }
+      // case schema.nodes.horizontal_rule: {
+      //   changeList.markupNode("---", node)
+      //   break
+      // }
       case schema.nodes.image: {
-        nodes.push(schema.text("![", formatting))
-        nodes.push(schema.text(node.attrs.alt))
-        nodes.push(schema.text("](", formatting))
+        changeList
+          .insertMarkup("![")
+          .insertNode(schema.text(node.attrs.alt))
+          .insertMarkup("](")
+
         const title =
           node.attrs.title == null
             ? ""
             : JSON.stringify(String(node.attrs.title))
-        nodes.push(schema.text(`${node.attrs.src} ${title}`))
-        nodes.push(schema.text(")", formatting))
+
+        changeList
+          .insertNode(schema.text(`${node.attrs.src} ${title}`))
+          .insertMarkup(")")
+          .retainNode(node)
+
         break
       }
       default: {
-        nodes.push(node)
+        changeList.retainNode(node)
         break
       }
     }
-
-    for (const [marker, value] of openMarks.entries()) {
-      if (value != index) {
-        openMarks.delete(marker)
-        nodes.splice(offset++, 0, schema.text(marker, formatting))
-      }
-    }
-
     index++
   }
 
-  for (const marker of openMarks.keys()) {
-    nodes.push(schema.text(marker, formatting))
-  }
-
-  return nodes
+  return changeList.updateMarks([]).tr
 }
 
-export const collapse = (content: Fragment, schema: Schema): Fragment =>
-  Fragment.fromArray(collapseInto([], content, schema))
-
-export const collapseInto = (
-  nodes: Node[],
-  content: Fragment,
+export const collapse = (
+  transaction: Transaction,
+  range: Range,
   schema: Schema
-): Node[] => {
-  let index = 0
-  let offset = 0
-  const count = content.childCount
-  const openMarks = new Map()
+): Transaction => {
+  const { selection, doc } = transaction
+  const { content } = doc.slice(range.index, range.index + range.length)
+  const changeList = new ChangeList(
+    range.index,
+    transaction,
+    schema,
+    [schema.mark("markup")],
+    new Map()
+  )
 
-  const formatting = [schema.mark("formatting")]
+  let index = 0
+  const count = content.childCount
   while (index < count) {
     const node = content.child(index)
     const marks = node.marks
+    if (marks.some($ => $.type.name === "markup")) {
+      changeList.deleteNode(node)
+    } else {
+      changeList.retainNode(node)
+    }
+
+    index += 1
   }
-  return nodes
+  return changeList.tr
 }
 
 export const editOffRange = (

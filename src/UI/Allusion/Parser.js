@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import MarkdownIt from "markdown-it"
 import { MarkdownParser } from "../Markdown/Parser"
@@ -17,7 +17,8 @@ export default new MarkdownParser(schema, tokenizer, {
     block: "list_item",
     getAttrs(tok) {
       return {
-        class: tok.attrGet("class")
+        class: tok.attrGet("class"),
+        markup: tok.markup
       }
     }
   },
@@ -25,7 +26,8 @@ export default new MarkdownParser(schema, tokenizer, {
     block: "bullet_list",
     getAttrs(tok) {
       return {
-        class: tok.attrGet("class")
+        class: tok.attrGet("class"),
+        markup: tok.markup
       }
     }
   },
@@ -34,19 +36,33 @@ export default new MarkdownParser(schema, tokenizer, {
     getAttrs(tok) {
       return {
         class: tok.attrGet("class"),
-        order: +tok.attrGet("order") || 1
+        order: +tok.attrGet("order") || 1,
+        markup: tok.markup
       }
     }
   },
   heading: {
     block: "heading",
-    getAttrs: tok => ({ level: +tok.tag.slice(1) })
+    getAttrs(tok) {
+      return {
+        level: +tok.tag.slice(1),
+        markup: tok.markup
+      }
+    }
   },
   header: {
     block: "header"
   },
   code_block: { block: "code_block" },
-  fence: { block: "code_block", getAttrs: tok => ({ params: tok.info || "" }) },
+  fence: {
+    block: "code_block",
+    getAttrs(tok) {
+      return {
+        params: tok.info || "",
+        markup: tok.markup
+      }
+    }
+  },
   hr: { node: "horizontal_rule" },
   image: {
     node: "image",
@@ -83,9 +99,30 @@ export default new MarkdownParser(schema, tokenizer, {
     })
   },
 
-  em: { mark: "em" },
-  strong: { mark: "strong" },
-  s: { mark: "strike_through" },
+  em: {
+    mark: "em",
+    getAttrs(token) {
+      return {
+        markup: token.markup
+      }
+    }
+  },
+  strong: {
+    mark: "strong",
+    getAttrs(token) {
+      return {
+        markup: token.markup
+      }
+    }
+  },
+  s: {
+    mark: "strike_through",
+    getAttrs(token) {
+      return {
+        markup: token.markup
+      }
+    }
+  },
   link: {
     block: "anchor",
     getAttrs: tok => ({
@@ -93,5 +130,12 @@ export default new MarkdownParser(schema, tokenizer, {
       title: tok.attrGet("title") || null
     })
   },
-  code_inline: { mark: "code" }
+  code_inline: {
+    mark: "code",
+    getAttrs(token) {
+      return {
+        markup: token.markup
+      }
+    }
+  }
 })

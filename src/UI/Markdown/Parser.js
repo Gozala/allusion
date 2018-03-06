@@ -1,9 +1,9 @@
-// @flow
+// @flow strict
 
 import schema from "./Schema"
 import MarkdownIt from "markdown-it"
 import type { Token } from "markdown-it"
-import { Mark } from "prosemirror-model"
+import { Mark, MarkType } from "prosemirror-model"
 import type { Schema, NodeType, Node, Fragment } from "prosemirror-model"
 
 function maybeMerge(a, b) {
@@ -13,7 +13,7 @@ function maybeMerge(a, b) {
   }
 }
 
-type Attributes = { [string]: ?string }
+type Attributes = { [string]: mixed }
 
 type TokenHandle = (MarkdownParseState, Token) => void
 
@@ -23,6 +23,32 @@ type Stack = {
   attrs?: Attributes,
   content: Array<Node>
 }[]
+
+type TokenSpec =
+  | {
+      block: string,
+      node?: void,
+      mark?: void,
+      ignore?: boolean,
+      attrs?: Attributes,
+      getAttrs?: Token => Attributes
+    }
+  | {
+      block?: void,
+      node: string,
+      mark?: void,
+      ignore?: boolean,
+      attrs?: { [string]: mixed },
+      getAttrs?: Token => Attributes
+    }
+  | {
+      block?: void,
+      node?: void,
+      mark: string,
+      ignore?: boolean,
+      attrs?: Attributes,
+      getAttrs?: Token => Attributes
+    }
 
 // Object used to track the context of a running parse.
 export class MarkdownParseState {
@@ -67,7 +93,7 @@ export class MarkdownParseState {
 
   // : (Mark)
   // Removes the given mark from the set of active marks.
-  closeMark(mark: Mark) {
+  closeMark(mark: MarkType) {
     this.marks = mark.removeFromSet(this.marks)
   }
 
@@ -107,7 +133,7 @@ export class MarkdownParseState {
   }
 }
 
-function attrs(spec, token) {
+function attrs(spec: TokenSpec, token: Token) {
   if (spec.getAttrs) return spec.getAttrs(token)
   else if (spec.attrs instanceof Function)
     // For backwards compatibility when `attrs` is a Function
@@ -128,7 +154,7 @@ function withoutTrailingNewline(str) {
 function noOp() {}
 
 function tokenHandlers(schema, tokens) {
-  let handlers = (Object.create(null): Object)
+  let handlers: TokenHandlers = (Object.create(null): Object)
   for (let type in tokens) {
     let spec = tokens[type]
     if (spec.block) {
@@ -140,13 +166,19 @@ function tokenHandlers(schema, tokens) {
           state.closeNode()
         }
       } else {
-        handlers[type + "_open"] = (state, tok) =>
+        handlers[type + "_open"] = (state, tok) => {
           state.openNode(nodeType, attrs(spec, tok))
-        handlers[type + "_close"] = state => state.closeNode()
+        }
+        handlers[type + "_close"] = state => {
+          state.closeNode()
+        }
       }
     } else if (spec.node) {
       let nodeType = schema.nodeType(spec.node)
-      handlers[type] = (state, tok) => state.addNode(nodeType, attrs(spec, tok))
+      handlers[type] = (state, tok) => {
+        state.openNode(nodeType, attrs(spec, tok))
+        state.closeNode()
+      }
     } else if (spec.mark) {
       let markType = schema.marks[spec.mark]
       if (noOpenClose(type)) {
@@ -156,9 +188,12 @@ function tokenHandlers(schema, tokens) {
           state.closeMark(markType)
         }
       } else {
-        handlers[type + "_open"] = (state, tok) =>
+        handlers[type + "_open"] = (state, tok) => {
           state.openMark(markType.create(attrs(spec, tok)))
-        handlers[type + "_close"] = state => state.closeMark(markType)
+        }
+        handlers[type + "_close"] = (state, tok) => {
+          state.closeMark(markType)
+        }
       }
     } else if (spec.ignore) {
       if (noOpenClose(type)) {
@@ -225,7 +260,11 @@ export class MarkdownParser {
   //
   // **`ignore`**`: ?bool`
   //   : When true, ignore content for the matched token.
-  constructor(schema: Schema, tokenizer: MarkdownIt, tokens: Object) {
+  constructor(
+    schema: Schema,
+    tokenizer: MarkdownIt,
+    tokens: { [string]: TokenSpec }
+  ) {
     // :: Object The value of the `tokens` object used to construct
     // this parser. Can be useful to copy and modify to base other
     // parsers on.

@@ -37,7 +37,7 @@ export const schema = new Schema({
       }
     },
     heading: {
-      attrs: { level: { default: 1 }, expand: { default: false } },
+      attrs: { level: { default: 1 }, expand: { default: false }, markup: {} },
       content: "inline*",
       group: "block",
       defining: true,
@@ -52,7 +52,10 @@ export const schema = new Schema({
       toDOM(node) {
         return [
           "h" + node.attrs.level,
-          { class: node.attrs.expand ? "expand" : "" },
+          {
+            class: node.attrs.expand ? "expand" : "",
+            markup: node.attrs.markup
+          },
           0
         ]
       }
@@ -186,7 +189,8 @@ export const schema = new Schema({
       // excludes: "_",
       attrs: {
         "data-prefix": { default: "`" },
-        "data-suffix": { default: "`" }
+        "data-suffix": { default: "`" },
+        markup: {}
       },
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
@@ -201,8 +205,7 @@ export const schema = new Schema({
       selectable: true,
       defining: true,
       attrs: {
-        "data-prefix": { default: "**" },
-        "data-suffix": { default: "**" }
+        markup: { default: "**" }
       },
 
       parseDOM: [
@@ -224,8 +227,7 @@ export const schema = new Schema({
       content: "inline*",
       selectable: true,
       attrs: {
-        "data-prefix": { default: "_" },
-        "data-suffix": { default: "_" }
+        markup: { default: "_" }
       },
 
       parseDOM: [
@@ -244,8 +246,7 @@ export const schema = new Schema({
       content: "inline*",
       selectable: true,
       attrs: {
-        "data-prefix": { default: "~~" },
-        "data-suffix": { default: "~~" }
+        markup: { default: "~~" }
       },
 
       parseDOM: [
@@ -299,8 +300,7 @@ export const schema = new Schema({
 
       // excludes: "_",
       attrs: {
-        "data-prefix": { default: "`" },
-        "data-suffix": { default: "`" }
+        markup: { default: "`" }
       },
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
@@ -314,8 +314,7 @@ export const schema = new Schema({
       selectable: true,
       defining: true,
       attrs: {
-        "data-prefix": { default: "**" },
-        "data-suffix": { default: "**" }
+        markup: { default: "**" }
       },
 
       parseDOM: [
@@ -336,8 +335,7 @@ export const schema = new Schema({
       content: "inline*",
       selectable: true,
       attrs: {
-        "data-prefix": { default: "_" },
-        "data-suffix": { default: "_" }
+        markup: { default: "_" }
       },
 
       parseDOM: [
@@ -355,8 +353,7 @@ export const schema = new Schema({
       content: "inline*",
       selectable: true,
       attrs: {
-        "data-prefix": { default: "~~" },
-        "data-suffix": { default: "~~" }
+        markup: { default: "~~" }
       },
 
       parseDOM: [
@@ -381,7 +378,8 @@ export const schema = new Schema({
         "data-prefix": { default: "[" },
         "data-suffix": { default: "]" },
         href: {},
-        title: { default: null }
+        title: { default: null },
+        markup: {}
       },
       parseDOM: [
         {
@@ -398,13 +396,13 @@ export const schema = new Schema({
         return ["a", node.attrs, 0]
       }
     },
-    formatting: {
+    markup: {
       inline: true,
       group: "inline",
-      content: "inline*",
+      content: "text*",
       selectable: true,
       toDOM(node) {
-        return ["mark", node.attrs, 0]
+        return ["mark", 0]
       }
     }
   }

@@ -17,7 +17,7 @@ export default class HeadingView {
     const dom = editor.root.createElement(tagName)
     const mark = editor.root.createElement("mark")
     const content = editor.root.createElement("span")
-    mark.textContent = `${"#".repeat(level)} `
+    mark.textContent = node.attrs.markup
     dom.appendChild(mark)
     dom.appendChild(content)
     this.dom = dom

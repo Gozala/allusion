@@ -1,4 +1,4 @@
-// @flow
+// @flow strict
 
 import { Plugin, PluginKey } from "prosemirror-state"
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view"
@@ -50,7 +50,7 @@ export default (): Plugin =>
         if (/[\*~#_\[\]\(\)`]/.test(text)) {
           const { schema, tr, selection } = view.state
           const { from, to } = selection
-          const mark = schema.mark("formatting")
+          const mark = schema.mark("markup")
           view.dispatch(
             tr
               .addStoredMark(mark)
@@ -64,7 +64,7 @@ export default (): Plugin =>
       },
       nodeViews: {
         code_block: CodeBlock.new,
-        heading: HeadingView.new,
+        // heading: HeadingView.new,
         code: InlineNode.new,
         strong: InlineNode.new,
         em: InlineNode.new,
