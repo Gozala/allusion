@@ -12,6 +12,7 @@ import type {
 import CodeBlock from "./CodeBlock"
 import InlineNode from "./InlineNode"
 import HeadingView from "./Allusion/NodeView/Heading"
+import LinkView from "./Allusion/NodeView/Link"
 import keyDownHandler from "./CodeBlock/KeyDownHandler"
 import Archive from "./DatArchive"
 import type { DatArchive } from "./DatArchive"
@@ -66,10 +67,7 @@ export default (): Plugin =>
         code_block: CodeBlock.new,
         // heading: HeadingView.new,
         code: InlineNode.new,
-        strong: InlineNode.new,
-        em: InlineNode.new,
-        strike_through: InlineNode.new,
-        link: InlineNode.new
+        anchor: LinkView.new
       }
     }
   })

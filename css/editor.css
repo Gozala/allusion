@@ -529,6 +529,10 @@ body {
   color: initial;
 }
 
+/* a.read .markup {
+  display: none;
+} */
+
 .code.markup,
 .code.markup * {
   text-decoration: none;

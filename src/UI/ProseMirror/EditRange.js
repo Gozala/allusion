@@ -185,20 +185,27 @@ export const expand = (
 
     switch (node.type) {
       case schema.nodes.anchor: {
+        // changeList.index++
+        changeList.tr.setNodeMarkup(changeList.index, null, {
+          href: node.attrs.href,
+          title: node.attrs.title,
+          mode: "write"
+        })
         changeList.index++
-        changeList.insertMarkupCode("[", node.marks)
-        expand(node.content, changeList, schema)
-        changeList.insertMarkupCode("](", node.marks)
+        // changeList.index++
+        // changeList.insertMarkupCode("[", node.marks)
+        // expand(node.content, changeList, schema)
+        // changeList.insertMarkupCode("](", node.marks)
 
-        const title =
-          node.attrs.title == null
-            ? ""
-            : JSON.stringify(String(node.attrs.title))
+        // const title =
+        // node.attrs.title == null
+        // ? ""
+        // : JSON.stringify(String(node.attrs.title))
 
-        changeList
-          .insertMarkup(`${node.attrs.href} ${title}`, node.marks)
-          .insertMarkupCode(")", node.marks)
-        changeList.index++
+        // changeList
+        // .insertMarkup(`${node.attrs.href} ${title}`, node.marks)
+        // .insertMarkupCode(")", node.marks)
+        // changeList.index++
 
         break
       }
@@ -258,6 +265,13 @@ export const collapse = (
     const marks = node.marks
     if (marks.some($ => $.type.name === "markup")) {
       changeList.deleteNode(node)
+    } else if (node.type.name === "anchor") {
+      changeList.tr.setNodeMarkup(changeList.index, null, {
+        href: node.attrs.href,
+        title: node.attrs.title,
+        mode: "read"
+      })
+      changeList.index++
     } else {
       if (node.isText) {
         changeList.retainNode(node)

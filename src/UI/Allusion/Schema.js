@@ -85,7 +85,8 @@ const customNodes = {
 
     attrs: {
       href: {},
-      title: { default: null }
+      title: { default: null },
+      mode: { default: "read" }
     },
     parseDOM: [
       {
