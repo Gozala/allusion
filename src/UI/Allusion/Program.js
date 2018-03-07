@@ -54,7 +54,10 @@ class EditRange extends Range {
   }
   static empty: EditRange = new EditRange(Infinity, 0, DecorationSet.empty)
   static attributes = { nodeName: "u" }
-  static options = { inclusiveStart: true, inclusiveEnd: true }
+  static options = {
+    inclusiveStart: true,
+    inclusiveEnd: true
+  }
   static new(index: number, length: number, doc: Node) {
     if (length === 0) {
       return EditRange.empty
@@ -265,7 +268,20 @@ export const edit = (state: Model, edit: Edit): Model => {
 
   const { selection, doc } = transaction
   const range = state.editRange.map(transaction.mapping, transaction.doc)
-  return Model.new(state.notebook, after, null, range, transaction.time)
+  if (range.includesSelection(selection)) {
+    return Model.new(state.notebook, after, null, range, transaction.time)
+  } else {
+    return selectionChange(state, edit)
+    // const tr = editOffRange(after.tr, selection, schema)
+
+    // return Model.new(
+    //   state.notebook,
+    //   after,
+    //   tr,
+    //   EditRange.empty,
+    //   transaction.time
+    // )
+  }
 }
 
 export const selectionChange = (state: Model, change: Edit): Model => {
@@ -369,7 +385,6 @@ const readInfo = async (): Promise<Info> => {
 const parseDocument = (document: Notebook.Document) => {
   const node = Parser.parse(document.content)
   const { content } = node
-  console.log(node)
   // Parser seems to right trim content of the document. As a simple workaround
   // we check if last child is header and if so we add empty paragraph.
   if (content.lastChild && content.lastChild.type.name === "header") {

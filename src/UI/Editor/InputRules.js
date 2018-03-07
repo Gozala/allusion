@@ -149,17 +149,14 @@ export const toggleMark = (
 ): ?Transaction => {
   let { empty, $cursor } = tr.selection
   if (!empty) {
-    console.log("!!!! Does not apply")
     return null
   } else if (!$cursor) {
     return null
   } else {
     const marks = $cursor.marks()
     if (markType.isInSet(tr.storedMarks || marks)) {
-      console.log(`tr.removeStoredMark(${markType.name})`)
       return tr.removeStoredMark(markType)
     } else if (!Mark$excludes(marks, markType)) {
-      console.log(`tr.addStoredMark(${markType.name})`)
       return tr.addStoredMark(markType.create(attrs))
     } else {
       return null
@@ -203,23 +200,23 @@ var re = (strings: string[], ...keys: string[]) => {
 var escape = string => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 class MarkRule {
-  marker: string
+  markup: string
   match: RegExp
   markType: MarkType
   preventDefault: boolean
-  static match(marker: string) {
-    return (markType: MarkType) => this.new(marker, markType)
+  static match(markup: string) {
+    return (markType: MarkType) => this.new(markup, markType)
   }
-  static new(marker: string, markType: MarkType) {
-    return new MarkRule(marker, markType)
+  static new(markup: string, markType: MarkType) {
+    return new MarkRule(markup, markType)
   }
   constructor(
-    marker: string,
+    markup: string,
     markType: MarkType,
     preventDefault: boolean = true
   ) {
-    this.marker = marker
-    this.match = re`${marker}([^${marker.substr(-1)}]+)${marker}$`
+    this.markup = markup
+    this.match = re`${markup}(.+)${markup}$`
     this.markType = markType
     this.preventDefault = preventDefault
   }
@@ -229,22 +226,27 @@ class MarkRule {
     start: number,
     end: number
   ): ?Transaction {
-    const { markType, marker } = this
+    const { markType, markup } = this
     const { schema, tr, doc } = state
-    const [input] = match
+    const [input, content] = match
     return tr
-      .replaceWith(start, end, schema.text(input))
-      .addMark(start, end + 1, markType.create())
+      .replaceWith(
+        start,
+        end,
+        schema.text(content, [markType.create({ markup })])
+      )
       .removeStoredMark(markType)
-    // .delete(end - marker.length, marker.length)
-    // .delete(start, start + marker.length)
+    // .addMark(start, end, markType.create())
+    // .delete(end - markup.length + 1, end)
+    // .delete(start, start + markup.length)
   }
 }
 
 export const strongMarkRule = MarkRule.match("**")
-// export const codeMarkRule = MarkerRule.match(/`$/)
-// export const strikeMarkRule = MarkerRule.match(/~~$/)
-// export const emMarkRule = MarkerRule.match(/\_$/)
+export const codeMarkRule = MarkRule.match("`")
+export const strikeMarkRule = MarkRule.match("~~")
+export const emMarkRule = MarkRule.match("_")
+export const emMarkRule2 = MarkRule.match("*")
 
 // : (NodeType, number) → InputRule
 // Given a node type and a maximum level, creates an input rule that
@@ -255,7 +257,7 @@ export function headingRule(nodeType: NodeType, maxLevel: number) {
   return textblockTypeInputRule(
     new RegExp("^(#{1," + maxLevel + "})\\s$"),
     nodeType,
-    match => ({ level: match[1].length })
+    match => ({ level: match[1].length, markup: match[1] })
   )
 }
 
@@ -281,11 +283,12 @@ export const headerRule = (nodeType: NodeType) =>
 export default (schema: Schema) => {
   let rules = smartQuotes.concat(ellipsis, emDash)
   let type
+  if ((type = schema.nodes.code_block)) rules.push(codeBlockRule(type))
 
-  // if ((type = schema.marks.em)) rules.push(emMarkRule(type))
   if ((type = schema.marks.strong)) rules.push(strongMarkRule(type))
-  // if ((type = schema.marks.code)) rules.push(codeMarkRule(type))
-  // if ((type = schema.marks.strike_through)) rules.push(strikeMarkRule(type))
+  if ((type = schema.marks.em)) rules.push(emMarkRule(type), emMarkRule2(type))
+  if ((type = schema.marks.code)) rules.push(codeMarkRule(type))
+  if ((type = schema.marks.strike_through)) rules.push(strikeMarkRule(type))
 
   // if ((type = schema.nodes.header)) rules.push(headerRule(type))
   // if ((type = schema.nodes.strong)) rules.push(strongRule(type))
@@ -297,7 +300,6 @@ export default (schema: Schema) => {
   if ((type = schema.nodes.blockquote)) rules.push(blockQuoteRule(type))
   if ((type = schema.nodes.ordered_list)) rules.push(orderedListRule(type))
   if ((type = schema.nodes.bullet_list)) rules.push(bulletListRule(type))
-  if ((type = schema.nodes.code_block)) rules.push(codeBlockRule(type))
   if ((type = schema.nodes.heading)) rules.push(headingRule(type, 6))
   return inputRules({ rules })
 }

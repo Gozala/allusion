@@ -210,9 +210,9 @@ export class MarkdownSerializerState {
   // content. If `startOfLine` is true, also escape characters that
   // has special meaning only at the start of the line.
   esc(input: string, startOfLine?: boolean): string {
-    let str = input //.replace(/[`*\\~\[\]]/g, "\\$&")
-    // if (startOfLine)
-    //   str = str.replace(/^[:#-*+]/, "\\$&").replace(/^(\d+)\./, "$1\\.")
+    let str = input.replace(/[`*\\~\[\]]/g, "\\$&")
+    if (startOfLine)
+      str = str.replace(/^[:#-*+]/, "\\$&").replace(/^(\d+)\./, "$1\\.")
     return str
   }
   quote(str: string): string {
@@ -323,7 +323,7 @@ export const serializer = new MarkdownSerializer(
       mixable: true,
       expelEnclosingWhitespace: true
     },
-    formatting: {
+    markup: {
       open: "",
       close: "",
       mixable: true

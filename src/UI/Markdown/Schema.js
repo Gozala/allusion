@@ -53,7 +53,6 @@ export const schema = new Schema({
         return [
           "h" + node.attrs.level,
           {
-            class: node.attrs.expand ? "expand" : "",
             markup: node.attrs.markup
           },
           0
@@ -188,9 +187,7 @@ export const schema = new Schema({
 
       // excludes: "_",
       attrs: {
-        "data-prefix": { default: "`" },
-        "data-suffix": { default: "`" },
-        markup: {}
+        markup: { defalut: "`" }
       },
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
@@ -307,6 +304,19 @@ export const schema = new Schema({
         return ["code", node.attrs]
       }
     },
+    markup: {
+      inline: true,
+      group: "inline",
+      content: "text+",
+      selectable: true,
+      inclusive: false,
+      attrs: {
+        code: { default: false }
+      },
+      toDOM(node) {
+        return [node.attrs.code ? "code" : "span", { class: "markup" }, 0]
+      }
+    },
     strong: {
       inline: true,
       group: "inline",
@@ -394,15 +404,6 @@ export const schema = new Schema({
       ],
       toDOM(node) {
         return ["a", node.attrs, 0]
-      }
-    },
-    markup: {
-      inline: true,
-      group: "inline",
-      content: "text*",
-      selectable: true,
-      toDOM(node) {
-        return ["mark", 0]
       }
     }
   }

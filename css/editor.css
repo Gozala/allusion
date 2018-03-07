@@ -419,25 +419,6 @@ li.ProseMirror-selectednode:after {
   padding-bottom: 10px;
 }
 
-/* .ProseMirror strong::before, */
-/* .ProseMirror em::before,
-.ProseMirror del::before,
-.ProseMirror code::before, */
-.ProseMirror blockquote p::before,
-.ProseMirror h1::before,
-.ProseMirror h2::before,
-.ProseMirror h3::before,
-.ProseMirror h4::before,
-.ProseMirror h5::before,
-.ProseMirror h6::before,
-.ProseMirror header::before {
-  content: attr(data-prefix);
-  opacity: 0.1;
-  font-weight: normal;
-  font-style: normal;
-  text-decoration: none;
-}
-
 /* .ProseMirror strong::after, */
 /* .ProseMirror em::after,
 .ProseMirror del::after,
@@ -543,10 +524,32 @@ body {
   color: rgb(28, 28, 23);
 }
 
-mark {
-  background: none;
-  color: rgb(150, 150, 150);
+.markup {
+  text-decoration: none;
+}
+
+code.markup,
+code.markup * {
+  text-decoration: none;
+  background-color: initial;
+  border-radius: 0;
+  outline: none;
+  white-space: pre !important;
   font-family: Consolas, "Lucida Console", Monaco, monospace;
+  font-style: normal;
+  margin: 0;
+  font-weight: normal;
+  color: black;
+  opacity: 0.7;
+}
+
+h1 code.markup,
+h2 code.markup,
+h3 code.markup,
+h4 code.markup,
+h5 code.markup,
+h6 code.markup {
+  display: inline-block;
 }
 
 u {

@@ -47,19 +47,19 @@ export default (): Plugin =>
         to: number,
         text: string
       ): boolean {
-        if (/[\*~#_\[\]\(\)`]/.test(text)) {
-          const { schema, tr, selection } = view.state
-          const { from, to } = selection
-          const mark = schema.mark("markup")
-          view.dispatch(
-            tr
-              .addStoredMark(mark)
-              .insertText(text)
-              .removeStoredMark(mark)
-              .setMeta(pluginKey, { type: "syntaxInput", text })
-          )
-          return true
-        }
+        // if (/[\*~#_\[\]\(\)`]/.test(text)) {
+        //   const { schema, tr, selection } = view.state
+        //   const { from, to } = selection
+        //   const mark = schema.mark("markup")
+        //   view.dispatch(
+        //     tr
+        //       .addStoredMark(mark)
+        //       .insertText(text)
+        //       .removeStoredMark(mark)
+        //       .setMeta(pluginKey, { type: "syntaxInput", text })
+        //   )
+        //   return true
+        // }
         return false
       },
       nodeViews: {

@@ -62,7 +62,6 @@ export default class CodeBlockView {
     })
     self.cm.on("focus", () => self.forwardSelection())
     self.cm.on("beforeChange", (cm, change) => {
-      console.log("beforeChange", change)
       if (
         change.origin === "+delete" &&
         self.cm.doc.lineCount() === 1 &&
@@ -77,12 +76,10 @@ export default class CodeBlockView {
   // }
   // nodeview_forwardSelection{
   forwardSelection() {
-    console.log("forwardSelection", this.view.state, this.cm.hasFocus())
     if (this.cm.hasFocus()) {
       let state = this.view.state
       let selection = this.asProseMirrorSelection(state.doc)
       if (!selection.eq(state.selection)) {
-        console.log("changeSelection", selection)
         this.view.dispatch(state.tr.setSelection(selection))
       }
     }
@@ -98,7 +95,6 @@ export default class CodeBlockView {
   // }
   // nodeview_setSelection{
   setSelection(anchor: number, head: number) {
-    console.log("setSelection", anchor, head)
     this.cm.focus()
     this.updating = true
     this.cm.setSelection(
@@ -111,7 +107,6 @@ export default class CodeBlockView {
   // nodeview_valueChanged{
   valueChanged() {
     let change = computeChange(this.node.textContent, this.cm.getValue())
-    console.log("value changed", change)
     if (change) {
       let start = this.getPos() + 1
       let tr = this.view.state.tr.replaceWith(
@@ -133,7 +128,6 @@ export default class CodeBlockView {
       .setSelection(selection)
       .scrollIntoView()
 
-    // console.log("DELETE", position, selection.toJSON())
     this.view.dispatch(transation)
     this.view.focus()
   }
@@ -176,7 +170,6 @@ export default class CodeBlockView {
   // }
   // nodeview_update{
   update(node: Node) {
-    console.log("update", node)
     if (node.type != this.node.type) return false
     this.node = node
     let change = computeChange(this.cm.getValue(), node.textContent)
@@ -195,14 +188,10 @@ export default class CodeBlockView {
   // nodeview_end{
 
   selectNode() {
-    console.log("selectNode")
     this.cm.focus()
   }
-  deselectNode() {
-    console.log("deselectNode")
-  }
+  deselectNode() {}
   stopEvent(event: Event) {
-    console.log("stopEvent", event)
     return true
   }
 }

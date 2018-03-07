@@ -40,7 +40,6 @@ export default class InlineNode {
     return this.view.state.doc.resolve(this.getPos())
   }
   update(node: Node) {
-    console.log(node)
     return true
   }
 }

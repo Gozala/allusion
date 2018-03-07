@@ -70,7 +70,11 @@ export const endEdit = (
   range: Range,
   schema: Schema
 ): Transaction => {
-  return collapse(tr, range, schema)
+  const { selection, doc } = tr
+  const { content } = doc.slice(range.index, range.index + range.length)
+  const changeList = new ChangeList(range.index, tr, schema, new Map())
+
+  return collapse(content, changeList, schema).tr
 }
 
 export const beginEdit = (
@@ -78,27 +82,33 @@ export const beginEdit = (
   range: Range,
   schema: Schema
 ): Transaction => {
-  return expand(range, tr, schema)
+  const { selection, doc } = tr
+  const { content } = doc.slice(range.index, range.index + range.length)
+  const changeList = new ChangeList(range.index, tr, schema, new Map())
+
+  return expand(content, changeList, schema).updateMarks([]).tr
 }
 
 class ChangeList {
   tr: Transaction
   index: number
-  format: Mark[]
   schema: Schema
-  storedMarks: Map<string, boolean>
+  storedMarks: Map<string, Mark>
+  format: Mark
+  code: Mark
   constructor(
     index: number,
     tr: Transaction,
     schema: Schema,
-    format: Mark[],
-    storedMarks: Map<string, boolean>
+    storedMarks: Map<string, Mark>
   ) {
     this.index = index
-    this.format = format
     this.schema = schema
     this.tr = tr
     this.storedMarks = storedMarks
+
+    this.format = schema.mark("markup", { class: "markup" })
+    this.code = schema.mark("markup", { class: "markup", code: true })
   }
   updateMarks(marks: Mark[]) {
     const newMarks = new Map()
@@ -107,7 +117,7 @@ class ChangeList {
     for (let mark of marks) {
       const markup: string = mark.attrs["markup"] || ""
       if (markup != "") {
-        newMarks.set(markup, true)
+        newMarks.set(markup, mark)
       }
     }
 
@@ -116,27 +126,28 @@ class ChangeList {
         newMarks.delete(mark)
       } else {
         storedMarks.delete(mark)
-        this.insertMarkup(mark)
-        console.log("--", mark)
+        this.insertMarkupCode(mark, marks)
       }
     }
 
-    for (const mark of newMarks.keys()) {
-      storedMarks.set(mark, true)
-      this.insertMarkup(mark)
-      console.log("++", mark)
+    for (const [markup, mark] of newMarks.entries()) {
+      storedMarks.set(markup, mark)
+      this.insertMarkupCode(markup, marks)
     }
 
     return this
   }
-  removeMark(mark: string) {}
-  insertMarkup(markup: string) {
-    this.insertNode(this.schema.text(markup, this.format))
+  insertMarkupCode(markup: string, marks: Mark[]) {
+    const { schema, code } = this
+    this.insertNode(schema.text(markup, [code, ...marks]))
+    return this
+  }
+  insertMarkup(markup: string, marks: Mark[]) {
+    this.insertNode(this.schema.text(markup, [this.format, ...marks]))
     return this
   }
   insertNode(node: Node) {
     this.tr = this.tr.insert(this.index, node)
-    console.log(`+${node.toString()}@${this.index}`)
     this.index += node.nodeSize
     return this
   }
@@ -146,33 +157,22 @@ class ChangeList {
   }
   markupNode(markup: string, node: Node) {
     this.index += 1
-    this.insertMarkup(markup)
+    this.insertMarkupCode(markup, node.marks)
     this.index += node.nodeSize - 1
     this.retainNode(node)
     return this
   }
   deleteNode(node: Node) {
     this.tr = this.tr.delete(this.index, this.index + node.nodeSize)
-    console.log(`-${node.toString()}@${this.index}`)
     return this
   }
 }
 
 export const expand = (
-  range: Range,
-  transaction: Transaction,
+  content: Fragment,
+  changeList: ChangeList,
   schema: Schema
-): Transaction => {
-  const { selection, doc } = transaction
-  const { content } = doc.slice(range.index, range.index + range.length)
-  const changeList = new ChangeList(
-    range.index,
-    transaction,
-    schema,
-    [schema.mark("markup")],
-    new Map()
-  )
-
+): ChangeList => {
   const count = content.childCount
   let index = 0
 
@@ -182,18 +182,20 @@ export const expand = (
 
     switch (node.type) {
       case schema.nodes.anchor: {
-        changeList
-          .insertMarkup("[")
-          .retainNode(node)
-          .insertMarkup("](")
+        changeList.insertMarkupCode("[", node.marks)
+        changeList.index++
+        expand(node.content, changeList, schema)
+        changeList.insertMarkupCode("](", node.marks)
 
         const title =
           node.attrs.title == null
             ? ""
             : JSON.stringify(String(node.attrs.title))
+
+        changeList.index++
         changeList
-          .insertNode(schema.text(`${node.attrs.href} ${title}`))
-          .insertMarkup(")")
+          .insertMarkup(`${node.attrs.href} ${title}`, node.marks)
+          .insertMarkupCode(")", node.marks)
 
         break
       }
@@ -208,9 +210,9 @@ export const expand = (
       // }
       case schema.nodes.image: {
         changeList
-          .insertMarkup("![")
-          .insertNode(schema.text(node.attrs.alt))
-          .insertMarkup("](")
+          .insertMarkupCode("![", node.marks)
+          .insertMarkup(node.attrs.alt, node.marks)
+          .insertMarkupCode("](", node.marks)
 
         const title =
           node.attrs.title == null
@@ -218,38 +220,34 @@ export const expand = (
             : JSON.stringify(String(node.attrs.title))
 
         changeList
-          .insertNode(schema.text(`${node.attrs.src} ${title}`))
-          .insertMarkup(")")
+          .insertMarkup(`${node.attrs.src} ${title}`, node.marks)
+          .insertMarkupCode(")", node.marks)
           .retainNode(node)
 
         break
       }
-      default: {
+      case schema.nodes.text: {
         changeList.retainNode(node)
+        break
+      }
+      default: {
+        changeList.index++
+        expand(node.content, changeList, schema)
+        // changeList.retainNode(node)
         break
       }
     }
     index++
   }
 
-  return changeList.updateMarks([]).tr
+  return changeList
 }
 
 export const collapse = (
-  transaction: Transaction,
-  range: Range,
+  content: Fragment,
+  changeList: ChangeList,
   schema: Schema
-): Transaction => {
-  const { selection, doc } = transaction
-  const { content } = doc.slice(range.index, range.index + range.length)
-  const changeList = new ChangeList(
-    range.index,
-    transaction,
-    schema,
-    [schema.mark("markup")],
-    new Map()
-  )
-
+): ChangeList => {
   let index = 0
   const count = content.childCount
   while (index < count) {
@@ -258,33 +256,73 @@ export const collapse = (
     if (marks.some($ => $.type.name === "markup")) {
       changeList.deleteNode(node)
     } else {
-      changeList.retainNode(node)
+      if (node.isText) {
+        changeList.retainNode(node)
+      } else {
+        changeList.index++
+        collapse(node.content, changeList, schema)
+        changeList.index++
+      }
     }
 
     index += 1
   }
-  return changeList.tr
+  return changeList
 }
 
 export const editOffRange = (
   tr: Transaction,
-  selection: Selection
+  selection: Selection,
+  schema: Schema
 ): ?Transaction => {
   const { $cursor } = selection
   if ($cursor) {
     const { start, end } = $cursor.blockRange()
     const slice = tr.doc.slice(start, end)
-    if (slice.size === 0) {
+    const source = slice.content.firstChild && slice.content.firstChild.content
+    if (!source || source.size === 0) {
       return null
     }
-    const markup = Serializer.serializeInline(slice.content)
+
+    const markup = Serializer.serializeInline(source)
     const content = Parser.parseInline(markup)
-    if (slice.content.eq(content)) {
-      return null
-    } else {
-      return tr.replaceRangeWith(start, end, content)
-    }
+
+    const changeList = new ChangeList(start + 1, tr, schema, new Map())
+    return patch(source, content, changeList, schema)
   } else {
     return null
   }
+}
+
+export const patch = (
+  last: Fragment,
+  next: Fragment,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  const lastCount = last.childCount
+  const nextCount = next.childCount
+  let lastIndex = 0
+  let nextIndex = 0
+
+  while (lastIndex < lastCount) {
+    const lastChild = last.child(lastIndex)
+    const nextChild = nextIndex < nextCount ? next.child(nextIndex) : null
+
+    if (nextChild != null && lastChild.eq(nextChild)) {
+      changeList.retainNode(lastChild)
+      lastIndex++
+      nextIndex++
+    } else {
+      changeList.deleteNode(lastChild)
+      lastIndex++
+    }
+  }
+
+  while (nextIndex < nextCount) {
+    changeList.insertNode(next.child(nextIndex))
+    nextIndex++
+  }
+
+  return changeList.tr
 }
