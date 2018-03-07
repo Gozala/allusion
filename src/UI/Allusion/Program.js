@@ -194,9 +194,9 @@ export const init = (editor: EditorState): Model =>
     editor.tr.time
   )
 
-export const decorations = (
-  state: Model //DecorationSet.empty
-) => state.editRange.decorations
+export const decorations = (state: Model) => {
+  return state.editRange.decorations
+}
 
 export const transact = (
   state: Model,

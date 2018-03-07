@@ -84,8 +84,6 @@ const customNodes = {
     defining: true,
 
     attrs: {
-      "data-prefix": { default: "[" },
-      "data-suffix": { default: "]" },
       href: {},
       title: { default: null }
     },

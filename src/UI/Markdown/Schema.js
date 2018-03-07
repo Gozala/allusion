@@ -176,86 +176,6 @@ export const schema = new Schema({
       toDOM() {
         return ["br"]
       }
-    },
-
-    code_node: {
-      // inline: true,
-      code: true,
-      // group: "inline",
-      // content: "text*",
-      // selectable: true,
-
-      // excludes: "_",
-      attrs: {
-        markup: { defalut: "`" }
-      },
-      parseDOM: [{ tag: "code" }],
-      toDOM(node) {
-        return ["code", node.attrs]
-      }
-    },
-
-    strong_node: {
-      inline: true,
-      group: "inline",
-      content: "inline*",
-      selectable: true,
-      defining: true,
-      attrs: {
-        markup: { default: "**" }
-      },
-
-      parseDOM: [
-        { tag: "b" },
-        { tag: "strong" },
-        {
-          style: "font-weight",
-          getAttrs: value => /^(bold(er)?|[5-9]\d{2,})$/.test(value) && null
-        }
-      ],
-      toDOM(node) {
-        return ["strong", node.attrs]
-      }
-    },
-
-    em_node: {
-      inline: true,
-      group: "inline",
-      content: "inline*",
-      selectable: true,
-      attrs: {
-        markup: { default: "_" }
-      },
-
-      parseDOM: [
-        { tag: "i" },
-        { tag: "em" },
-        { style: "font-style", getAttrs: value => value == "italic" && null }
-      ],
-      toDOM(node) {
-        return ["em", node.attrs]
-      }
-    },
-
-    strike_through_node: {
-      inline: true,
-      group: "inline",
-      content: "inline*",
-      selectable: true,
-      attrs: {
-        markup: { default: "~~" }
-      },
-
-      parseDOM: [
-        { tag: "del" },
-        {
-          style: "text-decoration",
-          getAttrs: $ => $ === "line-through" && null
-        }
-      ],
-      toDOM(node) {
-        return ["del", node.attrs]
-      }
     }
   },
   marks: {
@@ -306,15 +226,28 @@ export const schema = new Schema({
     },
     markup: {
       inline: true,
-      group: "inline",
+      group: "inline markup",
       content: "text+",
       selectable: true,
       inclusive: false,
       attrs: {
-        code: { default: false }
+        class: { default: "markup" }
       },
       toDOM(node) {
-        return [node.attrs.code ? "code" : "span", { class: "markup" }, 0]
+        return ["span", node.attrs, 0]
+      }
+    },
+    meta: {
+      inline: true,
+      group: "inline markup",
+      content: "text+",
+      selectable: true,
+      inclusive: false,
+      attrs: {
+        class: { default: "markup code" }
+      },
+      toDOM(node) {
+        return ["span", node.attrs, 0]
       }
     },
     strong: {
@@ -385,11 +318,8 @@ export const schema = new Schema({
       defining: true,
 
       attrs: {
-        "data-prefix": { default: "[" },
-        "data-suffix": { default: "]" },
         href: {},
-        title: { default: null },
-        markup: {}
+        title: { default: null }
       },
       parseDOM: [
         {

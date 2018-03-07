@@ -7,6 +7,9 @@ const parseInline = (self, parent) => {
     let marks = node ? node.marks : []
     let leading = trailing
     trailing = ""
+    if (marks.some(mark => self.marks[mark.type.name].ignore)) {
+      return
+    }
     // If whitespace has to be expelled from the node, adjust
     // leading and trailing accordingly.
     if (

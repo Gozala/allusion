@@ -15,6 +15,7 @@ type MarkSerializer = {
   open: string | ((MarkdownSerializerState, Mark) => string),
   close: string | ((MarkdownSerializerState, Mark) => string),
   mixable?: boolean,
+  ignore?: boolean,
   expelEnclosingWhitespace?: boolean
 }
 
@@ -171,7 +172,9 @@ export class MarkdownSerializerState {
   // Render the given node as a block.
   render(node: Node, parent: Node | Fragment, index: number): void {
     if (typeof parent == "number") throw new Error("!")
-    this.nodes[node.type.name](this, node, parent, index)
+    if (!node.marks.some(mark => this.marks[mark.type.name].ignore)) {
+      this.nodes[node.type.name](this, node, parent, index)
+    }
   }
   // :: (Node)
   // Render the contents of `parent` as block nodes.
@@ -326,7 +329,7 @@ export const serializer = new MarkdownSerializer(
     markup: {
       open: "",
       close: "",
-      mixable: true
+      ignore: true
     },
     link: {
       open: "[",

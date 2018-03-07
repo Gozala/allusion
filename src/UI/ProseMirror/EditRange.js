@@ -94,8 +94,8 @@ class ChangeList {
   index: number
   schema: Schema
   storedMarks: Map<string, Mark>
-  format: Mark
-  code: Mark
+  markup: Mark
+  meta: Mark
   constructor(
     index: number,
     tr: Transaction,
@@ -107,8 +107,8 @@ class ChangeList {
     this.tr = tr
     this.storedMarks = storedMarks
 
-    this.format = schema.mark("markup", { class: "markup" })
-    this.code = schema.mark("markup", { class: "markup", code: true })
+    this.markup = schema.mark("markup")
+    this.meta = schema.mark("meta")
   }
   updateMarks(marks: Mark[]) {
     const newMarks = new Map()
@@ -137,14 +137,17 @@ class ChangeList {
 
     return this
   }
-  insertMarkupCode(markup: string, marks: Mark[]) {
-    const { schema, code } = this
-    this.insertNode(schema.text(markup, [code, ...marks]))
+  insertMarkupCode(code: string, marks: Mark[]) {
+    const { schema, meta, markup } = this
+    this.insertNode(schema.text(code, [meta, markup, ...marks]))
     return this
   }
   insertMarkup(markup: string, marks: Mark[]) {
-    this.insertNode(this.schema.text(markup, [this.format, ...marks]))
+    this.insertNode(this.schema.text(markup, [this.markup, ...marks]))
     return this
+  }
+  insertText(text: string, marks: Mark[]) {
+    return this.insertNode(this.schema.text(text, marks))
   }
   insertNode(node: Node) {
     this.tr = this.tr.insert(this.index, node)
@@ -182,8 +185,8 @@ export const expand = (
 
     switch (node.type) {
       case schema.nodes.anchor: {
-        changeList.insertMarkupCode("[", node.marks)
         changeList.index++
+        changeList.insertMarkupCode("[", node.marks)
         expand(node.content, changeList, schema)
         changeList.insertMarkupCode("](", node.marks)
 
@@ -192,10 +195,10 @@ export const expand = (
             ? ""
             : JSON.stringify(String(node.attrs.title))
 
-        changeList.index++
         changeList
           .insertMarkup(`${node.attrs.href} ${title}`, node.marks)
           .insertMarkupCode(")", node.marks)
+        changeList.index++
 
         break
       }
@@ -293,6 +296,9 @@ export const editOffRange = (
     return null
   }
 }
+window.editOffRange = editOffRange
+window.Serializer = Serializer
+window.Parser = Parser
 
 export const patch = (
   last: Fragment,
