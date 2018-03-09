@@ -2,11 +2,7 @@
   "version": "0.0.0",
   "name": "allusion",
   "description": "Notebook app",
-  "keywords": [
-    "allusion",
-    "typed",
-    "flow"
-  ],
+  "keywords": ["allusion", "typed", "flow"],
   "main": "lib/allusion",
   "module": "src/allusion",
   "author": "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com)",
@@ -38,34 +34,34 @@
   },
   "scripts": {
     "test": "npm run build:node && npm run test:flow && npm run test:tape",
-    "test:tape": "blue-tape -r babel-register -r source-map-support/register 'test/**/*.js'",
+    "test:tape":
+      "blue-tape -r babel-register -r source-map-support/register 'test/**/*.js'",
     "test:flow": "flow check",
     "build:clear": "rm -rf lib",
     "build:types": "flow-copy-source --verbose src lib",
     "build:node": "babel --out-dir lib src",
     "build:api": "documentation readme --section=API src/allusion.js",
-    "build:docs": "documentation build --document-exported src/** -f html --o docs",
+    "build:docs":
+      "documentation build --document-exported src/** -f html --o docs",
     "build": "npm run build:node && npm run build:types",
     "prepublish": "npm run build && npm test",
     "precommit": "lint-staged",
     "start": "rollup -w -c --embed UI/Main",
-    "start:legacy": "flow-copy-source --watch --verbose src lib & babel --watch --out-dir lib src"
+    "start:legacy":
+      "flow-copy-source --watch --verbose src lib & babel --watch --out-dir lib src"
   },
   "lint-staged": {
-    "*.js": [
-      "prettier --parser flow --no-semi --write",
-      "git add"
-    ]
+    "*.js": ["prettier --parser flow --no-semi --write", "git add"]
   },
   "quokka": {
     "alias": {
       "allusion": "src/allusion"
     },
     "pro": true,
-    "babel": true,
-    "plugins": [
-      "alias-quokka-plugin"
-    ]
+    "babel": {
+      "env": "development"
+    },
+    "plugins": ["alias-quokka-plugin"]
   },
   "dependencies": {
     "@beaker/webdb": "4.1.0",
