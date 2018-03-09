@@ -12,7 +12,7 @@ import type {
 import CodeBlock from "./CodeBlock"
 import InlineNode from "./InlineNode"
 import HeadingView from "./Allusion/NodeView/Heading"
-import LinkView from "./Allusion/NodeView/Link"
+import { Link, Address, URL, Title } from "./Allusion/NodeView/Link"
 import keyDownHandler from "./CodeBlock/KeyDownHandler"
 import Archive from "./DatArchive"
 import type { DatArchive } from "./DatArchive"
@@ -67,7 +67,10 @@ export default (): Plugin =>
         code_block: CodeBlock.new,
         // heading: HeadingView.new,
         code: InlineNode.new,
-        anchor: LinkView.new
+        [Link.blotName]: Link.view(),
+        [Address.blotName]: Address.view(),
+        [URL.blotName]: URL.view(),
+        [Title.blotName]: Title.view()
       }
     }
   })

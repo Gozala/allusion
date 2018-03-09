@@ -562,3 +562,38 @@ u {
   text-decoration-color: green;
   text-decoration-style: dotted;
 }
+
+:root {
+  --markup-color: #999;
+  --markup-font: Consolas, "Lucida Console", Monaco, monospace;
+}
+
+a.edit::before,
+a.edit .address::before,
+a.edit .address::after,
+a.edit .address .url::after,
+a.edit .address .title::before,
+a.edit .address .title::after {
+  color: var(--markup-color);
+  font-family: var(--markup-font);
+}
+
+a.edit::before {
+  content: "[";
+}
+
+a.edit .address::before {
+  content: "](";
+}
+a.edit .address::after {
+  content: ")";
+}
+
+a.edit .address .url::after {
+  content: " ";
+}
+
+a.edit .address .title::before,
+a.edit .address .title::after {
+  content: '"';
+}

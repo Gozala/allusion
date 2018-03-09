@@ -11,13 +11,24 @@ const nodes = Object.assign({}, serializer.nodes, {
     state.closeBlock(node)
   },
   anchor(state, node) {
-    const title =
-      node.attrs.title == null ? "" : ` ${state.quote(node.attrs.title)}`
-
     state.write("[")
     state.renderInline(node)
-    state.write(`](${state.esc(node.attrs.href)} ${title})`)
+  },
+  address(state, node) {
+    state.write(`](`)
+    state.renderInline(node)
+    state.write(")")
+  },
+  url(state, node) {
+    state.write(node.textContent)
+  },
+  title(state, node) {
+    state.write(state.quote(node.textContent))
+  },
+  words(state, node) {
+    state.renderInline(node)
   }
+
   // {
   //   open: "[",
   //   close(state, mark) {

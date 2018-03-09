@@ -5,6 +5,8 @@ import { MarkdownParser } from "../Markdown/Parser"
 import schema from "./Schema"
 import Header from "./Parser/Header"
 import TaskList from "./Parser/TaskList"
+import { link } from "./NodeView/Link"
+import { Fragment } from "prosemirror-model"
 
 const tokenizer = new MarkdownIt({ html: false })
 tokenizer.block.ruler.after("heading", "header", Header)
@@ -88,15 +90,19 @@ export default new MarkdownParser(schema, tokenizer, {
       markup: token.markup
     }
   }),
-  link: MarkdownParser.node(schema.nodes.anchor, (token): {
-    href: string,
-    title: ?string
-  } => {
-    return {
-      href: token.attrGet("href") || "#",
-      title: token.attrGet("title")
+  link: MarkdownParser.node(
+    schema.nodes.anchor,
+    (token): { href: string, title: ?string } => {
+      return {
+        href: token.attrGet("href") || "#",
+        title: token.attrGet("title")
+      }
+    },
+    (attrs, content, marks) => {
+      const { href, title } = attrs
+      return link(schema, Fragment.from(content), href, title)
     }
-  }),
+  ),
   code_inline: MarkdownParser.mark(schema.marks.code, token => {
     return {
       markup: token.markup
