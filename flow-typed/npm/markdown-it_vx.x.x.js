@@ -151,11 +151,11 @@ declare module "markdown-it" {
   declare export class Token {
     constructor(type: string, tag: string, nesting: number): void;
     attrIndex(name: string): number;
-    attrJoin(string: string, value: mixed): void;
-    attrPush(name: string, value: mixed): void;
-    attrSet(name: string, value: mixed): void;
-    attrGet(name: string): mixed;
-    attrs: Array<[string, mixed]>;
+    attrJoin(string: string, value: string): void;
+    attrPush(name: string, value: string): void;
+    attrSet(name: string, value: string): void;
+    attrGet(name: string): ?string;
+    attrs: Array<[string, string]>;
     block: boolean;
     children: Token[];
     content: string;
