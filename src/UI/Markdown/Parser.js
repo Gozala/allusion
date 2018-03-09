@@ -13,52 +13,53 @@ function maybeMerge(a, b) {
   }
 }
 
-type Attributes = { [string]: mixed }
+type Attributes = { [string]: null | void | boolean | number | string }
 
-type TokenHandle = (MarkdownParseState, Token) => void
+type TokenHandlers = { [string]: TokenHandler }
+type TokenDecoder<a> = Token => a
+type NodeEncoder<a> = (a, Node[], Mark[]) => Node
 
-type TokenHandlers = { [string]: TokenHandle }
-type Stack = {
-  type: NodeType,
-  attrs?: Attributes,
-  content: Array<Node>
-}[]
+interface Parser {
+  schema: Schema;
+  parseTokens(Token[]): void;
+  addText(string): void;
+  openMark(MarkType, ?Attributes): void;
+  closeMark(MarkType): void;
+  openNode(NodeFactory, Token): void;
+  closeNode(): ?Node;
+}
 
-type TokenSpec =
-  | {
-      block: string,
-      node?: void,
-      mark?: void,
-      ignore?: boolean,
-      attrs?: Attributes,
-      getAttrs?: Token => Attributes
-    }
-  | {
-      block?: void,
-      node: string,
-      mark?: void,
-      ignore?: boolean,
-      attrs?: { [string]: mixed },
-      getAttrs?: Token => Attributes
-    }
-  | {
-      block?: void,
-      node?: void,
-      mark: string,
-      ignore?: boolean,
-      attrs?: Attributes,
-      getAttrs?: Token => Attributes
-    }
+interface TokenHandler {
+  handleToken(Parser, Token): void;
+}
+
+interface NodeFactory {
+  create(Token, Node[], Mark[]): Node;
+}
+
+type TokenFrame = {
+  content: Node[],
+  token: Token,
+  factory: NodeFactory
+}
+
+type Stack = TokenFrame[]
 
 // Object used to track the context of a running parse.
-export class MarkdownParseState {
+export class MarkdownParseState implements Parser {
   schema: Schema
   marks: Mark[]
   tokenHandlers: TokenHandlers
   stack: Stack
   constructor(schema: Schema, tokenHandlers: TokenHandlers, root: NodeType) {
     this.schema = schema
-    this.stack = [{ type: root, content: [] }]
+    this.stack = [
+      {
+        factory: Attributor.new(root),
+        content: [],
+        token: (null: any)
+      }
+    ]
     this.marks = Mark.none
     this.tokenHandlers = tokenHandlers
   }
@@ -87,14 +88,14 @@ export class MarkdownParseState {
 
   // : (Mark)
   // Adds the given mark to the set of active marks.
-  openMark(mark: Mark) {
-    this.marks = mark.addToSet(this.marks)
+  openMark(markType: MarkType, attributes: ?Attributes) {
+    this.marks = markType.create(attributes).addToSet(this.marks)
   }
 
-  // : (Mark)
+  // : (MarkType)
   // Removes the given mark from the set of active marks.
-  closeMark(mark: MarkType) {
-    this.marks = mark.removeFromSet(this.marks)
+  closeMark(markType: MarkType) {
+    this.marks = markType.removeFromSet(this.marks)
   }
 
   parseTokens(toks: Token[]) {
@@ -105,40 +106,32 @@ export class MarkdownParseState {
         throw new Error(
           "Token type `" + tok.type + "` not supported by Markdown parser"
         )
-      handler(this, tok)
+      handler.handleToken(this, tok)
     }
   }
 
   // : (NodeType, ?Object, ?[Node]) → ?Node
   // Add a node at the current position.
-  addNode(type: NodeType, attrs?: Attributes, content?: Node[]) {
-    let node = type.createAndFill(attrs, content, this.marks)
+  addNode(factory: NodeFactory, token: Token, content: Node[]): ?Node {
+    let node = factory.create(token, content, this.marks)
     if (!node) return null
     this.push(node)
     return node
   }
 
-  // : (NodeType, ?Object)
-  // Wrap subsequent content in a node of the given type.
-  openNode(type: NodeType, attrs?: Attributes) {
-    this.stack.push({ type, attrs: attrs, content: [] })
+  openNode(factory: NodeFactory, token: Token): void {
+    this.stack.push({ token, factory, content: [] })
   }
 
   // : () → ?Node
   // Close and return the node that is currently on top of the stack.
   closeNode(): ?Node {
-    if (this.marks.length) this.marks = Mark.none
-    let info = this.stack.pop()
-    return this.addNode(info.type, info.attrs, info.content)
+    if (this.marks.length) {
+      this.marks = Mark.none
+    }
+    const { factory, token, content } = this.stack.pop()
+    return this.addNode(factory, token, content)
   }
-}
-
-function attrs(spec: TokenSpec, token: Token) {
-  if (spec.getAttrs) return spec.getAttrs(token)
-  else if (spec.attrs instanceof Function)
-    // For backwards compatibility when `attrs` is a Function
-    return spec.attrs(token)
-  else return spec.attrs
 }
 
 // Code content is represented as a single token with a `content`
@@ -153,65 +146,160 @@ function withoutTrailingNewline(str) {
 
 function noOp() {}
 
-function tokenHandlers(schema, tokens) {
+function tokenHandlers(tokens) {
   let handlers: TokenHandlers = (Object.create(null): Object)
-  for (let type in tokens) {
-    let spec = tokens[type]
-    if (spec.block) {
-      let nodeType = schema.nodeType(spec.block)
-      if (noOpenClose(type)) {
-        handlers[type] = (state, tok) => {
-          state.openNode(nodeType, attrs(spec, tok))
-          state.addText(withoutTrailingNewline(tok.content))
-          state.closeNode()
-        }
-      } else {
-        handlers[type + "_open"] = (state, tok) => {
-          state.openNode(nodeType, attrs(spec, tok))
-        }
-        handlers[type + "_close"] = state => {
-          state.closeNode()
-        }
-      }
-    } else if (spec.node) {
-      let nodeType = schema.nodeType(spec.node)
-      handlers[type] = (state, tok) => {
-        state.openNode(nodeType, attrs(spec, tok))
-        state.closeNode()
-      }
-    } else if (spec.mark) {
-      let markType = schema.marks[spec.mark]
-      if (noOpenClose(type)) {
-        handlers[type] = (state, tok) => {
-          state.openMark(markType.create(attrs(spec, tok)))
-          state.addText(withoutTrailingNewline(tok.content))
-          state.closeMark(markType)
-        }
-      } else {
-        handlers[type + "_open"] = (state, tok) => {
-          state.openMark(markType.create(attrs(spec, tok)))
-        }
-        handlers[type + "_close"] = (state, tok) => {
-          state.closeMark(markType)
-        }
-      }
-    } else if (spec.ignore) {
-      if (noOpenClose(type)) {
-        handlers[type] = noOp
-      } else {
-        handlers[type + "_open"] = noOp
-        handlers[type + "_close"] = noOp
-      }
-    } else {
-      throw new RangeError("Unrecognized parsing spec " + JSON.stringify(spec))
-    }
+  for (const type in tokens) {
+    const handler = tokens[type]
+    handlers[`${type}_open`] = handler
+    handlers[`${type}_close`] = handler
+    handlers[type] = handler
   }
 
-  handlers.text = (state, tok) => state.addText(tok.content)
-  handlers.inline = (state, tok) => state.parseTokens(tok.children)
-  handlers.softbreak = state => state.addText("\n")
+  handlers.text = Text
+  handlers.inline = InlineContent
+  handlers.softbreak = SoftBreak
 
   return handlers
+}
+
+const OPEN = 1
+const ATOMIC = 0
+const CLOSE = -1
+
+class Text {
+  static handleToken(parser: Parser, token: Token) {
+    parser.addText(token.content)
+  }
+}
+
+class SoftBreak {
+  static handleToken(parser: Parser, token: Token) {
+    parser.addText("\n")
+  }
+}
+
+class InlineContent {
+  static handleToken(parser: Parser, token: Token) {
+    parser.parseTokens(token.children)
+  }
+}
+
+class Block<a> implements TokenHandler, NodeFactory {
+  nodeType: NodeType
+  decode: TokenDecoder<a>
+  +encode: NodeEncoder<a>
+  code: boolean
+  constructor(nodeType: NodeType, decoder: TokenDecoder<a>) {
+    this.nodeType = nodeType
+    this.code = nodeType.spec.code === true
+    this.decode = decoder
+  }
+  openNode(parser: Parser, token: Token) {
+    parser.openNode(this, token)
+  }
+  closeNode(parser: Parser, token: Token) {
+    parser.closeNode()
+  }
+  createNode(parser: Parser, token: Token) {
+    this.openNode(parser, token)
+    if (this.code) {
+      parser.addText(withoutTrailingNewline(token.content))
+    }
+    this.closeNode(parser, token)
+  }
+  handleToken(parser: Parser, token: Token) {
+    switch (token.nesting) {
+      case OPEN:
+        return this.openNode(parser, token)
+      case ATOMIC:
+        return this.createNode(parser, token)
+      case CLOSE:
+        return this.closeNode(parser, token)
+      default:
+        throw new Error(
+          `Token ${token.type} has invalid nesting ${token.nesting}`
+        )
+    }
+  }
+  create(token: Token, content: Node[], marks: Mark[]): Node {
+    return this.encode(this.decode(token), content, marks)
+  }
+}
+
+class Custom<a> extends Block<a> {
+  static new<a>(
+    nodeType: NodeType,
+    decoder: TokenDecoder<a>,
+    encoder: NodeEncoder<a>
+  ): Block<a> {
+    return new Custom(nodeType, decoder, encoder)
+  }
+  constructor(
+    nodeType: NodeType,
+    decoder: TokenDecoder<a>,
+    encoder: NodeEncoder<a>
+  ) {
+    super(nodeType, decoder)
+    this.encode = encoder
+  }
+}
+
+class Attributor extends Block<?Attributes> {
+  static new(
+    nodeType: NodeType,
+    decoder: TokenDecoder<?Attributes> = Void
+  ): Attributor {
+    return new Attributor(nodeType, decoder)
+  }
+  encode(attributes: ?Attributes, content: Node[], marks: Mark[]): Node {
+    return this.nodeType.createAndFill(attributes, content, marks)
+  }
+}
+
+const Void = () => {}
+
+class Inline implements TokenHandler {
+  code: boolean
+  markType: MarkType
+  decode: Token => ?Attributes
+  static new(
+    markType: MarkType,
+    decoder: TokenDecoder<?Attributes> = Void
+  ): TokenHandler {
+    return new Inline(markType, decoder)
+  }
+  constructor(markType: MarkType, decode: TokenDecoder<?Attributes>) {
+    this.markType = markType
+    this.decode = decode
+    this.code = (markType.spec.group || "").includes("code")
+  }
+  openMark(parser: Parser, token: Token) {
+    parser.openMark(this.markType, this.decode(token))
+  }
+  closeMark(parser: Parser, token: Token) {
+    parser.closeMark(this.markType)
+  }
+  mark(parser: Parser, token: Token) {
+    this.openMark(parser, token)
+    if (this.code) {
+      parser.addText(withoutTrailingNewline(token.content))
+    }
+    this.closeMark(parser, token)
+  }
+  handleToken(parser: Parser, token: Token) {
+    switch (token.nesting) {
+      case OPEN:
+        return this.openMark(parser, token)
+      case ATOMIC:
+        return this.mark(parser, token)
+      case CLOSE:
+        return this.closeMark(parser, token)
+      default:
+        throw new Error(
+          `Token ${token.type} has invalid nesting ${token.nesting}`
+        )
+    }
+  }
 }
 
 // ::- A configuration of a Markdown parser. Such a parser uses
@@ -219,6 +307,10 @@ function tokenHandlers(schema, tokens) {
 // tokenize a file, and then runs the custom rules it is given over
 // the tokens to create a ProseMirror document tree.
 export class MarkdownParser {
+  static node = Attributor.new
+  static mark = Inline.new
+  static custom = Custom.new
+
   tokens: Object
   schema: Schema
   tokenizer: MarkdownIt
@@ -260,18 +352,14 @@ export class MarkdownParser {
   //
   // **`ignore`**`: ?bool`
   //   : When true, ignore content for the matched token.
-  constructor(
-    schema: Schema,
-    tokenizer: MarkdownIt,
-    tokens: { [string]: TokenSpec }
-  ) {
+  constructor(schema: Schema, tokenizer: MarkdownIt, tokens: TokenHandlers) {
     // :: Object The value of the `tokens` object used to construct
     // this parser. Can be useful to copy and modify to base other
     // parsers on.
     this.tokens = tokens
     this.schema = schema
     this.tokenizer = tokenizer
-    this.tokenHandlers = tokenHandlers(schema, tokens)
+    this.tokenHandlers = tokenHandlers(tokens)
   }
 
   // :: (string) → Node
@@ -306,44 +394,34 @@ export const parser = new MarkdownParser(
   schema,
   new MarkdownIt({ html: false }),
   {
-    blockquote: { block: "blockquote" },
-    paragraph: { block: "paragraph" },
-    list_item: { block: "list_item" },
-    bullet_list: { block: "bullet_list" },
-    ordered_list: {
-      block: "ordered_list",
-      getAttrs: tok => ({ order: +tok.attrGet("order") || 1 })
-    },
-    heading: {
-      block: "heading",
-      getAttrs: tok => ({ level: +tok.tag.slice(1) })
-    },
-    code_block: { block: "code_block" },
-    fence: {
-      block: "code_block",
-      getAttrs: tok => ({ params: tok.info || "" })
-    },
-    hr: { node: "horizontal_rule" },
-    image: {
-      node: "image",
-      getAttrs: tok => ({
-        src: tok.attrGet("src"),
-        title: tok.attrGet("title") || null,
-        alt: (tok.children[0] && tok.children[0].content) || null
-      })
-    },
-    hardbreak: { node: "hard_break" },
-
-    em: { mark: "em" },
-    strong: { mark: "strong" },
-    s: { mark: "strike_through" },
-    link: {
-      mark: "link",
-      getAttrs: tok => ({
-        href: tok.attrGet("href"),
-        title: tok.attrGet("title") || null
-      })
-    },
-    code_inline: { mark: "code" }
+    blockquote: MarkdownParser.node(schema.nodes.blockquote),
+    paragraph: MarkdownParser.node(schema.nodes.paragraph),
+    list_item: MarkdownParser.node(schema.nodes.list_item),
+    bullet_list: MarkdownParser.node(schema.nodes.bullet_list),
+    ordered_list: MarkdownParser.node(schema.nodes.ordered_list, tok => ({
+      order: +tok.attrGet("order") || 1
+    })),
+    heading: MarkdownParser.node(schema.nodes.heading, tok => ({
+      level: +tok.tag.slice(1)
+    })),
+    code_block: MarkdownParser.node(schema.nodes.code_block),
+    fence: MarkdownParser.node(schema.nodes.code_block, tok => ({
+      params: tok.info || ""
+    })),
+    hr: MarkdownParser.node(schema.nodes.horizontal_rule),
+    image: MarkdownParser.node(schema.nodes.image, tok => ({
+      src: tok.attrGet("src"),
+      title: tok.attrGet("title") || null,
+      alt: (tok.children[0] && tok.children[0].content) || null
+    })),
+    hardbreak: MarkdownParser.node(schema.nodes.hard_break),
+    em: MarkdownParser.mark(schema.marks.em),
+    strong: MarkdownParser.mark(schema.marks.strong),
+    s: MarkdownParser.mark(schema.marks.strike_through),
+    link: MarkdownParser.mark(schema.marks.link, tok => ({
+      href: tok.attrGet("href"),
+      title: tok.attrGet("title") || null
+    })),
+    code_inline: MarkdownParser.mark(schema.marks.code)
   }
 )

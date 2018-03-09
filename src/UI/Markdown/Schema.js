@@ -211,7 +211,7 @@ export const schema = new Schema({
     code: {
       // inline: true,
       code: true,
-      // group: "inline",
+      group: "inline code",
       // content: "text*",
       // selectable: true,
 
