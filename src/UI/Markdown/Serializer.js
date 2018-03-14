@@ -310,19 +310,19 @@ export const serializer = new MarkdownSerializer(
         }
     },
     text(state, node) {
-      state.text(node.text)
+      state.text(node.text, false)
     }
   },
   {
     em: {
-      open: "*",
-      close: "*",
+      open: (_, mark) => mark.attrs.markup,
+      close: (_, mark) => mark.attrs.markup,
       mixable: true,
       expelEnclosingWhitespace: true
     },
     strong: {
-      open: "**",
-      close: "**",
+      open: (_, mark) => mark.attrs.markup,
+      close: (_, mark) => mark.attrs.markup,
       mixable: true,
       expelEnclosingWhitespace: true
     },
@@ -342,6 +342,9 @@ export const serializer = new MarkdownSerializer(
         )
       }
     },
-    code: { open: "`", close: "`" }
+    code: {
+      open: (_, mark) => mark.attrs.markup,
+      close: (_, mark) => mark.attrs.markup
+    }
   }
 )

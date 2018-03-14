@@ -2,7 +2,7 @@
 
 import { Schema } from "prosemirror-model"
 import markdownSchema from "../Markdown/Schema"
-import { Link, Address, URL, Title, Words } from "./NodeView/Link"
+import { Link, Address, URL, Title, Words, Markup } from "./NodeView/Link"
 
 const customNodes = {
   // root: {
@@ -77,38 +77,53 @@ const customNodes = {
       return ["label", node.attrs, 0]
     }
   },
-  [Link.blotName]: Link,
-  [Address.blotName]: Address,
-  [URL.blotName]: URL,
-  [Title.blotName]: Title,
-  [Words.blotName]: Words
-  // anchor: {
-  //   inline: true,
-  //   group: "inline",
-  //   content: "text*",
-  //   selectable: true,
-  //   defining: true,
+  // [Link.blotName]: Link,
+  // [Address.blotName]: Address,
+  // [URL.blotName]: URL,
+  // [Title.blotName]: Title,
+  // [Words.blotName]: Words,
+  // [Markup.blotName]: Markup,
+  anchor: {
+    inline: true,
+    group: "inline",
+    content: "inline+",
+    selectable: true,
+    defining: true,
 
-  //   attrs: {
-  //     href: {},
-  //     title: { default: null },
-  //     mode: { default: "read" }
-  //   },
-  //   parseDOM: [
-  //     {
-  //       tag: "a[href]",
-  //       getAttrs(dom) {
-  //         return {
-  //           href: dom.getAttribute("href"),
-  //           title: dom.getAttribute("title")
-  //         }
-  //       }
-  //     }
-  //   ],
-  //   toDOM(node) {
-  //     return ["a", node.attrs, 0]
-  //   }
-  // }
+    attrs: {
+      href: {},
+      title: { default: null }
+    },
+    parseDOM: [
+      {
+        tag: "a[href]",
+        getAttrs(dom) {
+          return {
+            href: dom.getAttribute("href"),
+            title: dom.getAttribute("title")
+          }
+        }
+      }
+    ],
+    toDOM(node) {
+      return ["a", node.attrs, 0]
+    }
+  },
+  Markup: {
+    inline: true,
+    markup: true,
+    group: "inline text",
+    content: "text+",
+    code: true,
+    selectable: false,
+    marks: "",
+    attrs: {
+      class: { default: "markup code Markup" }
+    },
+    toDOM(node) {
+      return ["span", node.attrs, 0]
+    }
+  }
 }
 
 const append = markdownSchema.spec.nodes.append

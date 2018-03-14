@@ -230,6 +230,7 @@ export const schema = new Schema({
       content: "text+",
       selectable: true,
       inclusive: false,
+      markup: true,
       attrs: {
         class: { default: "markup" }
       },
@@ -243,6 +244,7 @@ export const schema = new Schema({
       content: "text+",
       selectable: true,
       inclusive: false,
+      markup: true,
       attrs: {
         class: { default: "markup code" }
       },

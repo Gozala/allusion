@@ -39,7 +39,7 @@ export default (
       // doc: schema.node('doc', null, [schema.node('paragraph')]),
       plugins: [
         Allusion(),
-        inputRules(schema),
+        // inputRules(schema),
         keyBindings(schema, options.keyMap),
         keymap(baseKeymap),
         dropCursor(),

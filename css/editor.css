@@ -536,7 +536,6 @@ body {
 .code.markup,
 .code.markup * {
   text-decoration: none;
-  background-color: initial;
   border-radius: 0;
   outline: none;
   white-space: pre !important;
@@ -544,8 +543,7 @@ body {
   font-style: normal;
   margin: 0;
   font-weight: normal;
-  color: black;
-  opacity: 0.7;
+  color: rgba(0, 0, 0, 0.07);
 }
 
 h1 .code.markup,
@@ -566,34 +564,22 @@ u {
 :root {
   --markup-color: #999;
   --markup-font: Consolas, "Lucida Console", Monaco, monospace;
+  --edit-color: rgb(152, 243, 152);
 }
 
-a.edit::before,
-a.edit .address::before,
-a.edit .address::after,
-a.edit .address .url::after,
-a.edit .address .title::before,
-a.edit .address .title::after {
+.markup {
   color: var(--markup-color);
   font-family: var(--markup-font);
 }
 
-a.edit::before {
-  content: "[";
-}
-
-a.edit .address::before {
-  content: "](";
-}
-a.edit .address::after {
-  content: ")";
-}
-
-a.edit .address .url::after {
-  content: " ";
-}
-
-a.edit .address .title::before,
-a.edit .address .title::after {
-  content: '"';
+.edit > p,
+.edit > a,
+.edit > .ProseMirror-selectednode,
+.edit > h1,
+.edit > h2,
+.edit > h3,
+.edit > h4,
+.edit > h5,
+.edit > h6 {
+  outline: 1px dotted var(--edit-color);
 }

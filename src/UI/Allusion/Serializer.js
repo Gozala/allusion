@@ -5,14 +5,23 @@ import schema from "./Schema"
 import header from "./Parser/header"
 
 const nodes = Object.assign({}, serializer.nodes, {
+  Markup(state, node) {},
   header(state, node) {
     state.write("/ ")
     state.text(node.textContent, false)
     state.closeBlock(node)
   },
+  // anchor(state, node) {
+  //   state.write("[")
+  //   state.renderInline(node)
+  // },
   anchor(state, node) {
-    state.write("[")
+    state.write(`[`)
     state.renderInline(node)
+    state.write(`](`)
+    state.write(state.esc(node.attrs.href))
+    state.write(node.attrs.title ? " " + state.quote(node.attrs.title) : " ")
+    state.write(")")
   },
   address(state, node) {
     state.write(`](`)
@@ -28,18 +37,6 @@ const nodes = Object.assign({}, serializer.nodes, {
   words(state, node) {
     state.renderInline(node)
   }
-
-  // {
-  //   open: "[",
-  //   close(state, mark) {
-  //     return (
-  //       "](" +
-  //       state.esc(mark.attrs.href) +
-  //       (mark.attrs.title ? " " + state.quote(mark.attrs.title) : "") +
-  //       ")"
-  //     )
-  //   }
-  // },
 })
 
 const marks = Object.assign({}, serializer.marks, {
@@ -54,6 +51,11 @@ const marks = Object.assign({}, serializer.marks, {
     close: "`",
     mixable: false,
     isCode: true
+  },
+  meta: {
+    open: "",
+    close: "",
+    ignore: true
   }
 })
 

@@ -94,11 +94,11 @@ export class Block extends View {
 export class Link extends Inline {
   static blotName = "anchor"
   static tagName = "a"
-  static content = `words address`
+  static content = `Markup words Markup address Markup`
   static attrs = {
     href: {},
     title: { default: null },
-    mode: { default: "read" }
+    class: { default: "link" }
   }
   static parseDOM = [
     {
@@ -118,8 +118,11 @@ export class Link extends Inline {
     title: ?string
   ): Node {
     return schema.node(Link.blotName, { href, title }, [
+      Markup.new(schema, "["),
       Words.new(schema, content),
-      Address.new(schema, href, title)
+      Markup.new(schema, "]("),
+      Address.new(schema, href, title),
+      Markup.new(schema, ")")
     ])
   }
 
@@ -132,6 +135,9 @@ export class Link extends Inline {
     element.setAttribute("title", title)
     element.classList.add("edit")
     return element
+  }
+  stopEvent() {
+    return true
   }
   // expand() {
   //   // this.dom.classList.remove("read")
@@ -189,6 +195,8 @@ export class Words extends Inline {
   static blotName = "words"
   static tagName = "span"
   static className = "words"
+  static isolating = false
+  static attrs = { class: { default: "words" } }
 
   static new(schema: Schema, content: Fragment): Node {
     return schema.node(Words.blotName, null, content)
@@ -200,14 +208,14 @@ export class Address extends Field {
   static tagName = "span"
   static blotName = "address"
   static className = "address"
+  static attrs = { class: { default: "address" } }
   static new(schema: Schema, href: string, text?: ?string): Node {
-    return schema.node(
-      Address.blotName,
-      null,
-      text != null
-        ? [url(schema, href), title(schema, text)]
-        : url(schema, href)
-    )
+    const content =
+      text == null
+        ? url(schema, href)
+        : [url(schema, href), title(schema, text)]
+
+    return schema.node(Address.blotName, null, content)
   }
 }
 
@@ -215,6 +223,7 @@ export class URL extends Field {
   static tagName = "span"
   static blotName = "url"
   static className = "url"
+  static attrs = { class: { default: "url" } }
   static new(schema: Schema, url: string): Node {
     return schema.node(URL.blotName, null, schema.text(url))
   }
@@ -224,8 +233,36 @@ export class Title extends Inline {
   static tagName = "span"
   static blotName = "title"
   static className = "title"
+  static attrs = { class: { default: "title" } }
   static new(schema: Schema, title: string): Node {
     return schema.node(Title.blotName, null, schema.text(title))
+  }
+}
+
+export class Markup extends Inline {
+  static atom = true
+  static group = "markup"
+  static content = ""
+  static isolating = true
+  static selectable = false
+  static tagName = "span"
+  static className = "markup"
+  static blotName = "Markup"
+  static attrs = {
+    class: { default: "markup" },
+    markup: { default: "" }
+  }
+  static new(schema: Schema, markup: string): Node {
+    return schema.node(this.blotName, {
+      markup: markup,
+      class: "markup"
+    })
+  }
+  render(node: Node, editor: EditorView) {
+    const element = super.render(node, editor)
+    element.textContent = node.attrs.markup
+    element.setAttribute("contenteditable", "false")
+    return element
   }
 }
 

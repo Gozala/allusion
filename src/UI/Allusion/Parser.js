@@ -90,19 +90,25 @@ export default new MarkdownParser(schema, tokenizer, {
       markup: token.markup
     }
   }),
-  link: MarkdownParser.node(
-    schema.nodes.anchor,
-    (token): { href: string, title: ?string } => {
-      return {
-        href: token.attrGet("href") || "#",
-        title: token.attrGet("title")
-      }
-    },
-    (attrs, content, marks) => {
-      const { href, title } = attrs
-      return link(schema, Fragment.from(content), href, title)
+  link: MarkdownParser.node(schema.nodes.anchor, token => {
+    return {
+      href: token.attrGet("href"),
+      title: token.attrGet("title")
     }
-  ),
+  }),
+  // link: MarkdownParser.custom(
+  //   schema.nodes.anchor,
+  //   (token): { href: string, title: ?string } => {
+  //     return {
+  //       href: token.attrGet("href") || "#",
+  //       title: token.attrGet("title")
+  //     }
+  //   },
+  //   (attrs, content, marks) => {
+  //     const { href, title } = attrs
+  //     return link(schema, Fragment.from(content), href, title)
+  //   }
+  // ),
   code_inline: MarkdownParser.mark(schema.marks.code, token => {
     return {
       markup: token.markup
