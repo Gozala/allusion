@@ -1,16 +1,10 @@
 // @flow strict
 
-import type {
-  Transaction,
-  MarkType,
-  Selection,
-  ResolvedPos,
-  Mark,
-  Node
-} from "prosemirror-state"
+import type { Transaction, Selection } from "prosemirror-state"
+import type { MarkType, ResolvedPos, Mark, Node } from "prosemirror-model"
 import { Decoration, DecorationSet } from "prosemirror-view"
 
-type Marker = {
+export type Marker = {
   mark: Mark,
   start: number,
   end: number
@@ -51,7 +45,7 @@ export const getMarkersAt = (at: ResolvedPos): Marker[] => {
   return markers
 }
 
-const findMarkStart = (
+export const findMarkStart = (
   node: Node,
   pos: number,
   index: number,
@@ -70,7 +64,7 @@ const findMarkStart = (
   return offset
 }
 
-const findMarkEnd = (
+export const findMarkEnd = (
   node: Node,
   pos: number,
   index: number,
@@ -89,12 +83,3 @@ const findMarkEnd = (
   }
   return offset
 }
-
-export const decorateMarker = (marker: Marker) =>
-  decorate(marker.start, marker.end)
-
-export const decorate = (
-  start: number,
-  end: number,
-  attributes: { [string]: string } = { nodeName: "u" }
-) => Decoration.inline(start, end, attributes)

@@ -314,7 +314,7 @@ export type MenuOptions =
   | { floating?: boolean, items: MenuItem[] }
   | { floating?: boolean, schema: MenuSchema }
 
-export type Menu = Plugin
+export type Menu = Plugin<{}>
 
 export const menu = (options: MenuOptions): Menu =>
   menuBar({

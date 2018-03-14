@@ -1,6 +1,7 @@
 // @flow strict
 
-import type { Transaction, EditorState, Mappping } from "prosemirror-state"
+import type { Node } from "prosemirror-model"
+import type { Transaction, EditorState } from "prosemirror-state"
 import { Decoration, DecorationSet } from "prosemirror-view"
 import type { DatArchive, DatURL } from "../DatArchive"
 import Archive from "../DatArchive"
@@ -12,8 +13,8 @@ import {
   editableRange,
   beginEdit,
   endEdit,
-  editOffRange,
-  Range
+  commitEdit,
+  EditRange
 } from "../ProseMirror/EditRange"
 
 export interface Program<inn, model, out = empty, options = void> {
@@ -24,7 +25,7 @@ export interface Program<inn, model, out = empty, options = void> {
   send(model): out[];
 }
 
-type Meta = { type: "noop" } | { type: "syntaxInput" }
+export type Meta = { type: "noop" } | { type: "syntaxInput" }
 
 type Edit = {
   transaction: Transaction,
@@ -44,79 +45,6 @@ export type Message =
   | { type: "selectionChange", change: Edit }
 
 export type JSONModel = {}
-
-class EditRange extends Range {
-  decorations: DecorationSet
-  doc: Node
-  constructor(index: number, length: number, decorations: DecorationSet) {
-    super(index, length)
-    this.decorations = decorations
-  }
-  static empty: EditRange = new EditRange(Infinity, 0, DecorationSet.empty)
-  static attributes = { nodeName: "u" }
-  static options = {
-    inclusiveStart: true,
-    inclusiveEnd: true
-  }
-  static new(index: number, length: number, doc: Node) {
-    if (length === 0) {
-      return EditRange.empty
-    } else {
-      const decoration = Decoration.inline(
-        index,
-        index + length,
-        EditRange.attributes,
-        EditRange.options
-      )
-      return new EditRange(
-        index,
-        length,
-        DecorationSet.create(doc, [decoration])
-      )
-    }
-  }
-  map(mapping: Mappping, doc: Node) {
-    if (this.length === 0) {
-      return this
-    } else {
-      const decorations = this.decorations.map(mapping, doc)
-      const decoration = decorations.find()[0]
-      if (!decoration) {
-        return EditRange.empty
-      } else {
-        const { from, to } = decoration
-        const length = to - from
-        if (this.index !== from || this.length !== length) {
-          return new EditRange(from, length, decorations)
-        } else {
-          return this
-        }
-      }
-    }
-  }
-  patch({ index, length }: Range, doc: Node) {
-    if (length === 0) {
-      return EditRange.empty
-    } else if (this.index === index && this.length === length) {
-      return this
-    } else {
-      return EditRange.new(index, length, doc)
-    }
-  }
-  includesSelection({ from, to }: Selection): boolean {
-    const { index, length } = this
-    return from >= index && index + length >= to
-  }
-  includes({ index, length }: Range): boolean {
-    if (length === 0) {
-      return true
-    } else if (this.length === 0) {
-      return false
-    } else {
-      return index >= this.index && this.index + this.length >= index + length
-    }
-  }
-}
 
 export class Model {
   notebook: Notebook.Model
@@ -161,7 +89,7 @@ export class Model {
       notebook,
       self.editor,
       tr,
-      self.editRange,
+      EditRange.empty,
       self.cursorActivityTime
     )
   }
@@ -231,7 +159,6 @@ export const update = (state: Model, message: Message): Model => {
     case "loaded": {
       const document = message.loaded
       const content = parseDocument(document)
-
       const transaction = state.editor.tr.replaceWith(
         0,
         state.editor.tr.doc.content.size,
@@ -268,19 +195,17 @@ export const edit = (state: Model, edit: Edit): Model => {
 
   const { selection, doc } = transaction
   const range = state.editRange.map(transaction.mapping, transaction.doc)
-  if (range.includesSelection(selection)) {
+  if (meta.ignore) {
+    return Model.new(state.notebook, after, null, range, transaction.time)
+  } else if (range.length > 0) {
+    const tr = commitEdit(range, after.tr, schema)
+
+    return Model.new(state.notebook, after, tr, range, transaction.time)
+    // return selectionChange(state, edit)
+  } else if (range.includesSelection(selection)) {
     return Model.new(state.notebook, after, null, range, transaction.time)
   } else {
     return selectionChange(state, edit)
-    // const tr = editOffRange(after.tr, selection, schema)
-
-    // return Model.new(
-    //   state.notebook,
-    //   after,
-    //   tr,
-    //   EditRange.empty,
-    //   transaction.time
-    // )
   }
 }
 
@@ -305,14 +230,16 @@ export const selectionChange = (state: Model, change: Edit): Model => {
     } else {
       // Need to do replace range that is further off in the document
       // so that other edit ranges won't get shifted.
-      if (range.index + range.length > editRange.index + editRange.length) {
+      if (range.index > editRange.index) {
         tr = beginEdit(tr, range, schema)
         tr = endEdit(tr, editRange, schema)
       } else {
         tr = endEdit(tr, editRange, schema)
-        tr = beginEdit(tr, range, schema)
+        tr = beginEdit(tr, editableRange(tr.selection), schema)
       }
     }
+
+    console.log(tr && tr.time)
 
     return Model.new(
       state.notebook,

@@ -2,17 +2,19 @@
 
 import { Plugin, PluginKey } from "prosemirror-state"
 import { Decoration, DecorationSet, EditorView } from "prosemirror-view"
-import type {
-  EditorState,
-  Schema,
-  Node,
-  Selection,
-  Transaction
-} from "prosemirror-state"
+import type { EditorState, Selection, Transaction } from "prosemirror-state"
+import type { Schema, Node } from "prosemirror-model"
 import CodeBlock from "./CodeBlock"
 import InlineNode from "./InlineNode"
 import HeadingView from "./Allusion/NodeView/Heading"
-import { Link, Address, URL, Title } from "./Allusion/NodeView/Link"
+import {
+  Link,
+  Address,
+  URL,
+  Title,
+  Words,
+  Markup
+} from "./Allusion/NodeView/Link"
 import keyDownHandler from "./CodeBlock/KeyDownHandler"
 import Archive from "./DatArchive"
 import type { DatArchive } from "./DatArchive"
@@ -24,11 +26,11 @@ export type EditorConfig = {
   schema?: Schema,
   doc?: Node,
   selection?: Selection,
-  plugins?: Plugin[]
+  plugins?: Plugin<*>[]
 }
 
-export default (): Plugin =>
-  new Plugin({
+export default (): Plugin<Allusion<program.Message, program.Model>> => {
+  const plugin: Plugin<Allusion<program.Message, program.Model>> = new Plugin({
     key: pluginKey,
     state: Allusion,
     view(editor: EditorView) {
@@ -38,8 +40,9 @@ export default (): Plugin =>
       return {}
     },
     props: {
-      decorations(state: EditorState) {
-        return this.getState(state).decorations()
+      decorations(state: EditorState): ?DecorationSet {
+        return plugin.getState(state).decorations()
+        // return this.getState(state).decorations()
       },
       handleKeyDown: keyDownHandler,
       handleTextInput(
@@ -62,22 +65,34 @@ export default (): Plugin =>
         //   return true
         // }
         return false
-      },
-      nodeViews: {
-        code_block: CodeBlock.new,
-        // heading: HeadingView.new,
-        code: InlineNode.new,
-        [Link.blotName]: Link.view(),
-        [Address.blotName]: Address.view(),
-        [URL.blotName]: URL.view(),
-        [Title.blotName]: Title.view()
       }
+    },
+    nodeViews: {
+      code_block: CodeBlock.new,
+      // heading: HeadingView.new,
+      code: InlineNode.new
+      // [Link.blotName]: Link.view(),
+      // [Address.blotName]: Address.view(),
+      // [URL.blotName]: URL.view(),
+      // [Title.blotName]: Title.view()
+      // [Words.blotName]: Words.view()
+      // [Markup.blotName]: Markup.view()
     }
   })
+  return plugin
+}
+
+interface Transact {
+  transaction: Transaction;
+  before: EditorState;
+  after: EditorState;
+  // TODO: Remove this dependency
+  meta: program.Meta;
+}
 
 interface ProsemirrorProgram<message, model>
   extends Program<message, model, Transaction, EditorState> {
-  transact(model, Transaction, EditorState, EditorState): message[];
+  transact(model, Transact): message[];
 }
 
 class Allusion<message, model> {
@@ -162,7 +177,7 @@ class Allusion<message, model> {
     if (editor != null) {
       const transactions = await program.send(state)
       for (const transaction of transactions) {
-        editor.dispatch(transaction)
+        editor.dispatch(transaction.setMeta(pluginKey, { ignore: true }))
       }
     }
   }

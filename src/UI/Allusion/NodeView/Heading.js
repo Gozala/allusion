@@ -14,9 +14,10 @@ export default class HeadingView {
   constructor(node: Node, editor: EditorView) {
     const level = node.attrs.level || 1
     const tagName = `h${level}`
-    const dom = editor.root.createElement(tagName)
-    const mark = editor.root.createElement("mark")
-    const content = editor.root.createElement("span")
+    const document = editor.root.ownerDocument || editor.root
+    const dom = document.createElement(tagName)
+    const mark = document.createElement("mark")
+    const content = document.createElement("span")
     mark.textContent = node.attrs.markup
     dom.appendChild(mark)
     dom.appendChild(content)

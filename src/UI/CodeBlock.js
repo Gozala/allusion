@@ -9,6 +9,7 @@ import { exitCode } from "prosemirror-commands"
 import { undo, redo } from "prosemirror-history"
 import type { EditorView } from "prosemirror-view"
 import { TextSelection, Selection, NodeSelection } from "prosemirror-state"
+import { Fragment } from "prosemirror-model"
 import type { Node } from "prosemirror-model"
 
 type Direction = -1 | 1
@@ -112,7 +113,7 @@ export default class CodeBlockView {
       let tr = this.view.state.tr.replaceWith(
         start + change.from,
         start + change.to,
-        change.text ? this.view.state.schema.text(change.text) : null
+        change.text ? this.view.state.schema.text(change.text) : Fragment.empty
       )
       this.view.dispatch(tr)
     }

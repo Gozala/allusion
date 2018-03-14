@@ -16,11 +16,11 @@ import type {
   MarkType,
   Mark,
   Schema,
-  EditorState,
-  Transaction,
-  Range,
+  NodeRange,
   Node
-} from "prosemirror-state"
+} from "prosemirror-model"
+
+import type { EditorState, Transaction } from "prosemirror-state"
 
 // : (NodeType) → InputRule
 // Given a blockquote node type, returns an input rule that turns `"> "`
@@ -120,7 +120,7 @@ export const markerRule = (pattern: RegExp, markType: MarkType) =>
 export const makeMarker = (pattern: RegExp) => (markType: MarkType) =>
   markerRule(pattern, markType)
 
-const markApplies = (doc: Node, ranges: Range[], type: MarkType) => {
+const markApplies = (doc: Node, ranges: NodeRange[], type: MarkType) => {
   for (let i = 0; i < ranges.length; i++) {
     let { $from, $to } = ranges[i]
     let can = $from.depth == 0 ? doc.type.allowsMarkType(type) : false

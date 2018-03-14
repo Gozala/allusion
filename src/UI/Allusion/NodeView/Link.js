@@ -64,7 +64,9 @@ export class View {
   }
   render(node: Node, editor: EditorView): Element {
     const { tagName, className } = this.constructor
-    const element = this.editor.root.createElement(tagName)
+    const { root } = this.editor
+    const document = root.ownerDocument || root
+    const element = document.createElement(tagName)
     if (className !== "") {
       element.classList.add(className)
     }
