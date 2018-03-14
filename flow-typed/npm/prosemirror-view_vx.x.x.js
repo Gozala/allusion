@@ -14,117 +14,224 @@
  */
 
 declare module "prosemirror-view" {
-  declare module.exports: any
-}
+  import type {
+    Slice,
+    Node,
+    ResolvedPos,
+    DOMSerializer,
+    DOMParser
+  } from "prosemirror-model"
+  import type { EditorState, Transaction } from "prosemirror-state"
+  import type { Mapping } from "prosemirror-transform"
 
-/**
- * We include stubs for each file inside this npm package in case you need to
- * require those files directly. Feel free to delete any files that aren't
- * needed.
- */
-declare module "prosemirror-view/dist/index" {
-  declare module.exports: any
-}
+  declare export class EditorView {
+    dom: Element;
+    dragging: ?{ slice: Slice, move: boolean };
+    props: DirectEditorProps;
+    root: Document | DocumentFragment;
+    state: EditorState;
 
-declare module "prosemirror-view/rollup.config" {
-  declare module.exports: any
-}
+    constructor(
+      place: Element | (Element => void | { mount: Element }),
+      DirectEditorProps
+    ): void;
+    constructor(DirectEditorProps): void;
 
-declare module "prosemirror-view/src/browser" {
-  declare module.exports: any
-}
+    update(DirectEditorProps): void;
+    setProps(DirectEditorProps): void;
+    updateState(EditorState): void;
+    someProp<a>(propName: string): a;
+    someProp<a, b>(propName: string, (a) => b): b;
+    hasFocus(): boolean;
+    focus(): void;
+    posAtCoords(coords: { left: number, top: number }): ?{
+      pos: number,
+      inside: number
+    };
+    coordsAtPos(
+      pos: number
+    ): { left: number, right: number, top: number, bottom: number };
+    domAtPos(pos: number): { node: Element, offset: number };
+    endOfTextblock(dir: Direction, state?: EditorState): boolean;
+    destroy(): void;
+    dispatch(tr: Transaction): void;
+  }
 
-declare module "prosemirror-view/src/capturekeys" {
-  declare module.exports: any
-}
+  declare export type EditorProps = {
+    handleDOMEvents?: { [string]: (EditorView, Event) => boolean },
+    handleKeyDown?: (EditorView, KeyboardEvent) => boolean,
+    handleKeyPress?: (EditorView, KeyboardEvent) => boolean,
+    handleTextInput?: (
+      EditorView,
+      from: number,
+      to: number,
+      text: string
+    ) => boolean,
+    handleClickOn?: (
+      EditorView,
+      pos: number,
+      node: Node,
+      nodePos: number,
+      MouseEvent,
+      direct: boolean
+    ) => boolean,
+    handleClick?: (EditorView, pos: number, MouseEvent) => boolean,
+    handleDoubleClickOn?: (
+      view: EditorView,
+      pos: number,
+      node: Node,
+      nodePos: number,
+      event: MouseEvent,
+      direct: boolean
+    ) => boolean,
+    handleDoubleClick?: (
+      view: EditorView,
+      pos: number,
+      event: MouseEvent
+    ) => boolean,
 
-declare module "prosemirror-view/src/clipboard" {
-  declare module.exports: any
-}
+    handleTripleClick?: (
+      view: EditorView,
+      pos: number,
+      event: MouseEvent
+    ) => boolean,
+    handleTripleClickOn?: (
+      EditorView,
+      pos: number,
+      node: Node,
+      nodePos: number,
+      event: MouseEvent,
+      direct: boolean
+    ) => boolean,
+    handlePaste?: (view: EditorView, event: Event, slice: Slice) => boolean,
+    handleDrop?: (
+      view: EditorView,
+      event: Event,
+      slice: Slice,
+      moved: boolean
+    ) => boolean,
+    handleScrollToSelection?: (view: EditorView) => boolean,
+    createSelectionBetween?: (
+      EditorView,
+      ResolvedPos,
+      ResolvedPos
+    ) => ?Selection,
+    domParser?: DOMParser,
+    transformPastedHTML?: (html: string) => string,
+    clipboardParser?: DOMParser,
+    transformPastedText?: (text: string) => string,
+    clipboardTextParser?: (text: string, $context: ResolvedPos) => Slice,
+    transformPasted?: Slice => Slice,
 
-declare module "prosemirror-view/src/decoration" {
-  declare module.exports: any
-}
+    nodeViews?: {
+      [string]: (
+        Node,
+        EditorView,
+        getPos: () => number,
+        decorations: Decoration<DecorationSet>[]
+      ) => NodeView
+    },
+    clipboardSerializer?: DOMSerializer,
+    decorations?: (state: EditorState) => ?DecorationSet,
+    editable?: (state: EditorState) => boolean,
+    attributes?: { [string]: string } | (EditorState => { [string]: string }),
+    scrollThreshold?: number,
+    scrollMargin?: number
+  }
 
-declare module "prosemirror-view/src/dom" {
-  declare module.exports: any
-}
+  declare export type DirectEditorProps = EditorProps & {
+    state: EditorState,
 
-declare module "prosemirror-view/src/domchange" {
-  declare module.exports: any
-}
+    dispatchTransaction?: (tr: Transaction) => void
+  }
 
-declare module "prosemirror-view/src/domcoords" {
-  declare module.exports: any
-}
+  declare export interface NodeView {
+    dom?: Element;
+    contentDOM?: Element;
 
-declare module "prosemirror-view/src/domobserver" {
-  declare module.exports: any
-}
+    update?: (node: Node, decorations: Decoration<DecorationSpec>[]) => boolean;
+    selectNode?: () => void;
+    deselectNode?: () => void;
 
-declare module "prosemirror-view/src/index" {
-  declare module.exports: any
-}
+    setSelection?: (anchor: number, head: number, root: Document) => void;
+    stopEvent?: (event: Event) => boolean;
+    ignoreMutation?: MutationRecord => boolean;
 
-declare module "prosemirror-view/src/input" {
-  declare module.exports: any
-}
+    destroy?: () => void;
+  }
 
-declare module "prosemirror-view/src/selection" {
-  declare module.exports: any
-}
+  declare export class Decoration<spec: DecorationSpec> {
+    from: number;
+    to: number;
+    spec: spec;
 
-declare module "prosemirror-view/src/trackmappings" {
-  declare module.exports: any
-}
+    static widget<spec: WidgetDecorationSpec>(
+      pos: number,
+      dom: Node,
+      ?spec
+    ): Decoration<spec>;
+    static inline<spec: InlineDecorationSpec>(
+      from: number,
+      to: number,
+      attrs: DecorationAttrs,
+      ?spec
+    ): Decoration<spec>;
+    static node<spec: NodeDecorationSpec>(
+      from: number,
+      to: number,
+      attrs: DecorationAttrs,
+      ?spec
+    ): Decoration<spec>;
+  }
 
-declare module "prosemirror-view/src/viewdesc" {
-  declare module.exports: any
-}
+  declare export interface DecorationAttrs {
+    class?: string;
+    style?: string;
+    nodeName?: string;
+  }
 
-// Filename aliases
-declare module "prosemirror-view/dist/index.js" {
-  declare module.exports: $Exports<"prosemirror-view/dist/index">
-}
-declare module "prosemirror-view/rollup.config.js" {
-  declare module.exports: $Exports<"prosemirror-view/rollup.config">
-}
-declare module "prosemirror-view/src/browser.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/browser">
-}
-declare module "prosemirror-view/src/capturekeys.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/capturekeys">
-}
-declare module "prosemirror-view/src/clipboard.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/clipboard">
-}
-declare module "prosemirror-view/src/decoration.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/decoration">
-}
-declare module "prosemirror-view/src/dom.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/dom">
-}
-declare module "prosemirror-view/src/domchange.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/domchange">
-}
-declare module "prosemirror-view/src/domcoords.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/domcoords">
-}
-declare module "prosemirror-view/src/domobserver.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/domobserver">
-}
-declare module "prosemirror-view/src/index.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/index">
-}
-declare module "prosemirror-view/src/input.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/input">
-}
-declare module "prosemirror-view/src/selection.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/selection">
-}
-declare module "prosemirror-view/src/trackmappings.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/trackmappings">
-}
-declare module "prosemirror-view/src/viewdesc.js" {
-  declare module.exports: $Exports<"prosemirror-view/src/viewdesc">
+  declare export class DecorationSet {
+    find(
+      start?: number,
+      end?: number,
+      predicate?: (spec: Object) => boolean
+    ): Decoration<DecorationSpec>[];
+
+    map(
+      mapping: Mapping,
+      doc: Node,
+      options?: { onRemove?: DecorationSpec => void }
+    ): DecorationSet;
+    add(doc: Node, decorations: Decoration<DecorationSpec>[]): DecorationSet;
+    remove(decorations: Decoration<DecorationSpec>[]): DecorationSet;
+
+    static create(
+      doc: Node,
+      decorations: Decoration<DecorationSpec>[]
+    ): DecorationSet;
+    static empty: DecorationSet;
+  }
+
+  declare export interface DecorationSpec {}
+
+  declare export interface WidgetDecorationSpec extends DecorationSpec {
+    key?: string;
+    side?: number;
+    stopEvent?: (event: Event) => boolean;
+  }
+
+  declare export interface InlineDecorationSpec extends DecorationSpec {
+    inclusiveStart?: boolean;
+    inclusiveEnd?: boolean;
+  }
+
+  declare export interface NodeDecorationSpec extends DecorationSpec {}
+
+  declare export type Direction =
+    | "up"
+    | "down"
+    | "left"
+    | "right"
+    | "forward"
+    | "backward"
 }

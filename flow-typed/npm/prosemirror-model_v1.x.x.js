@@ -107,6 +107,13 @@ declare module "prosemirror-model" {
       f: (node: Node, start: number, parent: Node, index: number) => ?boolean
     ): void;
 
+    textBetween(
+      from: number,
+      to: number,
+      blockSeparator?: string,
+      leafText?: string
+    ): string;
+
     descendents(f: (node: Node, pos: number, parent: Node) => ?boolean): void;
 
     append(other: Fragment): Fragment;
@@ -436,7 +443,7 @@ declare module "prosemirror-model" {
     static fromSchema(schema: Schema): DOMSerializer;
   }
 
-  declare type Attributes = { [string]: ?string }
+  declare export type Attributes = { [string]: ?string }
 
   declare export type DOMOutputSpec =
     | string // node.text

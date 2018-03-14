@@ -14,61 +14,216 @@
  */
 
 declare module "prosemirror-state" {
-  declare module.exports: any
-}
+  import type {
+    Node,
+    Mark,
+    NodeSpec,
+    MarkSpec,
+    NodeType,
+    MarkType,
+    Schema,
+    Fragment,
+    Slice,
+    ResolvedPos,
+    Attributes
+  } from "prosemirror-model"
+  import type {
+    Step,
+    StepResult,
+    Mappable,
+    MapResult,
+    Mapping,
+    Transform
+  } from "prosemirror-transform"
 
-/**
- * We include stubs for each file inside this npm package in case you need to
- * require those files directly. Feel free to delete any files that aren't
- * needed.
- */
-declare module "prosemirror-state/dist/index" {
-  declare module.exports: any
-}
+  import type { EditorView, EditorProps } from "prosemirror-view"
 
-declare module "prosemirror-state/rollup.config" {
-  declare module.exports: any
-}
+  declare export type Config = {
+    schema?: Schema,
+    plugins?: Plugin<*>[],
+    selection?: Selection,
+    doc?: Node
+  }
 
-declare module "prosemirror-state/src/index" {
-  declare module.exports: any
-}
+  declare export type JSON<a> = a
 
-declare module "prosemirror-state/src/plugin" {
-  declare module.exports: any
-}
+  declare type PluginFields = { [string]: Plugin<*> }
 
-declare module "prosemirror-state/src/selection" {
-  declare module.exports: any
-}
+  declare export class EditorState {
+    doc: Node;
+    selection: Selection;
+    storedMarks: Mark[];
+    schema: Schema;
+    plugins: Plugin<*>[];
+    apply(Transaction): Transaction;
+    applyTransaction(
+      Transaction
+    ): { state: EditorState, transaction: Transaction };
+    tr: Transaction;
+    reconfigure(Config): EditorState;
+    toJSON(?PluginFields): JSON<EditorState>;
 
-declare module "prosemirror-state/src/state" {
-  declare module.exports: any
-}
+    static create(Config): EditorState;
+    static fromJSON(Config, JSON<EditorState>, ?PluginFields): EditorState;
+  }
 
-declare module "prosemirror-state/src/transaction" {
-  declare module.exports: any
-}
+  declare export var $Transform: Class<Transform>
 
-// Filename aliases
-declare module "prosemirror-state/dist/index.js" {
-  declare module.exports: $Exports<"prosemirror-state/dist/index">
-}
-declare module "prosemirror-state/rollup.config.js" {
-  declare module.exports: $Exports<"prosemirror-state/rollup.config">
-}
-declare module "prosemirror-state/src/index.js" {
-  declare module.exports: $Exports<"prosemirror-state/src/index">
-}
-declare module "prosemirror-state/src/plugin.js" {
-  declare module.exports: $Exports<"prosemirror-state/src/plugin">
-}
-declare module "prosemirror-state/src/selection.js" {
-  declare module.exports: $Exports<"prosemirror-state/src/selection">
-}
-declare module "prosemirror-state/src/state.js" {
-  declare module.exports: $Exports<"prosemirror-state/src/state">
-}
-declare module "prosemirror-state/src/transaction.js" {
-  declare module.exports: $Exports<"prosemirror-state/src/transaction">
+  declare export class Transaction extends $Transform {
+    time: number;
+    storedMarks: ?(Mark[]);
+    selection: Selection;
+    selectionSet: boolean;
+    storedMarksSet: boolean;
+
+    setSelection(selection: Selection): Transaction;
+    setStoredMarks(marks?: Mark[]): Transaction;
+    ensureMarks(marks: Mark[]): Transaction;
+    addStoredMark(mark: Mark): Transaction;
+    removeStoredMark(mark: Mark | MarkType): Transaction;
+    setTime(time: number): Transaction;
+    replaceSelection(slice: Slice): Transaction;
+    replaceSelectionWith(node: Node, inheritMarks?: boolean): Transaction;
+    deleteSelection(): Transaction;
+    insertText(text: string, from?: number, to?: number): Transaction;
+    setMeta<state>(
+      key: string | Plugin<state> | PluginKey<state>,
+      value: state
+    ): Transaction;
+    getMeta<state>(key: string | Plugin<state> | PluginKey<state>): state;
+    isGeneric: boolean;
+    scrollIntoView(): Transaction;
+  }
+
+  declare export class Selection {
+    node: ?Node;
+    $cursor: ?ResolvedPos;
+
+    empty: boolean;
+    ranges: SelectionRange[];
+    $anchor: ResolvedPos;
+    $head: ResolvedPos;
+    anchor: number;
+    head: number;
+    from: number;
+    to: number;
+    $from: ResolvedPos;
+    $to: ResolvedPos;
+    visible: boolean;
+
+    constructor(
+      $anchor: ResolvedPos,
+      $head: ResolvedPos,
+      ranges?: SelectionRange[]
+    ): void;
+
+    eq(Selection): boolean;
+    map(doc: Node, mapping: Mappable): Selection;
+    content(): Slice;
+    replace(tr: Transaction, content?: Slice): void;
+    replaceWith(tr: Transaction, node: Node): void;
+    toJSON(): JSON<Selection>;
+    getBookmark(): SelectionBookmark;
+
+    static findFrom(
+      $pos: ResolvedPos,
+      dir: number,
+      textOnly?: boolean
+    ): Selection;
+    static near($pos: ResolvedPos, bias?: number): Selection;
+    static atStart(doc: Node): Selection;
+    static atEnd(doc: Node): Selection;
+    static fromJSON(doc: Node, json: JSON<Selection>): Selection;
+    static jsonID(id: string, selectionClass: Class<Selection>): void;
+  }
+
+  declare export class TextSelection extends Selection {
+    $cursor: ?ResolvedPos;
+
+    constructor($anchor: ResolvedPos, $head?: ResolvedPos): void;
+
+    static create(doc: Node, anchor: number, head?: number): TextSelection;
+    static between(
+      $anchor: ResolvedPos,
+      $head: ResolvedPos,
+      bias?: number
+    ): Selection;
+  }
+
+  declare export class NodeSelection extends Selection {
+    node: ?Node;
+
+    constructor($pos: ResolvedPos): void;
+
+    static create(doc: Node, from: number): NodeSelection;
+    static isSelectable(node: Node): boolean;
+  }
+
+  declare export class AllSelection extends Selection {
+    $from: ResolvedPos;
+    $to: ResolvedPos;
+
+    constructor($from: ResolvedPos, $to: ResolvedPos): void;
+  }
+
+  declare export interface SelectionBookmark {
+    map(mapping: Mapping): SelectionBookmark;
+    resolve(doc: Node): Selection;
+  }
+
+  declare export interface PluginSpec<state> {
+    props?: EditorProps;
+    state?: StateField<state>;
+    key?: PluginKey<state>;
+
+    view?: EditorView => {
+      update?: (view: EditorView, prevState: EditorState) => state,
+      destroy?: () => void
+    };
+
+    filterTransaction?: (Transaction, EditorState) => boolean;
+    appendTransaction?: (
+      Transaction[],
+      oldState: EditorState,
+      newState: EditorState
+    ) => ?Transaction;
+  }
+
+  declare export interface StateField<state> {
+    init(Config, EditorState): state;
+
+    apply(
+      tr: Transaction,
+      value: state,
+      oldState: EditorState,
+      newState: EditorState
+    ): state;
+
+    toJSON?: state => JSON<state>;
+    fromJSON?: (Config, JSON<state>, EditorState) => state;
+  }
+
+  declare export class Plugin<state> {
+    constructor(PluginSpec<state>): void;
+    props: EditorProps;
+    spec: PluginSpec<state>;
+    getState(state: EditorState): state;
+  }
+
+  declare export class PluginKey<state> {
+    constructor(name?: string): void;
+    get(EditorState): ?Plugin<state>;
+    getState(EditorState): ?state;
+  }
+
+  declare export class SelectionRange {
+    $from: ResolvedPos;
+    $to: ResolvedPos;
+    constructor($from: ResolvedPos, $to: ResolvedPos): void;
+  }
+
+  declare type NodeMarkup = {
+    type: NodeType,
+    attrs?: Attributes
+  }
 }
