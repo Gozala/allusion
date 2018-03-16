@@ -24,12 +24,11 @@ interface EditorOptions {
 }
 
 export default (
-  target: ?Element,
+  target: Element,
   content: string = "",
   options: EditorOptions = {}
 ): EditorView =>
-  new EditorView({
-    mount: target,
+  new EditorView(target, {
     state: EditorState.create({
       doc: schema.node("doc", null, [schema.node("header")]),
       // doc: Parser.parse(content),
