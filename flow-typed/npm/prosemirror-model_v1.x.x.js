@@ -100,6 +100,7 @@ declare module "prosemirror-model" {
     firstChild: ?Node;
     lastChild: ?Node;
     childCount: number;
+    content: $ReadOnlyArray<Node>;
 
     nodesBetween(
       from: number,
@@ -114,7 +115,7 @@ declare module "prosemirror-model" {
       leafText?: string
     ): string;
 
-    descendents(f: (node: Node, pos: number, parent: Node) => ?boolean): void;
+    descendants(f: (node: Node, pos: number, parent: Node) => ?boolean): void;
 
     append(other: Fragment): Fragment;
 
@@ -443,7 +444,7 @@ declare module "prosemirror-model" {
     static fromSchema(schema: Schema): DOMSerializer;
   }
 
-  declare export type Attributes = { [string]: ?string }
+  declare export type Attributes = { [string]: ?string | number | boolean }
 
   declare export type DOMOutputSpec =
     | string // node.text

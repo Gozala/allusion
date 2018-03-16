@@ -35,7 +35,6 @@ declare module "prosemirror-view" {
       place: Element | (Element => void | { mount: Element }),
       DirectEditorProps
     ): void;
-    constructor(DirectEditorProps): void;
 
     update(DirectEditorProps): void;
     setProps(DirectEditorProps): void;
