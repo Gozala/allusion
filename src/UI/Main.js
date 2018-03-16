@@ -6,7 +6,7 @@ import "../../css/editor.css"
 import "../../css/code.css"
 
 self.editor = editor(
-  document.body,
+  document.body || document.createElement("body"),
   `/ Welcome to Allusion
 
 This an experimental text editor for note taking and thought organization.
