@@ -1,14 +1,15 @@
 // @flow strict
 
 import type { Transaction } from "prosemirror-state"
-import type { Mark, Node, Schema, NodeRange } from "prosemirror-model"
+import { Node, Schema, NodeRange } from "prosemirror-model"
 import { getSelectionMarkers, getMarkersAt, type Marker } from "./Marks"
-import { Selection } from "prosemirror-state"
-import { Fragment, Slice } from "prosemirror-model"
+import { Selection, TextSelection } from "prosemirror-state"
+import { Fragment, Slice, Mark } from "prosemirror-model"
 import Parser from "../Allusion/Parser"
 import Serializer from "../Allusion/Serializer"
 import { Decoration, DecorationSet } from "prosemirror-view"
 import type { Mapping } from "prosemirror-transform"
+import diff from "fast-diff"
 
 export interface Range {
   index: number;
@@ -115,11 +116,11 @@ export const editableRange = (selection: Selection): EditRange => {
       switch (node.type) {
         case nodes.paragraph:
         case nodes.heading: {
-          return EditRange.new(
+          const [start, end] = [
             $cursor.start(depth) - 1,
-            $cursor.end(depth) + 1,
-            doc
-          )
+            $cursor.end(depth) + 1
+          ]
+          return EditRange.new(start, end - start, doc)
         }
       }
       depth--
@@ -259,10 +260,15 @@ class ChangeList {
   }
   insertMarkupCode(code: string, marks: Mark[]) {
     const { schema, meta, markup } = this
-    this.insertNode(schema.text(code, [meta, ...marks]))
-    // this.insertNode(
-    //   schema.node("Markup", { markup: code }, schema.text(code), marks)
-    // )
+    this.insertNode(
+      schema.text(code, [
+        meta,
+        ...marks.map(mark =>
+          mark.type.create(Object.assign({}, mark.attrs, { marked: true }))
+        )
+      ])
+    )
+    // this.insertNode(schema.node("Markup", null, schema.text(code), marks))
     return this
   }
   insertMarkup(markup: string, marks: Mark[]) {
@@ -277,8 +283,35 @@ class ChangeList {
     this.index += node.nodeSize
     return this
   }
+  insert(content: Fragment) {
+    this.tr = this.tr.insert(this.index, content)
+    this.index += content.size
+    return this
+  }
+  retain(size: number) {
+    this.index += size
+    return this
+  }
   retainNode(node: Node) {
     this.index += node.nodeSize
+    return this
+  }
+  retainMarked(node: Node) {
+    this.tr = this.tr.setNodeMarkup(this.index, null, { marked: "true" })
+    return this.retainNode(node)
+  }
+  retainMarkedText(node: Node) {
+    const from = this.index
+    const to = this.index + node.nodeSize
+    const selection = this.tr.selection
+
+    for (const mark of node.marks) {
+      const attributes = Object.assign({}, mark.attrs, { marked: true })
+      this.tr.removeMark(from, to, mark)
+      this.tr.addMark(from, to, mark.type.create(attributes))
+    }
+
+    this.index = to
     return this
   }
   markupNode(markup: string, node: Node) {
@@ -290,6 +323,19 @@ class ChangeList {
   }
   deleteNode(node: Node) {
     this.tr = this.tr.delete(this.index, this.index + node.nodeSize)
+    return this
+  }
+  delete(size: number) {
+    this.tr = this.tr.delete(this.index, this.index + size)
+    return this
+  }
+  patchTextNode({ from, to, text }: TextDelta) {
+    const { tr, index, schema } = this
+    const start = index + from
+    const end = index + to
+    this.tr = this.tr.insertText(text, start, end)
+    this.index = start + text.length
+
     return this
   }
 }
@@ -306,7 +352,6 @@ export const expand = (
     const node = content.child(index)
     changeList.updateMarks(node.marks)
 
-    console.group(node.type.name)
     switch (node.type) {
       case schema.nodes.anchor: {
         changeList.index++
@@ -354,12 +399,12 @@ export const expand = (
         changeList
           .insertMarkup(`${node.attrs.src} ${title}`, node.marks)
           .insertMarkupCode(")", node.marks)
-          .retainNode(node)
+          .retainMarked(node)
 
         break
       }
       case schema.nodes.text: {
-        changeList.retainNode(node)
+        changeList.retainMarkedText(node)
         break
       }
       case schema.nodes.paragraph: {
@@ -370,11 +415,10 @@ export const expand = (
       default: {
         // changeList.index++
         // expand(node.content, changeList, schema)
-        changeList.retainNode(node)
+        changeList.retainMarked(node)
         break
       }
     }
-    console.groupEnd()
     index++
   }
 
@@ -423,31 +467,29 @@ export const commitEdit = (
   tr: Transaction,
   schema: Schema
 ): ?Transaction => {
-  const delta = collapse(
-    tr.doc.slice(range.index, range.index + range.length).content,
-    new ChangeList(range.index, tr, schema, new Map()),
-    schema
-  )
-  const newRange = range.map(delta.tr.mapping, delta.tr.doc)
-  const slice = tr.doc.slice(newRange.index, newRange.index + newRange.length)
-  const markup = Serializer.serializeInline(slice.content)
-  const { content } = Parser.parse(`${markup}`)
+  // const delta = collapse(
+  //   tr.doc.slice(range.index, range.index + range.length).content,
+  //   new ChangeList(range.index, tr, schema, new Map()),
+  //   schema
+  // )
+  // const newRange = range.map(delta.tr.mapping, delta.tr.doc)
+  // const input = tr.doc.slice(range.index, range.index + range.length)
+  const input = tr.doc.nodeAt(range.index)
+  if (!input) return null
+  const markup = Serializer.serializeInline(input.content)
+  const output = Parser.parse(markup)
+  const result = Serializer.serializeInline(output.content)
 
-  const input = slice.content.textBetween(0, slice.content.size)
-  if (input !== content.textBetween(0, content.size)) {
-  }
-
-  const newTr = patch(
-    slice.content,
-    content,
-    new ChangeList(newRange.index, delta.tr, schema, new Map()),
-    schema
-  )
-  if (newTr) {
-    const range = newRange.map(newTr.mapping, newTr.doc)
-    return beginEdit(newTr, range, schema)
-  } else {
+  if (markup.trim() !== result.trim()) {
     return null
+  } else {
+    return patch2(
+      input,
+      output,
+      tr.selection.from,
+      new ChangeList(range.index, tr, schema, new Map()),
+      schema
+    )
   }
 }
 
@@ -462,37 +504,209 @@ export const patch = (
   let lastIndex = 0
   let nextIndex = 0
   const stepCount = changeList.tr.steps.length
+  const root = changeList.tr.doc
 
   while (lastIndex < lastCount) {
     const lastChild = last.child(lastIndex)
     if (isMarkup(lastChild)) {
       lastIndex++
+      changeList.deleteNode(lastChild)
+      console.log("remove markup node", lastChild.toJSON())
       continue
     }
-    const nextChild = nextIndex < nextCount ? next.child(nextIndex) : null
+    const nextChild = nextIndex < nextCount ? next.child(nextIndex) : root
 
-    if (nextChild != null && lastChild.eq(nextChild)) {
+    if (lastChild.eq(nextChild)) {
+      console.log("retain node", lastChild.toJSON(), nextChild.toJSON())
       changeList.retainNode(lastChild)
       lastIndex++
       nextIndex++
-    } else {
-      if (nextChild && lastChild.type === nextChild.type) {
+    } else if (lastChild.type === nextChild.type) {
+      if (lastChild.isText) {
+        const delta = diffText(lastChild.textContent, nextChild.textContent)
+        if (delta) {
+          console.log(
+            "patch text node",
+            delta,
+            lastChild.toJSON(),
+            nextChild.toJSON()
+          )
+          changeList.patchTextNode(delta)
+          lastIndex++
+          nextIndex++
+        } else {
+          console.log(
+            "retain text node",
+            lastChild.toJSON(),
+            nextChild.toJSON()
+          )
+          changeList.retainNode(lastChild)
+          lastIndex++
+          nextIndex++
+        }
+      } else {
+        console.group(
+          "patch children",
+          lastChild.content.toJSON(),
+          nextChild.content.toJSON()
+        )
         changeList.index++
         patch(lastChild.content, nextChild.content, changeList, schema)
         changeList.index++
         lastIndex++
         nextIndex++
-      } else {
-        changeList.deleteNode(lastChild)
-        lastIndex++
+        console.groupEnd()
       }
+    } else {
+      console.log("remove child node", lastChild.toJSON())
+      changeList.deleteNode(lastChild)
+      lastIndex++
     }
   }
 
   while (nextIndex < nextCount) {
+    console.log("insert child node", next.child(nextIndex))
     changeList.insertNode(next.child(nextIndex))
     nextIndex++
   }
 
   return changeList.tr.steps.length - stepCount > 0 ? changeList.tr : null
+}
+
+class TextDelta {
+  +from: number
+  +to: number
+  +text: string
+  constructor(from: number, to: number, text: string) {
+    this.from = from
+    this.to = to
+    this.text = text
+  }
+}
+
+const diffText = (before: string, after: string): ?TextDelta => {
+  if (before !== after) {
+    let sizeBefore = before.length
+    let sizeAfter = after.length
+
+    let from = 0
+
+    // find index at which text starts to diverge.
+    while (
+      from < sizeBefore &&
+      before.charCodeAt(from) == after.charCodeAt(from)
+    ) {
+      from++
+    }
+
+    // find index at which text starts to diverge in from the rear.
+    while (
+      sizeBefore > from &&
+      sizeAfter > from &&
+      before.charCodeAt(sizeBefore - 1) === after.charCodeAt(sizeAfter - 1)
+    ) {
+      sizeBefore--
+      sizeAfter--
+    }
+
+    const text = after.slice(from, sizeBefore)
+    return new TextDelta(from, sizeBefore, text)
+  } else {
+    return null
+  }
+}
+
+const NODE_OPEN = String.fromCharCode(1)
+const NODE_CLOSE = String.fromCharCode(0)
+
+const encode = (content: Fragment): string => {
+  let text = ""
+  content.descendants((node, pos, parent) => {
+    text = pos > text.length ? text + NODE_CLOSE : text
+    text += node.content.size > 0 ? NODE_OPEN : node.textContent
+  })
+  return text
+}
+
+const patch2 = (
+  before: Node,
+  after: Node,
+  position: number,
+  changeList: ChangeList,
+  schema: Schema
+): ?Transaction => {
+  const delta = diff(encode(before.content), encode(after.content), position)
+  let offsetBefore = 0
+  let offsetAfter = 0
+  changeList.index++
+  const count = changeList.tr.steps.length
+  for (const [op, content] of delta) {
+    const size: number = content.length
+    switch (op) {
+      case diff.INSERT: {
+        if (content === NODE_OPEN) {
+          offsetAfter += size
+        } else {
+          console.log(
+            "insert",
+            after.slice(offsetAfter, offsetAfter + size).content.toString(),
+            size,
+            [op, content]
+          )
+          changeList.insert(
+            after.slice(offsetAfter, offsetAfter + size).content
+          )
+          offsetAfter += size
+        }
+        break
+      }
+      case diff.DELETE: {
+        console.log("delete", size, [op, content])
+        changeList.delete(size)
+        offsetBefore += size
+        break
+      }
+      case diff.EQUAL: {
+        const sliceBefore = before.slice(offsetBefore, offsetBefore + size)
+        const sliceAfter = after.slice(offsetAfter, offsetAfter + size)
+        if (eq(sliceBefore.content, sliceAfter.content)) {
+          changeList.retain(size)
+          console.log("retain", size, [op, content])
+        } else {
+          console.log("delete", size, [op, content])
+          console.log("insert", size, sliceAfter.content.toString(), [
+            op,
+            content
+          ])
+          changeList.delete(size).insert(sliceAfter.content)
+        }
+        offsetBefore += size
+        offsetAfter += size
+        break
+      }
+    }
+  }
+  return changeList.tr.steps.length === count ? null : changeList.tr
+}
+
+const eq = (left: Fragment, right: Fragment): boolean => {
+  if (left.size !== right.size) {
+    return false
+  } else {
+    const size = left.size
+    let index = 0
+    while (index < size) {
+      const leftChild = left.content[index]
+      const rightChild = right.content[index]
+      if (leftChild !== rightChild) {
+        if (!eq(leftChild.content, rightChild.content)) {
+          return false
+        } else if (leftChild.type !== rightChild.type) {
+          return false
+        }
+      }
+      index++
+    }
+  }
+  return true
 }
