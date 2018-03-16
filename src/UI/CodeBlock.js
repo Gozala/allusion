@@ -201,11 +201,17 @@ export default class CodeBlockView {
 // computeChange{
 const computeChange = (oldVal, newVal) => {
   if (oldVal == newVal) return null
-  let start = 0,
-    oldEnd = oldVal.length,
-    newEnd = newVal.length
-  while (start < oldEnd && oldVal.charCodeAt(start) == newVal.charCodeAt(start))
+  let start = 0
+  let oldEnd = oldVal.length
+  let newEnd = newVal.length
+
+  while (
+    start < oldEnd &&
+    oldVal.charCodeAt(start) == newVal.charCodeAt(start)
+  ) {
     ++start
+  }
+
   while (
     oldEnd > start &&
     newEnd > start &&
@@ -214,6 +220,7 @@ const computeChange = (oldVal, newVal) => {
     oldEnd--
     newEnd--
   }
+
   return { from: start, to: oldEnd, text: newVal.slice(start, newEnd) }
 }
 // }
