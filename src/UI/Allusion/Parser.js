@@ -5,12 +5,14 @@ import { MarkdownParser } from "../Markdown/Parser"
 import schema from "./Schema"
 import Header from "./Parser/Header"
 import TaskList from "./Parser/TaskList"
+import Paragraph from "./Parser/Paragraph"
 import { link } from "./NodeView/Link"
 import { Fragment } from "prosemirror-model"
 
 const tokenizer = new MarkdownIt({ html: false })
 tokenizer.block.ruler.after("heading", "header", Header)
 tokenizer.use(TaskList, { label: true, labelAfter: true, enabled: true })
+tokenizer.block.ruler.at("paragraph", Paragraph)
 
 export default new MarkdownParser(schema, tokenizer, {
   blockquote: MarkdownParser.node(schema.nodes.blockquote),
