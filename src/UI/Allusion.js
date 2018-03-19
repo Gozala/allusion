@@ -65,18 +65,18 @@ export default (): Plugin<Allusion<program.Message, program.Model>> => {
         //   return true
         // }
         return false
+      },
+      nodeViews: {
+        code_block: CodeBlock.new
+        // heading: HeadingView.new,
+        // code: InlineNode.new
+        // [Link.blotName]: Link.view(),
+        // [Address.blotName]: Address.view(),
+        // [URL.blotName]: URL.view(),
+        // [Title.blotName]: Title.view()
+        // [Words.blotName]: Words.view()
+        // [Markup.blotName]: Markup.view()
       }
-    },
-    nodeViews: {
-      code_block: CodeBlock.new,
-      // heading: HeadingView.new,
-      code: InlineNode.new
-      // [Link.blotName]: Link.view(),
-      // [Address.blotName]: Address.view(),
-      // [URL.blotName]: URL.view(),
-      // [Title.blotName]: Title.view()
-      // [Words.blotName]: Words.view()
-      // [Markup.blotName]: Markup.view()
     }
   })
   return plugin

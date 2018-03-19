@@ -145,8 +145,8 @@ declare module "prosemirror-view" {
   }
 
   declare export interface NodeView {
-    dom?: Element;
-    contentDOM?: Element;
+    +dom?: Element;
+    +contentDOM?: Element;
 
     +update?: (
       node: Node,
