@@ -16,7 +16,7 @@ declare module "prosemirror-model" {
     lastChild: ?Node;
     isBlock: boolean;
     isTextBlock: boolean;
-    inlineContext: boolean;
+    inlineContent: boolean;
     isInline: boolean;
     isText: boolean;
     isLeaf: boolean;
