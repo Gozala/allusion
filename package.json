@@ -66,6 +66,7 @@
   "dependencies": {
     "@beaker/webdb": "4.1.0",
     "codemirror": "5.35.0",
+    "fast-diff": "1.1.2",
     "markdown-it": "8.4.1",
     "markdown-it-checkbox": "1.1.0",
     "orderedmap": "1.0.0",
