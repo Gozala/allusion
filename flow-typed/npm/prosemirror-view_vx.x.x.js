@@ -148,15 +148,18 @@ declare module "prosemirror-view" {
     dom?: Element;
     contentDOM?: Element;
 
-    update?: (node: Node, decorations: Decoration<DecorationSpec>[]) => boolean;
-    selectNode?: () => void;
-    deselectNode?: () => void;
+    +update?: (
+      node: Node,
+      decorations: Decoration<DecorationSpec>[]
+    ) => boolean;
+    +selectNode?: () => void;
+    +deselectNode?: () => void;
 
-    setSelection?: (anchor: number, head: number, root: Document) => void;
-    stopEvent?: (event: Event) => boolean;
-    ignoreMutation?: MutationRecord => boolean;
+    +setSelection?: (anchor: number, head: number, root: Document) => void;
+    +stopEvent?: (event: Event) => boolean;
+    +ignoreMutation?: MutationRecord => boolean;
 
-    destroy?: () => void;
+    +destroy?: () => void;
   }
 
   declare export class Decoration<spec: DecorationSpec> {
