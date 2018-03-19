@@ -44,7 +44,7 @@
     "build:docs":
       "documentation build --document-exported src/** -f html --o docs",
     "build": "npm run build:node && npm run build:types",
-    "prepublish": "npm run build && npm test",
+    "-prepublish": "npm run build && npm test",
     "precommit": "lint-staged",
     "start": "rollup -w -c --embed UI/Main",
     "start:legacy":
