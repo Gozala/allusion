@@ -50,7 +50,7 @@ module.exports = function paragraph(state, startLine /*, endLine*/) {
   token.map = [startLine, state.line]
 
   token = state.push("inline", "", 0)
-  token.content = content
+  token.content = state.md.options.trim === false ? content : content.trim()
   token.map = [startLine, state.line]
   token.children = []
 

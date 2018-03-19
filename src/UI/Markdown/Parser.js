@@ -392,7 +392,7 @@ export class MarkdownParser {
 
 export const parser = new MarkdownParser(
   schema,
-  new MarkdownIt({ html: false }),
+  new MarkdownIt({ html: false, trim: false }),
   {
     blockquote: MarkdownParser.node(schema.nodes.blockquote),
     paragraph: MarkdownParser.node(schema.nodes.paragraph),
