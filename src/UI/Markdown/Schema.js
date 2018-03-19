@@ -37,7 +37,10 @@ export const schema = new Schema({
       }
     },
     heading: {
-      attrs: { level: { default: 1 }, expand: { default: false }, markup: {} },
+      attrs: {
+        level: { default: 1 },
+        markup: {}
+      },
       content: "inline*",
       group: "block",
       defining: true,
@@ -222,34 +225,6 @@ export const schema = new Schema({
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
         return ["code", node.attrs]
-      }
-    },
-    markup: {
-      inline: true,
-      group: "inline markup",
-      content: "text+",
-      selectable: true,
-      inclusive: false,
-      markup: true,
-      attrs: {
-        class: { default: "markup" }
-      },
-      toDOM(node) {
-        return ["span", node.attrs, 0]
-      }
-    },
-    meta: {
-      inline: true,
-      group: "inline markup",
-      content: "text+",
-      selectable: true,
-      inclusive: false,
-      markup: true,
-      attrs: {
-        class: { default: "markup code" }
-      },
-      toDOM(node) {
-        return ["span", node.attrs, 0]
       }
     },
     strong: {
