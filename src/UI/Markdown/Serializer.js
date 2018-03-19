@@ -84,7 +84,7 @@ export class MarkdownSerializerState {
   options: SerializerOptions
   delim: string
   out: string
-  closed: boolean
+  closed: boolean | Node
   inTightList: boolean
   options: SerializerOptions
   constructor(
@@ -164,7 +164,8 @@ export class MarkdownSerializerState {
     for (let i = 0; i < lines.length; i++) {
       var startOfLine = this.atBlank() || this.closed
       this.write()
-      this.out += escape !== false ? this.esc(lines[i], startOfLine) : lines[i]
+      this.out +=
+        escape !== false ? this.esc(lines[i], !!startOfLine) : lines[i]
       if (i != lines.length - 1) this.out += "\n"
     }
   }

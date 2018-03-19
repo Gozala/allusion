@@ -73,7 +73,13 @@ function insertImageItem(nodeType) {
   })
 }
 
-function cmdItem(cmd, options: { title: string }) {
+type ItemOptions = {
+  title: string,
+  enable?: boolean,
+  select?: boolean
+}
+
+function cmdItem(cmd, options: ItemOptions) {
   let passedOptions = {
     enable: undefined,
     select: undefined,
@@ -138,7 +144,9 @@ function linkItem(markType) {
   })
 }
 
-function wrapListItem(nodeType, options: { attrs?: Object, title: string }) {
+type ListItemOptions = ItemOptions & { attrs?: Object }
+
+function wrapListItem(nodeType, options: ListItemOptions) {
   return cmdItem(wrapInList(nodeType, options.attrs), options)
 }
 

@@ -428,13 +428,12 @@ export const expandNode = (
   }
 }
 
-const isMarkup = (node: Node) =>
-  node.type.spec.markup || node.marks.some(isMarkupMark)
+const isMarkupNode = (node: Node) => "markup" in node.type.spec
 
-const isMarkupMark = (mark: Mark) => {
-  const spec = mark.type.spec
-  return spec.markup || null ? true : false
-}
+const isMarkupMark = (mark: Mark) => "markup" in mark.type.spec
+
+const isMarkup = (node: Node) =>
+  isMarkupNode(node) || node.marks.some(isMarkupMark)
 
 export const collapse = (
   content: Fragment,
@@ -445,10 +444,7 @@ export const collapse = (
   const count = content.childCount
   while (index < count) {
     const node = content.child(index)
-    const marks = node.marks
-    if (node.type.spec.markup) {
-      changeList.deleteNode(node)
-    } else if (marks.some(isMarkupMark)) {
+    if (isMarkup(node)) {
       changeList.deleteNode(node)
     } else {
       if (node.isText) {

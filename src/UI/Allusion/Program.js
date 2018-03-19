@@ -25,7 +25,10 @@ export interface Program<inn, model, out = empty, options = void> {
   send(model): out[];
 }
 
-export type Meta = { type: "noop" } | { type: "syntaxInput" }
+export type Meta =
+  | { type: "noop" }
+  | { type: "syntaxInput" }
+  | { type: "ignore" }
 
 type Edit = {
   transaction: Transaction,
@@ -196,7 +199,7 @@ export const edit = (state: Model, edit: Edit): Model => {
   const { selection, doc } = transaction
   const range = editableRange(selection)
 
-  if (meta.ignore) {
+  if (meta.type === "ignore") {
     return Model.new(state.notebook, after, null, range, transaction.time)
   }
 

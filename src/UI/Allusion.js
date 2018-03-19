@@ -177,7 +177,7 @@ class Allusion<message, model> {
     if (editor != null) {
       const transactions = await program.send(state)
       for (const transaction of transactions) {
-        editor.dispatch(transaction.setMeta(pluginKey, { ignore: true }))
+        editor.dispatch(transaction.setMeta(pluginKey, { type: "ignore" }))
       }
     }
   }
