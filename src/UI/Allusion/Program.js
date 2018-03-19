@@ -194,18 +194,39 @@ export const edit = (state: Model, edit: Edit): Model => {
   const { schema } = after
 
   const { selection, doc } = transaction
-  const range = state.editRange.map(transaction.mapping, transaction.doc)
+  const range = editableRange(selection)
+
   if (meta.ignore) {
     return Model.new(state.notebook, after, null, range, transaction.time)
-  } else if (range.length > 0) {
-    const tr = commitEdit(range, after.tr, schema)
+  }
 
-    return Model.new(state.notebook, after, tr, range, transaction.time)
+  // const range = state.editRange.map(transaction.mapping, transaction.doc)
+  if (range.length > 0) {
+    const tr = commitEdit(range, after.tr, schema)
+    if (tr) {
+      const range = editableRange(tr.selection)
+      // const newTr = beginEdit(tr, range, schema)
+      // const newRange = editableRange(newTr.selection)
+      const newRange = range
+      const newTr = tr
+      const time = tr.time
+
+      return Model.new(
+        state.notebook,
+        after,
+        newTr,
+        newRange,
+        // tr,
+        // EditRange.empty,
+        time
+      )
+    } else {
+      return Model.new(state.notebook, after, null, range, transaction.time)
+    }
+
     // return selectionChange(state, edit)
-  } else if (range.includesSelection(selection)) {
-    return Model.new(state.notebook, after, null, range, transaction.time)
   } else {
-    return selectionChange(state, edit)
+    return Model.new(state.notebook, after, null, range, transaction.time)
   }
 }
 
@@ -238,8 +259,6 @@ export const selectionChange = (state: Model, change: Edit): Model => {
         tr = beginEdit(tr, editableRange(tr.selection), schema)
       }
     }
-
-    console.log(tr && tr.time)
 
     return Model.new(
       state.notebook,
