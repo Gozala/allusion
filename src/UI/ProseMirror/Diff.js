@@ -32,65 +32,6 @@ export const encode = (root: Node): string => {
   return text
 }
 
-export const diff = <t: Transform>(
-  before: Node,
-  after: Node,
-  tr: t,
-  index: number = 0,
-  cursorPosition: ?number = null
-): t => {
-  let changes = new Delta(tr, index)
-  const delta = diffSource(encode(before), encode(after), cursorPosition)
-
-  let offsetBefore = 0
-  let offsetAfter = 0
-  changes = changes.enterNode()
-  for (const [op, content] of delta) {
-    const size: number = content.length
-    switch (op) {
-      case INSERT: {
-        if (content === NODE_OPEN) {
-          offsetAfter += size
-        } else {
-          const { content } = after.slice(offsetAfter, offsetAfter + size)
-          changes = changes.insert(content)
-          offsetAfter += size
-        }
-        break
-      }
-      case DELETE: {
-        changes = changes.delete(size)
-        offsetBefore += size
-        break
-      }
-      case EQUAL: {
-        const nodeBefore = before.nodeAt(offsetBefore)
-        const nodeAfter = after.nodeAt(offsetAfter)
-
-        const nodeSize = Math.min(
-          nodeBefore ? nodeBefore.nodeSize : 0,
-          nodeAfter ? nodeAfter.nodeSize : 0
-        )
-
-        const sliceBefore = before.slice(offsetBefore, offsetBefore + size)
-        const sliceAfter = after.slice(offsetAfter, offsetAfter + size)
-        if (sliceBefore.content.eq(sliceAfter.content)) {
-          changes.retain(size)
-        } else {
-          changes.delete(size).insert(sliceAfter.content)
-        }
-        offsetBefore += size
-        offsetAfter += size
-        break
-      }
-    }
-  }
-  return changes.tr
-}
-
-const enterNode = (index: number) => index + 1
-const insertFragment = (index: number, fragment: Fragment) => {}
-
 class Delta<t: Transform> {
   tr: t
   index: number
@@ -111,17 +52,22 @@ class Delta<t: Transform> {
     this.index += content.size
     return this
   }
+  insertNode(node: Node): Delta<t> {
+    this.tr = this.tr.insert(this.index, node)
+    this.index += node.nodeSize
+    return this
+  }
   delete(size: number): Delta<t> {
     this.tr = this.tr.delete(this.index, this.index + size)
     return this
   }
-  retain(size: number) {
+  retain(size: number): Delta<t> {
     this.index += size
     return this
   }
 }
 
-class NodeIterator {
+export class NodeIterator {
   nodePosition: number
   textOffset: number
   stack: Array<?Node>
@@ -156,19 +102,60 @@ class NodeIterator {
   }
 }
 
-export const diff2 = <t: Transform>(
+export const diff = <t: Transform>(
   before: Node,
   after: Node,
   tr: t,
-  index: number = 0,
-  cursorPosition: ?number = null
+  cursorPosition: ?number = null,
+  index: number = 0
 ): t => {
   let changes = new Delta(tr, index)
   const delta = diffSource(encode(before), encode(after), cursorPosition)
   const nodesBefore = new NodeIterator(before)
   const nodesAfter = new NodeIterator(after)
+  let offsetBefore = 0
+  let offsetAfter = 0
   for (const [op, content] of delta) {
-    const size: number = content.length
+    const size = content.length
+    switch (op) {
+      case INSERT: {
+        if (content === NODE_OPEN) {
+          offsetAfter += size
+        } else {
+          const { content } = after.slice(offsetAfter, offsetAfter + size)
+          changes = changes.insert(content)
+          offsetAfter += size
+        }
+        break
+      }
+      case DELETE: {
+        changes = changes.delete(size)
+        offsetBefore += size
+        break
+      }
+      case EQUAL: {
+        const fragmentBefore = before.slice(offsetBefore, offsetBefore + size)
+          .content
+        const fragmentAfter = after.slice(offsetAfter, offsetAfter + size)
+          .content
+
+        const from = fragmentBefore.findDiffStart(fragmentAfter)
+        const to = fragmentBefore.findDiffEnd(fragmentAfter)
+        if (from && to) {
+          changes = changes
+            .retain(from)
+            .delete(to.a - from)
+            .insert(after.slice(offsetAfter + from, offsetAfter + to.b).content)
+          offsetBefore += to.a
+          offsetAfter += to.b
+        } else {
+          changes = changes.retain(size)
+          offsetBefore += size
+          offsetAfter += size
+        }
+        break
+      }
+    }
   }
   return changes.tr
 }
