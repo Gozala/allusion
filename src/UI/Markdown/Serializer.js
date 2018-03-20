@@ -70,7 +70,7 @@ export class MarkdownSerializer {
   }
   serializeInline(content: Node | Fragment, options?: SerializerOptions) {
     let state = new MarkdownSerializerState(this.nodes, this.marks, options)
-    state.renderInline(content)
+    state.renderContentInline(content)
     return state.out
   }
 }
@@ -184,8 +184,11 @@ export class MarkdownSerializerState {
   }
   // :: (Node)
   // Render the contents of `parent` as inline content.
-  renderInline(parent: Node | Fragment): void {
-    renderInline(this, parent)
+  renderInline(parent: Node): void {
+    renderInline(this, parent, parent.marks)
+  }
+  renderContentInline(parent: Node | Fragment): void {
+    renderInline(this, parent, [])
   }
   // :: (Node, string, (number) → string)
   // Render a node's content as a list. `delim` should be the extra
