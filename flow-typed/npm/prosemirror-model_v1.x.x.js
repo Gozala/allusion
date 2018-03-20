@@ -131,9 +131,9 @@ declare module "prosemirror-model" {
 
     forEach(f: (node: Node, offset: number, index: number) => void): void;
 
-    findDiffStart(other: Node): ?number;
+    findDiffStart(other: Fragment): ?number;
 
-    findDiffEnd(other: Node): ?{ a: number, b: number };
+    findDiffEnd(other: Fragment): ?{ a: number, b: number };
 
     toString(): string;
 
@@ -450,12 +450,61 @@ declare module "prosemirror-model" {
     | string // node.text
     | Element // document.createElement("div")
     | [string] // ["br"]
-    // ["p", 0]
     // ["img", node.attrs]
+    // ["p", 0]
     // ["div", ["hr"]]
-    | [string, 0 | Attributes | DOMOutputSpec | DOMOutputSpec[]]
     // ["ul", { "data-tight": node.attrs.tight ? "true" : null }, 0]
+    | [string, Attributes | 0 | DOMOutputSpec]
     // ["pre", node.attrs.params ? {"data-params": node.attrs.params} : {}, ["code", 0]]
+    | [string, Attributes, 0 | DOMOutputSpec]
+    | [string, DOMOutputSpec, DOMOutputSpec]
+    | [string, DOMOutputSpec, DOMOutputSpec, DOMOutputSpec]
+    | [string, DOMOutputSpec, DOMOutputSpec, DOMOutputSpec, DOMOutputSpec]
+    | [
+        string,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec
+      ]
+    | [
+        string,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec
+      ]
     // ["li", { "data-task": "true" }, [["input", {"type":"checkbox"}], 0]]
-    | [string, Attributes, 0 | DOMOutputSpec | DOMOutputSpec[]]
+    | [string, Attributes, DOMOutputSpec, DOMOutputSpec]
+    | [string, Attributes, DOMOutputSpec, DOMOutputSpec, DOMOutputSpec]
+    | [
+        string,
+        Attributes,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec
+      ]
+    | [
+        string,
+        Attributes,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec
+      ]
+    | [
+        string,
+        Attributes,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec,
+        DOMOutputSpec
+      ]
 }
