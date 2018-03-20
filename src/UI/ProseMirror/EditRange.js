@@ -1,7 +1,7 @@
 // @flow strict
 
 import type { Transaction } from "prosemirror-state"
-import { Node, Schema, NodeRange } from "prosemirror-model"
+import type { Node, Schema, NodeRange, ResolvedPos } from "prosemirror-model"
 import { getSelectionMarkers, getMarkersAt, type Marker } from "./Marks"
 import { Selection, TextSelection } from "prosemirror-state"
 import { Fragment, Slice, Mark } from "prosemirror-model"
@@ -105,15 +105,15 @@ export class EditRange implements Range {
 export const editableRange = (selection: Selection): EditRange => {
   const { $cursor, node, $anchor } = selection
   const { doc } = $anchor
+  const { nodes } = doc.type.schema
 
-  if (!$cursor) {
-    return EditRange.empty
-  } else {
+  if ($cursor) {
     let depth = $cursor.depth
-    const { nodes } = $cursor.parent.type.schema
     while (depth > 0) {
       const node = $cursor.node(depth)
       switch (node.type) {
+        case nodes.expandedImage:
+        case nodes.expandedHorizontalRule:
         case nodes.paragraph:
         case nodes.heading: {
           const [start, end] = [
@@ -125,8 +125,16 @@ export const editableRange = (selection: Selection): EditRange => {
       }
       depth--
     }
-    return EditRange.empty
+  } else if (node) {
+    switch (node.type) {
+      case nodes.horizontal_rule:
+      case nodes.image: {
+        return EditRange.fromSelection(selection)
+      }
+    }
   }
+
+  return EditRange.empty
 
   // if ($cursor) {
   //   const node = $cursor.node()
@@ -195,7 +203,7 @@ export const endEdit = (
   const { content } = doc.slice(range.index, range.index + range.length)
   const changeList = new ChangeList(range.index, tr, schema, new Map())
 
-  return collapse(content, changeList, schema).tr
+  return collapseFragment(content, changeList, schema).tr
 }
 
 export const beginEdit = (
@@ -207,7 +215,7 @@ export const beginEdit = (
   const { content } = doc.slice(range.index, range.index + range.length)
   const changeList = new ChangeList(range.index, tr, schema, new Map())
 
-  return expand(content, changeList, schema).updateMarks([]).tr
+  return expandFragment(content, changeList, schema).toTransaction()
 }
 
 class ChangeList {
@@ -258,6 +266,16 @@ class ChangeList {
 
     return this
   }
+  enterNode(marks: Mark[]) {
+    this.index++
+    this.updateMarks(marks)
+    return this
+  }
+  exitNode() {
+    this.updateMarks([])
+    this.index++
+    return this
+  }
   insertMarkupCode(code: string, marks: Mark[]) {
     const { schema, meta, markup } = this
     // this.insertNode(
@@ -302,22 +320,10 @@ class ChangeList {
     return this
   }
   retainMarked(node: Node) {
-    // this.tr = this.tr.setNodeMarkup(this.index, null, { marked: "true" })
-    return this.retainNode(node)
+    return this.updateMarks(node.marks).retainNode(node)
   }
   retainMarkedText(node: Node) {
-    const from = this.index
-    const to = this.index + node.nodeSize
-    const selection = this.tr.selection
-
-    // for (const mark of node.marks) {
-    //   const attributes = Object.assign({}, mark.attrs, { marked: true })
-    //   this.tr.removeMark(from, to, mark)
-    //   this.tr.addMark(from, to, mark.type.create(attributes))
-    // }
-
-    this.index = to
-    return this
+    return this.retainMarked(node)
   }
   markupNode(markup: string, node: Node) {
     this.index += 1
@@ -334,24 +340,44 @@ class ChangeList {
     this.tr = this.tr.delete(this.index, this.index + size)
     return this
   }
+  setCaret(offset: number) {
+    const position = this.tr.doc.resolve(this.index + offset)
+    this.tr = this.tr.setSelection(new TextSelection(position))
+    return this
+  }
+  isSelected(target: Node): boolean {
+    const { selection, doc } = this.tr
+    const { node, $cursor } = selection
+    if (node === target) {
+      return true
+    } else if ($cursor) {
+      return doc.nodeAt($cursor.pos) === target
+    } else {
+      const { from, to } = selection
+      return doc.nodeAt(from) === target || doc.nodeAt(to) === target
+    }
+  }
+  toTransaction() {
+    return this.updateMarks([]).tr
+  }
 }
 
-export const expand = (
+export const expandFragment = (
   content: Fragment,
   changeList: ChangeList,
   schema: Schema
 ): ChangeList => {
   const count = content.childCount
   let index = 0
+  let changes = changeList
 
   while (index < count) {
     const node = content.child(index)
-    changeList.updateMarks(node.marks)
-    expandNode(node, changeList, schema)
+    changes = expandNode(node, changes, schema)
     index++
   }
 
-  return changeList
+  return changes
 }
 
 export const expandNode = (
@@ -361,61 +387,132 @@ export const expandNode = (
 ): ChangeList => {
   switch (node.type) {
     case schema.nodes.anchor: {
-      changeList.index++
-      changeList.insertMarkupCode("[", [])
-      expand(node.content, changeList, schema)
-      changeList.updateMarks([])
-      changeList.insertMarkupCode("]", [])
-      changeList.insertMarkupCode("(", [])
-
-      const title =
-        node.attrs.title == null ? "" : JSON.stringify(String(node.attrs.title))
-
-      changeList
-        .insertMarkup(`${node.attrs.href} ${title}`, node.marks)
-        .insertMarkupCode(")", node.marks)
-      changeList.index++
-
-      return changeList
+      return expandAnchor(node, changeList, schema)
     }
     case schema.nodes.heading: {
-      const level: number = node.attrs.level || 1
-      changeList.index++
-      changeList.insertMarkupCode(`${"#".repeat(level)} `, node.marks)
-      // changeList.insertMarkup(" ", node.marks)
-      return expand(node.content, changeList, schema)
+      return expandHeading(node, changeList, schema)
     }
-    // case schema.nodes.horizontal_rule: {
-    //   changeList.markupNode("---", node)
-    //   break
-    // }
+    case schema.nodes.horizontal_rule: {
+      return expandHorizontalRule(node, changeList, schema)
+    }
     case schema.nodes.image: {
-      changeList
-        .insertMarkupCode("![", node.marks)
-        .insertMarkup(node.attrs.alt, node.marks)
-        .insertMarkupCode("](", node.marks)
-
-      const title =
-        node.attrs.title == null ? "" : JSON.stringify(String(node.attrs.title))
-
-      return changeList
-        .insertMarkup(`${node.attrs.src} ${title}`, node.marks)
-        .insertMarkupCode(")", node.marks)
-        .retainMarked(node)
+      return expandImage(node, changeList, schema)
     }
     case schema.nodes.text: {
-      return changeList.retainMarkedText(node)
+      return expandText(node, changeList, schema)
     }
     case schema.nodes.paragraph: {
-      changeList.index++
-      return expand(node.content, changeList, schema)
+      return expandParagraph(node, changeList, schema)
     }
     default: {
-      // changeList.index++
-      // expand(node.content, changeList, schema)
       return changeList.retainMarked(node)
     }
   }
+}
+
+export const expandAnchor = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  changeList.enterNode(node.marks)
+  changeList.insertMarkupCode("[", node.marks)
+  expandFragment(node.content, changeList, schema)
+  changeList.insertMarkupCode("]", [])
+  changeList.insertMarkupCode("(", [])
+
+  const title =
+    node.attrs.title == null ? "" : JSON.stringify(String(node.attrs.title))
+
+  changeList
+    .insertMarkup(`${node.attrs.href} ${title}`, [])
+    .insertMarkupCode(")", [])
+
+  return changeList.exitNode()
+}
+
+export const expandImage = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  // changeList
+  //   .insertMarkupCode("![", node.marks)
+  //   .insertMarkup(node.attrs.alt, node.marks)
+  //   .insertMarkupCode("](", node.marks)
+
+  const title =
+    node.attrs.title == null ? "" : JSON.stringify(String(node.attrs.title))
+
+  const isSelected = changeList.isSelected(node)
+
+  // return changeList
+  //   .insertMarkup(`${node.attrs.src} ${title}`, node.marks)
+  //   .insertMarkupCode(")", node.marks)
+  //   .retainMarked(node)
+  const expandedNode = schema.node(
+    "expandedImage",
+    node.attrs,
+    [
+      schema.text("![", [changeList.meta, ...node.marks]),
+      schema.text(node.attrs.alt, [changeList.markup, ...node.marks]),
+      schema.text("](", [changeList.meta, ...node.marks]),
+      schema.text(`${node.attrs.src} ${title}`, [
+        changeList.markup,
+        ...node.marks
+      ]),
+      schema.text(")", [changeList.meta, ...node.marks])
+    ],
+    node.marks
+  )
+
+  const changes = changeList.deleteNode(node).insertNode(expandedNode)
+
+  return isSelected ? changes.setCaret(-expandedNode.nodeSize + 3) : changes
+}
+
+export const expandText = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  return changeList.retainMarkedText(node)
+}
+
+export const expandHeading = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  const level: number = node.attrs.level || 1
+  changeList.enterNode(node.marks)
+  changeList.insertMarkupCode(`${"#".repeat(level)} `, node.marks)
+  expandFragment(node.content, changeList, schema)
+  return changeList.exitNode()
+}
+
+export const expandParagraph = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  changeList.enterNode(node.marks)
+  expandFragment(node.content, changeList, schema)
+  return changeList.exitNode()
+}
+
+export const expandHorizontalRule = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+) => {
+  const isSelected = changeList.isSelected(node)
+  // return changeList.retainMarked(node)
+  const expandedNode = schema.node("expandedHorizontalRule", node.attrs, [
+    schema.text(node.attrs.markup, [changeList.meta, ...node.marks])
+  ])
+  const changes = changeList.deleteNode(node).insertNode(expandedNode)
+  return isSelected ? changes.setCaret(-expandedNode.nodeSize + 1) : changes
 }
 
 const isMarkupNode = (node: Node) => "markup" in node.type.spec
@@ -425,30 +522,78 @@ const isMarkupMark = (mark: Mark) => "markup" in mark.type.spec
 const isMarkup = (node: Node) =>
   isMarkupNode(node) || node.marks.some(isMarkupMark)
 
-export const collapse = (
+export const collapseFragment = (
   content: Fragment,
   changeList: ChangeList,
   schema: Schema
 ): ChangeList => {
   let index = 0
+  let changes = changeList
   const count = content.childCount
   while (index < count) {
-    const node = content.child(index)
-    if (isMarkup(node)) {
-      changeList.deleteNode(node)
-    } else {
-      if (node.isText) {
-        changeList.retainNode(node)
-      } else {
-        changeList.index++
-        collapse(node.content, changeList, schema)
-        changeList.index++
-      }
-    }
-
+    changes = collapseNode(content.child(index), changes, schema)
     index += 1
   }
-  return changeList
+  return changes
+}
+
+export const collapseNode = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+): ChangeList => {
+  if (isMarkup(node)) {
+    return changeList.deleteNode(node)
+  } else {
+    const { nodes } = schema
+    switch (node.type) {
+      case nodes.text: {
+        return collapseText(node, changeList, schema)
+      }
+      case nodes.expandedImage: {
+        return collapseImage(node, changeList, schema)
+      }
+      case nodes.expandedHorizontalRule: {
+        return collapseHorizontalRule(node, changeList, schema)
+      }
+      default: {
+        changeList.enterNode([])
+        collapseFragment(node.content, changeList, schema)
+        return changeList.exitNode()
+      }
+    }
+  }
+}
+
+export const collapseText = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+): ChangeList => {
+  return changeList.retainNode(node)
+}
+
+export const collapseImage = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+): ChangeList => {
+  const image = schema.node("image", node.attrs, undefined, node.marks)
+  return changeList.deleteNode(node).insertNode(image)
+}
+
+export const collapseHorizontalRule = (
+  node: Node,
+  changeList: ChangeList,
+  schema: Schema
+): ChangeList => {
+  const collapsedNode = schema.node(
+    "horizontal_rule",
+    node.attrs,
+    undefined,
+    node.marks
+  )
+  return changeList.deleteNode(node).insertNode(collapsedNode)
 }
 
 export const commitEdit = (
@@ -482,7 +627,7 @@ export const commitEdit = (
       output,
       new ChangeList(range.index, tr2, schema, new Map()),
       schema
-    ).updateMarks([]).tr
+    ).toTransaction()
 
     const position = positionFromTextOffset(tr3.doc, offset)
     if (position == null) {

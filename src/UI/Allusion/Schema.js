@@ -91,7 +91,7 @@ export const schema = new Schema({
       group: "inline",
       content: "inline+",
       selectable: true,
-      defining: true,
+      marks: "_",
 
       attrs: {
         href: {},
@@ -112,15 +112,58 @@ export const schema = new Schema({
         return ["a", node.attrs, 0]
       }
     },
+    expandedImage: {
+      inline: true,
+      isolating: true,
+      group: "inline",
+      content: "text+",
+      draggable: false,
+      attrs: {
+        src: {},
+        alt: { default: null },
+        title: { default: null }
+      },
+      parseDOM: [
+        {
+          tag: "img[src]",
+          getAttrs(dom) {
+            return {
+              src: dom.getAttribute("src"),
+              title: dom.getAttribute("title"),
+              alt: dom.getAttribute("alt")
+            }
+          }
+        }
+      ],
+      toDOM(node) {
+        return [
+          "picture",
+          { class: "image expanded" },
+          ["img", node.attrs],
+          ["span", { class: "image-markup" }, 0]
+        ]
+      }
+    },
+    expandedHorizontalRule: {
+      group: "block",
+      content: "text+",
+      attrs: {
+        markup: { default: "---" }
+      },
+      toDOM() {
+        return [
+          "div",
+          { class: "horizontal-rule expanded" },
+          ["hr"],
+          ["span", { class: "horizontal-rule-markup" }, 0]
+        ]
+      }
+    },
     Markup: {
       inline: true,
       markup: true,
-      group: "inline text",
+      group: "inline text markup",
       content: "text+",
-      selectable: true,
-      marks: "_",
-      atom: true,
-      selectable: false,
       attrs: {
         class: { default: "markup code Markup" }
       },
@@ -137,7 +180,6 @@ export const schema = new Schema({
       selectable: true,
       inclusive: false,
       markup: true,
-      excludes: "_",
       attrs: {
         class: { default: "markup code" }
       },
@@ -148,7 +190,6 @@ export const schema = new Schema({
     markup: {
       inline: true,
       group: "inline markup",
-      excludes: "_",
       content: "text+",
       selectable: true,
       inclusive: false,
