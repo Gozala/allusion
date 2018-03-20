@@ -112,8 +112,13 @@ export class MarkdownParseState implements Parser {
 
   // : (NodeType, ?Object, ?[Node]) → ?Node
   // Add a node at the current position.
-  addNode(factory: NodeFactory, token: Token, content: Node[]): ?Node {
-    let node = factory.create(token, content, this.marks)
+  addNode(
+    factory: NodeFactory,
+    token: Token,
+    content: Node[],
+    marks: Mark[]
+  ): ?Node {
+    let node = factory.create(token, content, marks)
     if (!node) return null
     this.push(node)
     return node
@@ -126,11 +131,10 @@ export class MarkdownParseState implements Parser {
   // : () → ?Node
   // Close and return the node that is currently on top of the stack.
   closeNode(): ?Node {
-    if (this.marks.length) {
-      this.marks = Mark.none
-    }
+    const { marks } = this
+    this.marks = Mark.none
     const { factory, token, content } = this.stack.pop()
-    return this.addNode(factory, token, content)
+    return this.addNode(factory, token, content, marks)
   }
 }
 
