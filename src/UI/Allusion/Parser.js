@@ -52,7 +52,11 @@ export default new MarkdownParser(schema, tokenizer, {
       markup: tok.markup
     }
   }),
-  hr: MarkdownParser.node(schema.nodes.horizontal_rule),
+  hr: MarkdownParser.node(schema.nodes.horizontal_rule, token => {
+    return {
+      markup: token.markup
+    }
+  }),
   image: MarkdownParser.node(schema.nodes.image, tok => {
     const src = String(tok.attrGet("src"))
     const url = src.includes(":")

@@ -31,9 +31,12 @@ export const schema = new Schema({
     },
     horizontal_rule: {
       group: "block",
+      attrs: {
+        markup: { default: "---" }
+      },
       parseDOM: [{ tag: "hr" }],
       toDOM() {
-        return ["div", ["hr"]]
+        return ["div", { class: "horizontal-rule" }, ["hr"]]
       }
     },
     heading: {
