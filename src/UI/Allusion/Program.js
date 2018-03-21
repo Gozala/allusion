@@ -16,6 +16,7 @@ import {
   commitEdit,
   EditRange
 } from "../ProseMirror/EditRange"
+import { findMarkupRange } from "../ProseMirror/Marks"
 
 export interface Program<inn, model, out = empty, options = void> {
   init(options): model;
@@ -126,7 +127,22 @@ export const init = (editor: EditorState): Model =>
   )
 
 export const decorations = (state: Model) => {
-  return state.editRange.decorations
+  const [start, end] = findMarkupRange(state.editor.selection.$from)
+
+  if (start !== end) {
+    const decoration = Decoration.inline(
+      start,
+      end,
+      { nodeName: "span", class: "edit-range" },
+      {
+        inclusiveStart: true,
+        inclusiveEnd: true
+      }
+    )
+    return state.editRange.decorations.add(state.editor.doc, [decoration])
+  } else {
+    return state.editRange.decorations
+  }
 }
 
 export const transact = (
