@@ -2,7 +2,7 @@
 
 import type { Transaction } from "prosemirror-state"
 import type { Node, Schema, NodeRange, ResolvedPos } from "prosemirror-model"
-import { getSelectionMarkers, getMarkersAt, type Marker } from "./Marks"
+import { findMarkupRange } from "./Marks"
 import { Selection, TextSelection } from "prosemirror-state"
 import { Fragment, Slice, Mark } from "prosemirror-model"
 import Parser from "../Allusion/Parser"
@@ -156,42 +156,6 @@ export const editableRange = (selection: Selection): EditRange => {
   // }
 
   // return markedRange(selection)
-}
-
-export const expandRange = (selection: Selection): ?NodeRange => {
-  const { $cursor, node, from, $from } = selection
-  const target = node || $from.doc.nodeAt($from.pos)
-  const blockRange =
-    $cursor != null
-      ? $cursor.blockRange()
-      : node != null ? selection.$from.blockRange(selection.$to) : null
-
-  if (blockRange) {
-    // const range = unionOfMarkers(getMarkersAt($cursor || selection.$from))
-    // const start = range.index - blockRange.start
-    // const end = blockRange.end - range.index - range.length
-    // range.
-  }
-
-  return blockRange
-}
-
-export const markedRange = (selection: Selection): EditRange =>
-  unionOfMarkers(getSelectionMarkers(selection), selection.$anchor.doc)
-
-export const unionOfMarkers = (markers: Marker[], doc: Node): EditRange => {
-  let length = 0
-  let index = Infinity
-  for (let marker of markers) {
-    if (length === 0) {
-      index = marker.start
-      length = marker.end - marker.start
-    } else {
-      index = Math.min(marker.start, index)
-      length = Math.max(marker.end - index, length)
-    }
-  }
-  return EditRange.new(index, length, doc)
 }
 
 export const endEdit = (
@@ -617,8 +581,8 @@ export const commitEdit = (
   if (!output || !offset) {
     return null
   }
-  const result = Serializer.serialize(content)
-  if (markup.trim() !== result.trim()) {
+  const result = Serializer.serialize(content).trim()
+  if (markup.trim() !== result || result === "") {
     return null
   } else {
     const tr2 = tr.replaceWith(range.index, range.index + range.length, output)

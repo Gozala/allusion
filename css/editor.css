@@ -569,7 +569,8 @@ u {
 :root {
   --markup-color: #ccc;
   --markup-font: Consolas, "Lucida Console", Monaco, monospace;
-  --edit-color: rgb(152, 243, 152);
+  --edit-block-color: rgb(152, 243, 152);
+  --edit-range-color: rgb(218, 142, 177);
 }
 
 .markup {
@@ -589,7 +590,7 @@ u {
 .edit > h4,
 .edit > h5,
 .edit > h6 {
-  outline: 1px dotted var(--edit-color);
+  outline: 1px dotted var(--edit-block-color);
 }
 
 picture.image {
@@ -651,4 +652,12 @@ picture.image .image-markup {
   height: 100%;
   top: 0;
   left: 0;
+}
+
+.edit-block {
+  outline: 1px dotted var(--edit-block-color);
+}
+
+.edit-range {
+  outline: 1px dotted var(--edit-range-color) !important;
 }

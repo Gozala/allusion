@@ -17,7 +17,7 @@ export const textOffsetFromPosition = (root: Node, position: number) => {
       } else {
         const { nodeSize, isText } = node
         if (isText) {
-          if (position - index > nodeSize) {
+          if (position - index >= nodeSize) {
             index += nodeSize
             offset += nodeSize
           } else {
@@ -50,10 +50,9 @@ export const positionFromTextOffset = (root: Node, offset: number): ?number => {
       if (node === null) {
         position++
       } else {
-        const { nodeSize, isText, content } = node
-        const { size } = content
+        const { nodeSize, isText } = node
         if (isText) {
-          if (offset - index > nodeSize) {
+          if (offset - index >= nodeSize) {
             index += nodeSize
             position += nodeSize
           } else {
