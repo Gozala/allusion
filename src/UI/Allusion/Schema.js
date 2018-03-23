@@ -116,7 +116,7 @@ export const schema = new Schema({
       inline: true,
       isolating: true,
       group: "inline",
-      content: "text+",
+      content: "text*",
       draggable: false,
       attrs: {
         src: {},
@@ -146,7 +146,7 @@ export const schema = new Schema({
     },
     expandedHorizontalRule: {
       group: "block",
-      content: "text+",
+      content: "text*",
       attrs: {
         markup: { default: "---" }
       },
@@ -163,7 +163,7 @@ export const schema = new Schema({
       inline: true,
       markup: true,
       group: "inline text markup",
-      content: "text+",
+      content: "text*",
       attrs: {
         class: { default: "markup code Markup" }
       },
@@ -173,24 +173,10 @@ export const schema = new Schema({
     }
   }),
   marks: OrderedMap.from(Markdown.spec.marks).prepend({
-    meta: {
-      inline: true,
-      group: "inline markup",
-      content: "text+",
-      selectable: true,
-      inclusive: false,
-      markup: true,
-      attrs: {
-        class: { default: "markup code" }
-      },
-      toDOM(node) {
-        return ["span", node.attrs, 0]
-      }
-    },
     markup: {
       inline: true,
       group: "inline markup",
-      content: "text+",
+      content: "text*",
       selectable: true,
       inclusive: false,
       markup: true,
