@@ -1,17 +1,16 @@
+// @flow strict
+
 // heading (#, ##, ...)
 
-"use strict"
+import { isSpace } from "markdown-it/lib/common/utils"
+import type { StateBlock } from "markdown-it"
 
-function isSpace(code) {
-  switch (code) {
-    case 0x09:
-    case 0x20:
-      return true
-  }
-  return false
-}
-
-module.exports = function heading(state, startLine, endLine, silent) {
+export default function heading(
+  state: StateBlock,
+  startLine: number,
+  endLine: number,
+  silent: boolean
+) {
   var ch,
     level,
     tmp,
