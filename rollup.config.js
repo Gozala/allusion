@@ -22,8 +22,8 @@ const bundle = (file, ...plugins) => ({
   input: `./src/${file}.js`,
   output: {
     file: `./js/${file}.js`,
-    format: "iife",
-    sourcemap: "inline"
+    format: "umd",
+    sourcemap: true
   },
   // moduleContext: {
   //   [flatbuffersPath]: "({})"
@@ -41,7 +41,7 @@ const bundle = (file, ...plugins) => ({
     //   }
     // },
     alias({
-      "markdown-it": "markdown-it/dist/markdown-it",
+      // "markdown-it": "markdown-it/dist/markdown-it",
       "prosemirror-view": "prosemirror-view/src/index",
       "prosemirror-commands": "prosemirror-commands/src/commands",
       "prosemirror-dropcursor": "prosemirror-dropcursor/src/dropcursor",
@@ -57,11 +57,11 @@ const bundle = (file, ...plugins) => ({
       "prosemirror-state": "prosemirror-state/src/index",
       "prosemirror-transform": "prosemirror-transform/src/index"
     }),
+    json({ preferConst: true }),
     babel({
       babelrc: false,
       presets: [flowSyntax]
     }),
-    json({ preferConst: true }),
     // legacy({
     //   [flatbuffersPath]: {
     //     flatbuffers: "flatbuffers"
@@ -71,6 +71,7 @@ const bundle = (file, ...plugins) => ({
       module: true,
       jsnext: true,
       main: true,
+      preferBuiltins: false,
       browser: true,
       extensions: [".js", ".json"]
     }),
