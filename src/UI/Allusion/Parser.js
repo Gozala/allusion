@@ -7,6 +7,7 @@ import Header from "./Parser/Header"
 import TaskList from "./Parser/TaskList"
 import Paragraph from "./Parser/Paragraph"
 import Heading from "./Parser/Heading"
+import HorizontalRule from "./Parser/HorizontalRule"
 import { link } from "./NodeView/Link"
 import { Fragment } from "prosemirror-model"
 
@@ -15,6 +16,7 @@ tokenizer.block.ruler.after("heading", "header", Header)
 tokenizer.use(TaskList, { label: true, labelAfter: true, enabled: true })
 tokenizer.block.ruler.at("paragraph", Paragraph)
 tokenizer.block.ruler.at("heading", Heading)
+tokenizer.block.ruler.at("hr", HorizontalRule)
 
 export default new MarkdownParser(schema, tokenizer, {
   blockquote: MarkdownParser.node(schema.nodes.blockquote),
