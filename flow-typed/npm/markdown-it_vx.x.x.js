@@ -134,7 +134,7 @@ declare module "markdown-it" {
       Rule<state>,
       ?{ alt: string[] }
     ): void;
-    at(name: string, (state) => void, ?{ alt: string[] }): void;
+    at(name: string, Rule<state>, ?{ alt: string[] }): void;
     before(
       beforeName: string,
       ruleName: string,
@@ -180,7 +180,8 @@ declare module "markdown-it" {
     linkify?: boolean,
     typographer?: boolean,
     quotes?: string | string[],
-    highlight?: (code: string, lang: string) => string
+    highlight?: (code: string, lang: string) => string,
+    [string]: mixed
   }
 
   declare export default class MarkdownIt {
@@ -201,6 +202,7 @@ declare module "markdown-it" {
     static normalizeLinkText(string): string;
     static validateLink(string): boolean;
 
+    options: Options;
     block: ParserBlock;
     core: Core;
     helpers: {
