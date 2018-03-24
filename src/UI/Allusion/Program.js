@@ -11,9 +11,9 @@ import Parser from "./Parser"
 import Serializer from "./Serializer"
 import {
   editableRange,
-  beginEdit,
-  endEdit,
-  commitEdit,
+  expandRange,
+  collapseRange,
+  updateRange,
   EditRange
 } from "../ProseMirror/EditRange"
 import { findMarkupRange } from "../ProseMirror/Marks"
@@ -127,22 +127,35 @@ export const init = (editor: EditorState): Model =>
   )
 
 export const decorations = (state: Model) => {
-  const [start, end] = findMarkupRange(state.editor.selection.$from)
+  const { editRange } = state
+  const range = Decoration.inline(
+    editRange.index,
+    editRange.index + editRange.length,
+    { nodeName: "span", class: "edit-range" },
+    {
+      inclusiveStart: true,
+      inclusiveEnd: true
+    }
+  )
 
-  if (start !== end) {
-    const decoration = Decoration.inline(
-      start,
-      end,
-      { nodeName: "span", class: "edit-range" },
-      {
-        inclusiveStart: true,
-        inclusiveEnd: true
-      }
-    )
-    return state.editRange.decorations.add(state.editor.doc, [decoration])
-  } else {
-    return state.editRange.decorations
-  }
+  const editBlock = editRange.editBlock(state.editor.doc)
+  const block =
+    editBlock == null
+      ? null
+      : Decoration.node(
+          editBlock.index,
+          editBlock.index + editBlock.node.nodeSize,
+          { nodeName: "span", class: "edit-block" },
+          {
+            inclusiveStart: true,
+            inclusiveEnd: true
+          }
+        )
+
+  return DecorationSet.create(
+    state.editor.doc,
+    block ? [range, block] : [range]
+  )
 }
 
 export const transact = (
@@ -215,35 +228,32 @@ export const edit = (state: Model, edit: Edit): Model => {
   const { selection, doc } = transaction
   const range = editableRange(selection)
 
-  if (meta.type === "ignore") {
+  if (meta.type === "ignore" || transaction.meta.history$) {
     return Model.new(state.notebook, after, null, range, transaction.time)
   }
 
-  // const range = state.editRange.map(transaction.mapping, transaction.doc)
-  if (range.length > 0) {
-    const tr = commitEdit(range, after.tr, schema)
-    if (tr) {
-      const range = editableRange(tr.selection)
-      // const newTr = beginEdit(tr, range, schema)
-      // const newRange = editableRange(newTr.selection)
-      const newRange = range
-      const newTr = tr
-      const time = tr.time
+  if (!selection.empty) {
+    return selectionChange(state, edit)
+  }
 
-      return Model.new(
-        state.notebook,
-        after,
-        newTr,
-        newRange,
-        // tr,
-        // EditRange.empty,
-        time
-      )
-    } else {
-      return Model.new(state.notebook, after, null, range, transaction.time)
-    }
+  const tr = updateRange(range, after.tr)
+  if (tr) {
+    const range = editableRange(tr.selection)
+    // const newTr = beginEdit(tr, range, schema)
+    // const newRange = editableRange(newTr.selection)
+    const newRange = range
+    const newTr = tr
+    const time = tr.time
 
-    // return selectionChange(state, edit)
+    return Model.new(
+      state.notebook,
+      after,
+      newTr,
+      newRange,
+      // tr,
+      // EditRange.empty,
+      time
+    )
   } else {
     return Model.new(state.notebook, after, null, range, transaction.time)
   }
@@ -255,38 +265,41 @@ export const selectionChange = (state: Model, change: Edit): Model => {
   const { schema } = after
   const { selection, doc } = transaction
 
-  if (editRange.includesSelection(selection)) {
-    return Model.setEditor(state, after)
+  // if (editRange.includesSelection(selection)) {
+  //   return Model.setEditor(state, after)
+  // } else {
+  const range = editableRange(selection)
+
+  let tr = after.tr
+  if (editRange.length > 0 && range.length === 0) {
+    tr = collapseRange(tr, editRange)
+  } else if (editRange.length === 0 && range.length > 0) {
+    tr = expandRange(tr, range)
+  } else if (editRange.includes(range)) {
+    // If user selects segment with in the exanded strong mark and executes
+    // em command we'll need to execute expandsion even though editRange will
+    // include new range.
+    tr = null //beginEdit(tr, range, schema)
   } else {
-    const range = editableRange(selection)
-
-    let tr = after.tr
-    if (editRange.length > 0 && range.length === 0) {
-      tr = endEdit(tr, editRange, schema)
-    } else if (editRange.length === 0 && range.length > 0) {
-      tr = beginEdit(tr, range, schema)
-    } else if (editRange.includes(range)) {
-      tr = null
+    // Need to do replace range that is further off in the document
+    // so that other edit ranges won't get shifted.
+    if (range.index > editRange.index) {
+      tr = expandRange(tr, range)
+      tr = collapseRange(tr, editRange)
     } else {
-      // Need to do replace range that is further off in the document
-      // so that other edit ranges won't get shifted.
-      if (range.index > editRange.index) {
-        tr = beginEdit(tr, range, schema)
-        tr = endEdit(tr, editRange, schema)
-      } else {
-        tr = endEdit(tr, editRange, schema)
-        tr = beginEdit(tr, editableRange(tr.selection), schema)
-      }
+      tr = collapseRange(tr, editRange)
+      tr = expandRange(tr, editableRange(tr.selection))
     }
-
-    return Model.new(
-      state.notebook,
-      after,
-      tr,
-      editRange.patch(range, doc),
-      transaction.time
-    )
   }
+
+  return Model.new(
+    state.notebook,
+    after,
+    tr,
+    editRange.patch(range, doc),
+    transaction.time
+  )
+  // }
 }
 
 export const receive = async (state: Model): Promise<Message[]> => {

@@ -535,8 +535,8 @@ body {
   display: none;
 } */
 
-.code.markup,
-.code.markup * {
+.markup[code],
+.markup[code] * {
   text-decoration: none;
   border-radius: 0;
   outline: none;
@@ -551,12 +551,12 @@ body {
   box-shadow: none;
 }
 
-h1 .code.markup,
-h2 .code.markup,
-h3 .code.markup,
-h4 .code.markup,
-h5 .code.markup,
-h6 .code.markup {
+h1 .markup[code],
+h2 .markup[code],
+h3 .markup[code],
+h4 .markup[code],
+h5 .markup[code],
+h6 .markup[code] {
   display: inline-block;
 }
 
@@ -570,7 +570,7 @@ u {
   --markup-color: #ccc;
   --markup-font: Consolas, "Lucida Console", Monaco, monospace;
   --edit-block-color: rgb(152, 243, 152);
-  --edit-range-color: rgb(218, 142, 177);
+  --edit-range-color: rgba(252, 255, 94, 0.3);
 }
 
 .markup {
@@ -578,18 +578,18 @@ u {
   font-family: var(--markup-font);
 }
 
-.edit > p,
-.edit > a,
-.edit > picture,
-.edit > .horizontal-rule,
-.edit > img,
-.edit > .ProseMirror-selectednode,
-.edit > h1,
-.edit > h2,
-.edit > h3,
-.edit > h4,
-.edit > h5,
-.edit > h6 {
+.edit-block > p,
+.edit-block > a,
+.edit-block > picture,
+.edit-block > .horizontal-rule,
+.edit-block > img,
+.edit-block > .ProseMirror-selectednode,
+.edit-block > h1,
+.edit-block > h2,
+.edit-block > h3,
+.edit-block > h4,
+.edit-block > h5,
+.edit-block > h6 {
   outline: 1px dotted var(--edit-block-color);
 }
 
@@ -659,5 +659,5 @@ picture.image .image-markup {
 }
 
 .edit-range {
-  outline: 1px dotted var(--edit-range-color) !important;
+  background-color: var(--edit-range-color) !important;
 }
