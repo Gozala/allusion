@@ -1,62 +1,129 @@
 // @flow
 
-import { serializer, MarkdownSerializer } from "../Markdown/Serializer"
+import Serializer from "../Markdown/Serializer"
 import schema from "./Schema"
 import header from "./Parser/header"
 
-const nodes = Object.assign({}, serializer.nodes, {
-  Markup(state, node) {},
-  header(state, node) {
-    state.write("/ ")
-    state.text(node.textContent, false)
-    state.closeBlock(node)
-  },
-  // anchor(state, node) {
-  //   state.write("[")
-  //   state.renderInline(node)
-  // },
-  anchor(state, node) {
-    state.write(`[`)
-    state.renderInline(node)
-    state.write(`](`)
-    state.write(state.esc(node.attrs.href))
-    state.write(node.attrs.title ? " " + state.quote(node.attrs.title) : " ")
-    state.write(")")
-  },
-  address(state, node) {
-    state.write(`](`)
-    state.renderInline(node)
-    state.write(")")
-  },
-  url(state, node) {
-    state.write(node.textContent)
-  },
-  title(state, node) {
-    state.write(state.quote(node.textContent))
-  },
-  words(state, node) {
-    state.renderInline(node)
-  }
-})
+const unmarkedMarkup = (_, mark) =>
+  mark.attrs.marked != null ? "" : mark.attrs.markup
 
-const marks = Object.assign({}, serializer.marks, {
-  strike_through: {
-    open: "~~",
-    close: "~~",
-    mixable: true,
-    expelEnclosingWhitespace: true
-  },
-  code: {
-    open: "`",
-    close: "`",
-    mixable: false,
-    isCode: true
-  },
-  meta: {
-    open: "",
-    close: "",
-    ignore: true
-  }
-})
+export default new Serializer(
+  {
+    blockquote(state, node) {
+      state.wrapBlock("> ", null, node, () => state.renderContent(node))
+    },
+    code_block(state, node) {
+      state.write("```" + node.attrs.params + "\n")
+      state.text(node.textContent, false)
+      state.ensureNewLine()
+      state.write("```")
+      state.closeBlock(node)
+    },
+    heading(state, node) {
+      if (!node.attrs.marked != null) {
+        state.write(state.repeat("#", node.attrs.level) + " ")
+      }
+      state.renderInline(node)
+      state.closeBlock(node)
+    },
+    horizontal_rule(state, node) {
+      state.write(node.attrs.markup || "---")
+      state.closeBlock(node)
+    },
+    bullet_list(state, node) {
+      state.renderList(node, "  ", () => (node.attrs.bullet || "*") + " ")
+    },
+    ordered_list(state, node) {
+      let start = node.attrs.order || 1
+      let maxW = String(start + node.childCount - 1).length
+      let space = state.repeat(" ", maxW + 2)
+      state.renderList(node, space, i => {
+        let nStr = String(start + i)
+        return state.repeat(" ", maxW - nStr.length) + nStr + ". "
+      })
+    },
+    list_item(state, node) {
+      state.renderContent(node)
+    },
+    paragraph(state, node) {
+      state.renderInline(node)
+      state.closeBlock(node)
+    },
 
-export default new MarkdownSerializer(nodes, marks)
+    image(state, node) {
+      state.write(
+        "![" +
+          state.esc(node.attrs.alt || "") +
+          "](" +
+          state.esc(node.attrs.src) +
+          (node.attrs.title ? " " + state.quote(node.attrs.title) : " ") +
+          ")"
+      )
+    },
+    hard_break(state, node, parent, index) {
+      for (let i = index + 1; i < parent.childCount; i++)
+        if (parent.child(i).type != node.type) {
+          state.write("\\\n")
+          return
+        }
+    },
+    text(state, node) {
+      state.text(node.text, false)
+    },
+    Markup(state, node) {},
+    header(state, node) {
+      state.write("/ ")
+      state.text(node.textContent, false)
+      state.closeBlock(node)
+    },
+    anchor(state, node) {
+      if (node.attrs.marked != null) {
+        state.renderContent(node)
+      } else {
+        state.write(`[`)
+        state.renderInline(node)
+        state.write(`](`)
+        state.write(state.esc(node.attrs.href))
+        state.write(
+          node.attrs.title ? " " + state.quote(node.attrs.title) : " "
+        )
+        state.write(")")
+      }
+    },
+    expandedHorizontalRule(state, node) {
+      state.write(node.textContent)
+    },
+    expandedImage(state, node) {
+      state.write(node.textContent)
+    }
+  },
+  {
+    em: {
+      open: unmarkedMarkup,
+      close: unmarkedMarkup,
+      mixable: true,
+      expelEnclosingWhitespace: true
+    },
+    strong: {
+      open: unmarkedMarkup,
+      close: unmarkedMarkup,
+      mixable: true,
+      expelEnclosingWhitespace: true
+    },
+    markup: {
+      open: "",
+      close: ""
+    },
+    strike_through: {
+      open: unmarkedMarkup,
+      close: unmarkedMarkup,
+      mixable: true,
+      expelEnclosingWhitespace: true
+    },
+    code: {
+      open: unmarkedMarkup,
+      close: unmarkedMarkup,
+      mixable: false
+    }
+  }
+)

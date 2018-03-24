@@ -27,7 +27,7 @@ type SerializerOptions = {
 
 // // ::- A specification for serializing a ProseMirror document as
 // // Markdown/CommonMark text.
-export class MarkdownSerializer {
+export default class MarkdownSerializer {
   //   // :: (Object<(state: MarkdownSerializerState, node: Node, parent: Node, index: number)>, Object)
   //   // Construct a serializer with the given configuration. The `nodes`
   //   // object should map node names in a given schema to function that
@@ -77,7 +77,7 @@ export class MarkdownSerializer {
 // // ::- This is an object used to track state and expose
 // // methods related to markdown serialization. Instances are passed to
 // // node and mark serialization methods (see `toMarkdown`).
-export class MarkdownSerializerState {
+class MarkdownSerializerState {
   nodes: NodeSerializers
   marks: MarkSerializers
   options: SerializerOptions
@@ -369,101 +369,3 @@ export class MarkdownSerializerState {
     }
   }
 }
-
-export const serializer = new MarkdownSerializer(
-  {
-    blockquote(state, node) {
-      state.wrapBlock("> ", null, node, () => state.renderContent(node))
-    },
-    code_block(state, node) {
-      state.write("```" + node.attrs.params + "\n")
-      state.text(node.textContent, false)
-      state.ensureNewLine()
-      state.write("```")
-      state.closeBlock(node)
-    },
-    heading(state, node) {
-      state.write(state.repeat("#", node.attrs.level) + " ")
-      state.renderInline(node)
-      state.closeBlock(node)
-    },
-    horizontal_rule(state, node) {
-      state.write(node.attrs.markup || "---")
-      state.closeBlock(node)
-    },
-    bullet_list(state, node) {
-      state.renderList(node, "  ", () => (node.attrs.bullet || "*") + " ")
-    },
-    ordered_list(state, node) {
-      let start = node.attrs.order || 1
-      let maxW = String(start + node.childCount - 1).length
-      let space = state.repeat(" ", maxW + 2)
-      state.renderList(node, space, i => {
-        let nStr = String(start + i)
-        return state.repeat(" ", maxW - nStr.length) + nStr + ". "
-      })
-    },
-    list_item(state, node) {
-      state.renderContent(node)
-    },
-    paragraph(state, node) {
-      state.renderInline(node)
-      state.closeBlock(node)
-    },
-
-    image(state, node) {
-      state.write(
-        "![" +
-          state.esc(node.attrs.alt || "") +
-          "](" +
-          state.esc(node.attrs.src) +
-          (node.attrs.title ? " " + state.quote(node.attrs.title) : "") +
-          ")"
-      )
-    },
-    hard_break(state, node, parent, index) {
-      for (let i = index + 1; i < parent.childCount; i++)
-        if (parent.child(i).type != node.type) {
-          state.write("\\\n")
-          return
-        }
-    },
-    text(state, node) {
-      state.text(node.text, false)
-    }
-  },
-  {
-    em: {
-      open: (_, mark) => mark.attrs.markup,
-      close: (_, mark) => mark.attrs.markup,
-      mixable: true,
-      expelEnclosingWhitespace: true
-    },
-    strong: {
-      open: (_, mark) => mark.attrs.markup,
-      close: (_, mark) => mark.attrs.markup,
-      mixable: true,
-      expelEnclosingWhitespace: true
-    },
-    markup: {
-      open: "",
-      close: "",
-      ignore: true
-    },
-    link: {
-      open: "[",
-      close(state, mark) {
-        return (
-          "](" +
-          state.esc(mark.attrs.href) +
-          (mark.attrs.title ? " " + state.quote(mark.attrs.title) : "") +
-          ")"
-        )
-      }
-    },
-    code: {
-      open: (_, mark) => mark.attrs.markup,
-      close: (_, mark) => mark.attrs.markup
-    }
-  }
-)
