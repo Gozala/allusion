@@ -137,7 +137,7 @@ declare module "prosemirror-transform" {
     deleted: boolean;
   }
 
-  declare export class StepMap implements Mappable {
+  declare export class StepMap {
     constructor(ranges: [number]): void;
     forEach(
       f: (
@@ -154,7 +154,7 @@ declare module "prosemirror-transform" {
     static offset(n: number): StepMap;
   }
 
-  declare export class Mapping implements Mappable {
+  declare export class Mapping {
     constructor(maps?: [StepMap]): void;
     maps: [StepMap];
     from: number;
@@ -200,7 +200,7 @@ declare module "prosemirror-transform" {
     lift(range: NodeRange, target: number): self;
     wrap(range: NodeRange, wrappers: NodeMarkup[]): self;
     setBlockType(from: number, to?: number, NodeType, Attributes): self;
-    setNodeMarkup(pos: number, type: ?NodeType, ?Attributes, ?[Mark]): self;
+    setNodeMarkup(pos: number, type: ?NodeType, ?Attributes, ?(Mark[])): self;
     split(pos: number, depth?: number, ?(NodeMarkup[])): self;
     join(pos: number, depth?: number): self;
     replaceStep(doc: Node, from: number, to?: ?number, slice?: Slice): Step;
