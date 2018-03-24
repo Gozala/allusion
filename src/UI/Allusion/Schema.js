@@ -262,7 +262,7 @@ export const schema = new Schema({
     // [Title.blotName]: Title,
     // [Words.blotName]: Words,
     // [Markup.blotName]: Markup,
-    anchor: {
+    link: {
       inline: true,
       group: "inline",
       content: "inline+",

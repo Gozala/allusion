@@ -165,7 +165,7 @@ export const editableRange = (selection: Selection): EditRange => {
 export const isEditNode = (node: Node): boolean => {
   const { nodes } = node.type.schema
   switch (node.type) {
-    case nodes.anchor:
+    case nodes.link:
       return true
     default:
       return false

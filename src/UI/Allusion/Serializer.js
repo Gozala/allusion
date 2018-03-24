@@ -76,7 +76,7 @@ export default new Serializer(
       state.text(node.textContent, false)
       state.closeBlock(node)
     },
-    anchor(state, node) {
+    link(state, node) {
       if (node.attrs.marked != null) {
         state.renderContent(node)
       } else {

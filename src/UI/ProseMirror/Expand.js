@@ -34,8 +34,8 @@ export const expandFragment = (
 export const expandNode = (node: Node, changeList: ChangeList): ChangeList => {
   const { nodes } = node.type.schema
   switch (node.type) {
-    case nodes.anchor: {
-      return expandAnchor(node, changeList)
+    case nodes.link: {
+      return expandLink(node, changeList)
     }
     case nodes.heading: {
       return expandHeading(node, changeList)
@@ -58,7 +58,7 @@ export const expandNode = (node: Node, changeList: ChangeList): ChangeList => {
   }
 }
 
-export const expandAnchor = (node: Node, changeList: ChangeList) => {
+export const expandLink = (node: Node, changeList: ChangeList) => {
   if (node.attrs.marked != null) {
     return changeList.retainNode(node)
   } else {

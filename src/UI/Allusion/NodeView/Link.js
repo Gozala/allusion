@@ -92,7 +92,7 @@ export class Block extends View {
 }
 
 export class Link extends Inline {
-  static blotName = "anchor"
+  static blotName = "link"
   static tagName = "a"
   static content = `Markup words Markup address Markup`
   static attrs = {
@@ -159,7 +159,7 @@ export class Link extends Inline {
   //     .deleteRange(index + 1, index + 1 + prefix.length)
   // }
   // update(node: Node) {
-  //   if (node.type.name === "anchor") {
+  //   if (node.type.name === "link") {
   //     const { dom, editor } = this
   //     const { mode, href, title } = node.attrs
   //     dom.classList.add(node.attrs.mode)
