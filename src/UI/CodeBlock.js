@@ -127,10 +127,10 @@ export default class CodeBlockView {
       .delete(position - 1, position + 1)
       .insert(position, view.state.schema.node("paragraph"))
       .setSelection(selection)
-      .scrollIntoView()
+    // .scrollIntoView()
 
     this.view.dispatch(transation)
-    this.view.focus()
+    // this.view.focus()
   }
   // }
   // nodeview_keymap{
@@ -160,11 +160,12 @@ export default class CodeBlockView {
         pos.ch != (dir < 0 ? 0 : this.cm.getLine(pos.line).length))
     )
       return CodeMirror.Pass
-    this.view.focus()
+    // this.view.focus()
+
     let targetPos = this.getPos() + (dir < 0 ? 0 : this.node.nodeSize)
     let selection = Selection.near(this.view.state.doc.resolve(targetPos), dir)
     this.view.dispatch(
-      this.view.state.tr.setSelection(selection).scrollIntoView()
+      this.view.state.tr.setSelection(selection) //.scrollIntoView()
     )
     this.view.focus()
   }
