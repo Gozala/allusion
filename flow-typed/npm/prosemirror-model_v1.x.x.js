@@ -152,6 +152,8 @@ declare module "prosemirror-model" {
     type: MarkType;
     attrs: Object;
 
+    constructor(type: MarkType, attrs: Object): void;
+
     addToSet(set: Array<Mark>): Array<Mark>;
 
     removeFromSet(set: Array<Mark>): Array<Mark>;
@@ -320,6 +322,7 @@ declare module "prosemirror-model" {
     isLeaf: boolean;
     isAtom: boolean;
 
+    constructor(name: string, schema: Schema, spec: NodeSpec): void;
     create(
       attrs: ?Object,
       content: ?Fragment | Node | Array<Node>,
