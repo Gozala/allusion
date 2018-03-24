@@ -280,7 +280,8 @@ export const schema = new Schema({
           getAttrs(dom) {
             return {
               href: dom.getAttribute("href"),
-              title: dom.getAttribute("title")
+              title: dom.getAttribute("title"),
+              marked: dom.getAttribute("marked")
             }
           }
         }
@@ -299,7 +300,7 @@ export const schema = new Schema({
         src: {},
         alt: { default: null },
         title: { default: null },
-        marked: { default: null }
+        marked: { default: "" }
       },
       parseDOM: [
         {
@@ -327,7 +328,7 @@ export const schema = new Schema({
       content: "text*",
       attrs: {
         markup: { default: "---" },
-        marked: { default: null }
+        marked: { default: "" }
       },
       toDOM() {
         return [
@@ -345,7 +346,7 @@ export const schema = new Schema({
       content: "text*",
       attrs: {
         class: { default: "markup code Markup" },
-        marked: { default: null }
+        marked: { default: "" }
       },
       toDOM(node) {
         return ["span", node.attrs, 0]
@@ -448,32 +449,6 @@ export const schema = new Schema({
       ],
       toDOM(node) {
         return ["del", node.attrs]
-      }
-    },
-    link: {
-      inline: true,
-      group: "inline",
-      content: "text*",
-      selectable: true,
-      defining: true,
-
-      attrs: {
-        href: {},
-        title: { default: null }
-      },
-      parseDOM: [
-        {
-          tag: "a[href]",
-          getAttrs(dom) {
-            return {
-              href: dom.getAttribute("href"),
-              title: dom.getAttribute("title")
-            }
-          }
-        }
-      ],
-      toDOM(node) {
-        return ["a", node.attrs, 0]
       }
     }
   }
