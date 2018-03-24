@@ -154,7 +154,8 @@ export const decorations = (state: Model) => {
 
   return DecorationSet.create(
     state.editor.doc,
-    block ? [range, block] : [range]
+    // block ? [range, block] : [range]
+    block ? [block] : []
   )
 }
 
