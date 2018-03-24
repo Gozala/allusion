@@ -1,6 +1,6 @@
 // @flow strict
 
-import { Node } from "prosemirror-model"
+import { Node, ResolvedPos } from "prosemirror-model"
 
 export const textOffsetFromPosition = (root: Node, position: number) => {
   let node = root
@@ -70,4 +70,27 @@ export const positionFromTextOffset = (root: Node, offset: number): ?number => {
     }
   }
   return position
+}
+
+type NodePosition = { node: Node, index: number }
+export const nodePosition = (
+  isDesiredNode: Node => boolean,
+  anchor: ResolvedPos
+): ?NodePosition => {
+  const { doc } = anchor
+  const { nodes } = doc.type.schema
+
+  let depth = anchor.depth
+  while (depth > 0) {
+    const node = anchor.node(depth)
+    if (isDesiredNode(node)) {
+      return {
+        node,
+        index: anchor.start(depth) - 1
+      }
+    } else {
+      depth--
+    }
+  }
+  return null
 }
