@@ -4,12 +4,6 @@ import { Schema } from "prosemirror-model"
 
 export const schema = new Schema({
   nodes: {
-    "inline+": {
-      content: "inline+"
-    },
-    "block+": {
-      content: "block+"
-    },
     doc: {
       content: "block+"
     },
@@ -32,7 +26,8 @@ export const schema = new Schema({
     horizontal_rule: {
       group: "block",
       attrs: {
-        markup: { default: "---" }
+        markup: { default: "---" },
+        marked: { default: null }
       },
       parseDOM: [{ tag: "hr" }],
       toDOM() {
@@ -42,7 +37,8 @@ export const schema = new Schema({
     heading: {
       attrs: {
         level: { default: 1 },
-        markup: {}
+        markup: { default: "#" },
+        marked: { default: null }
       },
       content: "inline*",
       group: "block",
@@ -153,7 +149,8 @@ export const schema = new Schema({
       attrs: {
         src: {},
         alt: { default: null },
-        title: { default: null }
+        title: { default: null },
+        marked: { default: null }
       },
       group: "inline",
       draggable: true,
@@ -223,7 +220,8 @@ export const schema = new Schema({
 
       // excludes: "_",
       attrs: {
-        markup: { default: "`" }
+        markup: { default: "`" },
+        marked: { default: null }
       },
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
@@ -237,7 +235,8 @@ export const schema = new Schema({
       selectable: true,
       defining: true,
       attrs: {
-        markup: { default: "**" }
+        markup: { default: "**" },
+        marked: { default: null }
       },
 
       parseDOM: [
@@ -258,7 +257,8 @@ export const schema = new Schema({
       content: "inline*",
       selectable: true,
       attrs: {
-        markup: { default: "_" }
+        markup: { default: "_" },
+        marked: { default: null }
       },
 
       parseDOM: [
@@ -276,7 +276,8 @@ export const schema = new Schema({
       content: "inline*",
       selectable: true,
       attrs: {
-        markup: { default: "~~" }
+        markup: { default: "~~" },
+        marked: { default: null }
       },
 
       parseDOM: [

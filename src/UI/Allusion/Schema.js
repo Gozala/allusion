@@ -7,7 +7,183 @@ import OrderedMap from "orderedmap"
 
 export const schema = new Schema({
   // topNode: "root",
-  nodes: OrderedMap.from(Markdown.spec.nodes).append({
+  nodes: {
+    doc: {
+      content: "block+"
+    },
+    paragraph: {
+      content: "inline*",
+      group: "block",
+      parseDOM: [{ tag: "p" }],
+      toDOM() {
+        return ["p", 0]
+      }
+    },
+    blockquote: {
+      content: "block+",
+      group: "block",
+      parseDOM: [{ tag: "blockquote" }],
+      toDOM() {
+        return ["blockquote", 0]
+      }
+    },
+    horizontal_rule: {
+      group: "block",
+      attrs: {
+        markup: { default: "---" },
+        marked: { default: null }
+      },
+      parseDOM: [{ tag: "hr" }],
+      toDOM() {
+        return ["div", { class: "horizontal-rule" }, ["hr"]]
+      }
+    },
+    heading: {
+      attrs: {
+        level: { default: 1 },
+        markup: { default: "#" },
+        marked: { default: null }
+      },
+      content: "inline*",
+      group: "block",
+      defining: true,
+      parseDOM: [
+        { tag: "h1", attrs: { level: 1 } },
+        { tag: "h2", attrs: { level: 2 } },
+        { tag: "h3", attrs: { level: 3 } },
+        { tag: "h4", attrs: { level: 4 } },
+        { tag: "h5", attrs: { level: 5 } },
+        { tag: "h6", attrs: { level: 6 } }
+      ],
+      toDOM(node) {
+        return [
+          "h" + node.attrs.level,
+          {
+            markup: node.attrs.markup
+          },
+          0
+        ]
+      }
+    },
+    code_block: {
+      content: "text*",
+      group: "block",
+      code: true,
+      defining: true,
+      attrs: { params: { default: "" } },
+      parseDOM: [
+        {
+          tag: "pre",
+          preserveWhitespace: true,
+          getAttrs(node) {
+            return {
+              params: node.getAttribute("data-params")
+            }
+          }
+        }
+      ],
+      toDOM(node) {
+        return [
+          "pre",
+          node.attrs.params ? { "data-params": node.attrs.params } : {},
+          ["code", 0]
+        ]
+      }
+    },
+    ordered_list: {
+      content: "list_item+",
+      group: "block",
+      attrs: { order: { default: 1 }, tight: { default: false } },
+      parseDOM: [
+        {
+          tag: "ol",
+          getAttrs(dom) {
+            return {
+              order: dom.hasAttribute("start") ? +dom.getAttribute("start") : 1,
+              tight: dom.hasAttribute("data-tight")
+            }
+          }
+        }
+      ],
+      toDOM(node) {
+        return [
+          "ol",
+          {
+            start: node.attrs.order == 1 ? null : node.attrs.order,
+            "data-tight": node.attrs.tight ? "true" : null
+          },
+          0
+        ]
+      }
+    },
+
+    bullet_list: {
+      content: "list_item+",
+      group: "block",
+      attrs: { tight: { default: false } },
+      parseDOM: [
+        {
+          tag: "ul",
+          getAttrs: dom => ({ tight: dom.hasAttribute("data-tight") })
+        }
+      ],
+      toDOM(node) {
+        return ["ul", { "data-tight": node.attrs.tight ? "true" : null }, 0]
+      }
+    },
+
+    list_item: {
+      content: "paragraph block*",
+      defining: true,
+      parseDOM: [{ tag: "li" }],
+      toDOM() {
+        return ["li", 0]
+      }
+    },
+
+    text: {
+      group: "inline",
+      toDOM(node): string {
+        return node.text || ""
+      }
+    },
+
+    image: {
+      inline: true,
+      attrs: {
+        src: {},
+        alt: { default: null },
+        title: { default: null },
+        marked: { default: null }
+      },
+      group: "inline",
+      draggable: true,
+      parseDOM: [
+        {
+          tag: "img[src]",
+          getAttrs(dom) {
+            return {
+              src: dom.getAttribute("src"),
+              title: dom.getAttribute("title"),
+              alt: dom.getAttribute("alt")
+            }
+          }
+        }
+      ],
+      toDOM(node) {
+        return ["img", node.attrs]
+      }
+    },
+
+    hard_break: {
+      inline: true,
+      group: "inline",
+      selectable: false,
+      parseDOM: [{ tag: "br" }],
+      toDOM() {
+        return ["br"]
+      }
+    },
     // root: {
     //   content: "(block|article)*"
     // },
@@ -95,7 +271,8 @@ export const schema = new Schema({
 
       attrs: {
         href: {},
-        title: { default: null }
+        title: { default: null },
+        marked: { default: null }
       },
       parseDOM: [
         {
@@ -121,7 +298,8 @@ export const schema = new Schema({
       attrs: {
         src: {},
         alt: { default: null },
-        title: { default: null }
+        title: { default: null },
+        marked: { default: null }
       },
       parseDOM: [
         {
@@ -148,7 +326,8 @@ export const schema = new Schema({
       group: "block",
       content: "text*",
       attrs: {
-        markup: { default: "---" }
+        markup: { default: "---" },
+        marked: { default: null }
       },
       toDOM() {
         return [
@@ -165,33 +344,139 @@ export const schema = new Schema({
       group: "inline text markup",
       content: "text*",
       attrs: {
-        class: { default: "markup code Markup" }
+        class: { default: "markup code Markup" },
+        marked: { default: null }
       },
       toDOM(node) {
         return ["span", node.attrs, 0]
       }
     }
-  }),
-  marks: OrderedMap.from(Markdown.spec.marks).prepend({
+  },
+  marks: {
     markup: {
       inline: true,
-      group: "inline markup",
+      group: "inline markup code",
       content: "text*",
       selectable: true,
       inclusive: false,
       markup: true,
       attrs: {
-        class: { default: "markup" }
+        class: { default: "markup" },
+        code: { default: null },
+        marked: { default: "" },
+        markup: { default: "" }
       },
       toDOM(node) {
         return ["span", node.attrs, 0]
       }
-    }
-  })
-})
+    },
+    code: {
+      // inline: true,
+      code: true,
+      group: "inline code",
+      // content: "text*",
+      // selectable: true,
 
-// Workaround this issue:
-// https://github.com/ProseMirror/prosemirror-markdown/issues/3
-Object((schema.marks: any)).code.isCode = true
+      // excludes: "_",
+      attrs: {
+        markup: { default: "`" },
+        marked: { default: null }
+      },
+      parseDOM: [{ tag: "code" }],
+      toDOM(node) {
+        return ["code", node.attrs]
+      }
+    },
+    strong: {
+      inline: true,
+      group: "inline",
+      content: "inline*",
+      selectable: true,
+      defining: true,
+      attrs: {
+        markup: { default: "**" },
+        marked: { default: null }
+      },
+
+      parseDOM: [
+        { tag: "b" },
+        { tag: "strong" },
+        {
+          style: "font-weight",
+          getAttrs: value => /^(bold(er)?|[5-9]\d{2,})$/.test(value) && null
+        }
+      ],
+      toDOM(node) {
+        return ["strong", node.attrs]
+      }
+    },
+    em: {
+      inline: true,
+      group: "inline",
+      content: "inline*",
+      selectable: true,
+      attrs: {
+        markup: { default: "_" },
+        marked: { default: null }
+      },
+
+      parseDOM: [
+        { tag: "i" },
+        { tag: "em" },
+        { style: "font-style", getAttrs: value => value == "italic" && null }
+      ],
+      toDOM(node) {
+        return ["em", node.attrs]
+      }
+    },
+    strike_through: {
+      inline: true,
+      group: "inline",
+      content: "inline*",
+      selectable: true,
+      attrs: {
+        markup: { default: "~~" },
+        marked: { default: null }
+      },
+
+      parseDOM: [
+        { tag: "del" },
+        {
+          style: "text-decoration",
+          getAttrs: $ => $ === "line-through" && null
+        }
+      ],
+      toDOM(node) {
+        return ["del", node.attrs]
+      }
+    },
+    link: {
+      inline: true,
+      group: "inline",
+      content: "text*",
+      selectable: true,
+      defining: true,
+
+      attrs: {
+        href: {},
+        title: { default: null }
+      },
+      parseDOM: [
+        {
+          tag: "a[href]",
+          getAttrs(dom) {
+            return {
+              href: dom.getAttribute("href"),
+              title: dom.getAttribute("title")
+            }
+          }
+        }
+      ],
+      toDOM(node) {
+        return ["a", node.attrs, 0]
+      }
+    }
+  }
+})
 
 export default schema
