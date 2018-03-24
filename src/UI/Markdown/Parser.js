@@ -3,8 +3,8 @@
 import schema from "./Schema"
 import MarkdownIt from "markdown-it"
 import type { Token } from "markdown-it"
-import { Mark, MarkType } from "prosemirror-model"
-import type { Schema, NodeType, Node, Fragment } from "prosemirror-model"
+import { Mark, MarkType, NodeType } from "prosemirror-model"
+import type { Schema, Node, Fragment } from "prosemirror-model"
 
 function maybeMerge(a, b) {
   if (a.isText && b.isText && Mark.sameSet(a.marks, b.marks)) {
@@ -55,7 +55,7 @@ export class MarkdownParseState implements Parser {
     this.schema = schema
     this.stack = [
       {
-        factory: Attributor.new(root),
+        factory: new Root(root),
         content: [],
         token: (null: any)
       }
@@ -260,6 +260,16 @@ class Attributor extends Block<?Attributes> {
   }
 }
 
+class Root implements NodeFactory {
+  type: NodeType
+  constructor(type: NodeType) {
+    this.type = type
+  }
+  create(token: Token, content: Node[], marks: Mark[]): Node {
+    return this.type.create(null, content, marks)
+  }
+}
+
 const Void = () => {}
 
 class Inline implements TokenHandler {
@@ -375,10 +385,7 @@ export class MarkdownParser {
   }
   parseInline(text: string): Fragment {
     const tokens = this.tokenizer.parseInline(text, {})[0].children
-    const root =
-      tokens[0] && tokens[0].block
-        ? this.schema.nodeType("block+")
-        : this.schema.nodeType("inline+")
+    const root = new NodeType(":root", this.schema, { content: "inline+" })
 
     return this.parseTokens(tokens, root).content
   }
