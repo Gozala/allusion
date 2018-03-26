@@ -59,7 +59,8 @@ export const schema = new Schema({
         return [
           "h" + node.attrs.level,
           {
-            markup: node.attrs.markup
+            markup: node.attrs.markup,
+            marked: node.attrs.marked
           },
           0
         ]
