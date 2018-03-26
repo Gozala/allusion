@@ -551,13 +551,24 @@ body {
   box-shadow: none;
 }
 
-h1 .markup[code],
-h2 .markup[code],
-h3 .markup[code],
-h4 .markup[code],
-h5 .markup[code],
-h6 .markup[code] {
+h1[marked] > .markup:first-child,
+h2[marked] > .markup:first-child,
+h3[marked] > .markup:first-child,
+h4[marked] > .markup:first-child,
+h5[marked] > .markup:first-child,
+h6[marked] > .markup:first-child {
+  width: 50px;
   display: inline-block;
+  line-height: 90%;
+}
+
+h1[marked],
+h2[marked],
+h3[marked],
+h4[marked],
+h5[marked],
+h6[marked] {
+  margin-left: -50px;
 }
 
 u {
@@ -602,6 +613,7 @@ picture.image img {
   max-width: 100%;
   position: relative;
   z-index: 1;
+  filter: grayscale(20%) brightness(80%);
 }
 
 img {
@@ -617,10 +629,10 @@ picture.image .image-markup {
 
   font: bold 24px/45px Helvetica, Sans-Serif;
   letter-spacing: -1px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.8);
   padding: 10px;
   z-index: 2;
-  backdrop-filter: blur(10px);
+  /* backdrop-filter: blur(10px); */
 }
 
 .horizontal-rule {
