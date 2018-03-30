@@ -386,19 +386,6 @@ export default new Schema({
           ["span", { class: "horizontal-rule-markup" }, 0]
         ]
       }
-    },
-    Markup: {
-      inline: true,
-      markup: true,
-      group: "inline text markup",
-      content: "text*",
-      attrs: {
-        class: { default: "markup code Markup" },
-        marked: { default: "" }
-      },
-      toDOM(node) {
-        return ["span", node.attrs, 0]
-      }
     }
   },
   marks: {
@@ -409,6 +396,7 @@ export default new Schema({
       selectable: true,
       inclusive: false,
       markup: true,
+      excludes: "_",
       attrs: {
         class: { default: "markup" },
         code: { default: null },
@@ -416,7 +404,7 @@ export default new Schema({
         markup: { default: "" }
       },
       toDOM(node) {
-        return ["span", node.attrs, 0]
+        return ["u", node.attrs, 0]
       }
     },
     code: {
@@ -426,7 +414,7 @@ export default new Schema({
       // content: "text*",
       // selectable: true,
 
-      // excludes: "_",
+      excludes: "_",
       attrs: {
         markup: { default: "`" },
         marked: { default: null }
