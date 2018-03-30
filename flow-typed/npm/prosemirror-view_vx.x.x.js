@@ -32,7 +32,7 @@ declare module "prosemirror-view" {
     state: EditorState;
 
     constructor(
-      place: Element | (Element => void | { mount: Element }),
+      place: Element | (Element => void) | { mount: Element },
       DirectEditorProps
     ): void;
 
