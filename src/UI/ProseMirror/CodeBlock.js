@@ -5,12 +5,14 @@ import "codemirror/mode/javascript/javascript"
 import "codemirror/lib/codemirror.css"
 import "codemirror/lib/codemirror.css"
 
+import { Plugin } from "prosemirror-state"
 import { exitCode } from "prosemirror-commands"
 import { undo, redo } from "prosemirror-history"
 import type { EditorView } from "prosemirror-view"
 import { TextSelection, Selection, NodeSelection } from "prosemirror-state"
 import { Fragment } from "prosemirror-model"
 import type { Node } from "prosemirror-model"
+import keyDownHandler from "./CodeBlock/KeyDownHandler"
 
 type Direction = -1 | 1
 type Unit = "line" | "char"
@@ -146,7 +148,9 @@ export default class CodeBlockView {
       [`Shift-${mod}-Z`]: () => redo(view.state, view.dispatch),
       [`${mod}-Y`]: () => redo(view.state, view.dispatch),
       "Ctrl-Enter": () => {
-        if (exitCode(view.state, view.dispatch)) view.focus()
+        if (exitCode(view.state, view.dispatch)) {
+          setTimeout(() => view.focus())
+        }
       }
     })
   }
@@ -167,7 +171,7 @@ export default class CodeBlockView {
     this.view.dispatch(
       this.view.state.tr.setSelection(selection) //.scrollIntoView()
     )
-    this.view.focus()
+    setTimeout(() => this.view.focus())
   }
   // }
   // nodeview_update{
@@ -195,6 +199,17 @@ export default class CodeBlockView {
   deselectNode() {}
   stopEvent(event: Event) {
     return true
+  }
+
+  static plugin() {
+    return new Plugin({
+      props: {
+        handleKeyDown: keyDownHandler,
+        nodeViews: {
+          code_block: CodeBlockView.new
+        }
+      }
+    })
   }
 }
 // }
