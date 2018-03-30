@@ -192,20 +192,22 @@ export const selectionChange = (state: Model, change: Transaction): Model => {
   return Model.edit(tr, state)
 }
 
-export const edit = (state: Model, change: Transaction): Model => {
-  const { selection } = change
+export const edit = (state: Model, tr: Transaction): Model => {
+  const { selection } = tr
 
   if (!selection.empty) {
-    return selectionChange(state, change)
+    return selectionChange(state, tr)
   }
 
   const { editRange } = state
-  const range = editableRange(selection)
-  const tr = editRange.includes(range)
-    ? change
-    : collapseRange(change, editRange)
+  let change = tr
+  let range = editableRange(selection)
+  if (editRange.excludes(range)) {
+    change = collapseRange(tr, editRange)
+    range = editableRange(change.selection)
+  }
 
-  return Model.edit(updateRange(range, tr), state)
+  return Model.edit(updateRange(range, change), state)
 }
 
 export const receive = async (state: Model) => {

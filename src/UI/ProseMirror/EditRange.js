@@ -101,6 +101,9 @@ export class EditRange implements Range {
     const { index, length } = this
     return from >= index && index + length >= to
   }
+  excludes({ index, length }: Range): boolean {
+    return this.index > index + length || index > this.index + this.length
+  }
   includes({ index, length }: Range): boolean {
     if (this.length === 0) {
       return false
