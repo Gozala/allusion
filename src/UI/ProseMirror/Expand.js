@@ -118,7 +118,9 @@ export const expandHeading = (node: Node, changeList: ChangeList) => {
   } else {
     const level: number = node.attrs.level || 1
     changeList.enterMarked(node)
-    changeList.insertMarkup(`${"#".repeat(level)} `, node.marks)
+    changeList.insertMarkup(`${"#".repeat(level)} `, node.marks, {
+      class: "markup heading"
+    })
     expandFragment(node.content, changeList)
     return changeList.exitNode()
   }

@@ -116,8 +116,19 @@ export default class ChangeList {
   endMark(markup: string, mark: Mark) {
     return this.insertNode(this.schema.text(markup, [this.mark(mark)]))
   }
-  insertMarkup(markup: string, marks: Mark[] = Mark.none) {
-    return this.insertNode(this.markup(markup, marks))
+  insertMarkup(
+    markup: string,
+    marks: Mark[] = Mark.none,
+    attrs: ?Object = null
+  ) {
+    const node =
+      attrs == null
+        ? this.markup(markup, marks)
+        : this.schema.text(markup, [
+            this.markupText.type.create(attrs),
+            ...marks
+          ])
+    return this.insertNode(node)
   }
   insertText(text: string, marks: Mark[]) {
     return this.insertNode(this.schema.text(text, marks))
