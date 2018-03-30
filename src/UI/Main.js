@@ -1,43 +1,51 @@
 // @flow strict
 
-import editor from "./Editor"
-import "prosemirror-view/style/prosemirror.css"
-import "../../css/editor.css"
-import "../../css/code.css"
+import Program from "./Program"
+import * as Allusion from "./Allusion"
 
-self.editor = editor(
-  document.body || document.createElement("body"),
-  `/ Welcome to Allusion
+self.main = Program.spawn(Allusion, {
+  node: document.body || document.createElement("body"),
+  options: undefined
+})
 
-This an experimental text editor for note taking and thought organization.
-It would ❤️ to do many things & has some ideas how, but for now it does very
-little.
+// import editor from "./Editor"
+// import "prosemirror-view/style/prosemirror.css"
+// import "../../css/editor.css"
+// import "../../css/code.css"
 
-### Text editing
+// self.editor = editor(
+//   document.body || document.createElement("body"),
+//   `/ Welcome to Allusion
 
-Allusion is learning to speak [Markdown](http://commonmark.org/help/).
+// This an experimental text editor for note taking and thought organization.
+// It would ❤️ to do many things & has some ideas how, but for now it does very
+// little.
 
-- It creates Heading if you type \`# \`, \`## \`, \`### \`
-- It creates Unordered List if you type \`- \` & Ordered List if you type  \`1. \`
-- It creates Blockquote if you type \`> \`
-- It creates **Bold text** if you type \`**text\`
-- It creates *Italic text* if you type \`*text\`
-- It creates ~~Strikethrough~~ text if you type \`~~text\`
-- It creates \`Inline code\` if you type "\`text"
-- It creates Horizontal Rule line if you type \`---\`
----
-### Code editing
+// ### Text editing
 
-Markdown code blocks are rendered with code editor, which provides syntaxt
-highlighting, auto-indentation, and more.
+// Allusion is learning to speak [Markdown](http://commonmark.org/help/).
 
-\`\`\`
-function max(a, b) {
-  return a > b ? a : b
-}
-\`\`\`
+// - It creates Heading if you type \`# \`, \`## \`, \`### \`
+// - It creates Unordered List if you type \`- \` & Ordered List if you type  \`1. \`
+// - It creates Blockquote if you type \`> \`
+// - It creates **Bold text** if you type \`**text\`
+// - It creates *Italic text* if you type \`*text\`
+// - It creates ~~Strikethrough~~ text if you type \`~~text\`
+// - It creates \`Inline code\` if you type "\`text"
+// - It creates Horizontal Rule line if you type \`---\`
+// ---
+// ### Code editing
 
-The content of the code editor is kept in sync with the content of the code block in the rich text editor, so that it
-is as if you're directly editing the outer document, using a more convenient interface.`
-)
-self.editor.focus()
+// Markdown code blocks are rendered with code editor, which provides syntaxt
+// highlighting, auto-indentation, and more.
+
+// \`\`\`
+// function max(a, b) {
+//   return a > b ? a : b
+// }
+// \`\`\`
+
+// The content of the code editor is kept in sync with the content of the code block in the rich text editor, so that it
+// is as if you're directly editing the outer document, using a more convenient interface.`
+// )
+// // self.editor.focus()

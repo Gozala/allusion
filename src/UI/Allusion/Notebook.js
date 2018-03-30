@@ -1,194 +1,249 @@
 // @flow
 
 import type { DatArchive, DatURL } from "../DatArchive"
+import * as Editor from "../Editor"
 import Archive from "../DatArchive"
 import { always } from "./Util"
+import type { Mailbox } from "../Program"
+import match from "match.flow"
 
 export type Message =
-  | { type: "selected", selected: DatArchive }
-  | { type: "mounted", mounted: DatArchive }
-  | { type: "loaded", loaded: Document }
-  | { type: "saved", saved: Document }
+  // | { selected: DatArchive }
+  // | { mounted: DatArchive }
+  // | { loaded: Document }
+  // | { saved: Document }
+  { edit: Editor.Message } | { mount: DatArchive } | { open: Document }
 
 interface Info {
   name: ?string;
   path: string[];
 }
 
-export interface Document {
-  name: string;
-  path: string[];
-  content: string;
-  time: number;
-}
+// export interface Document {
+//   name: string;
+//   path: string[];
+//   state: Editor.Model;
+// }
 
-export type Model =
-  | { status: "unmount", path: string[], select: boolean }
-  | { status: "mount", document: Document }
-  | {
-      status: "idle" | "load" | "save",
-      document: Document,
-      archive: DatArchive
-    }
+export type Document = Editor.Model
+export type Model = Draft | Archived
 
-class TheDocument implements Document {
-  name: string
-  path: string[]
-  content: string
-  time: number
-  constructor(name: string, path: string[], content: string, time: number) {
-    this.name = name
-    this.path = path
-    this.content = content
-    this.time = time
-  }
-}
+// class TheDocument implements Document {
+//   name: string
+//   path: string[]
+//   state: Editor.Model
+//   time: number
+//   constructor(name: string, path: string[], state: Editor.Model) {
+//     this.name = name
+//     this.path = path
+//     this.state = state
+//   }
+// }
 
-class UnmountNotebook {
-  status: "unmount" = "unmount"
-  select: boolean
-  path: string[]
-  constructor(select: boolean, path: string[]) {
-    this.select = select
-    this.path = path
-  }
-}
+// class UnmountNotebook {
+//   status: "unmount" = "unmount"
+//   select: boolean
+//   path: string[]
+//   constructor(select: boolean, path: string[]) {
+//     this.select = select
+//     this.path = path
+//   }
+// }
 
-class MountNotebook {
-  status: "mount" = "mount"
+// class MountNotebook {
+//   status: "mount" = "mount"
+//   document: Document
+//   constructor(document: Document) {
+//     this.document = document
+//   }
+// }
+
+export const draft = (): Model => Draft.new()
+export const open = (name: string, path: string[]): Model =>
+  Archived.new(name, path)
+
+export class Draft {
   document: Document
   constructor(document: Document) {
     this.document = document
   }
+  static new() {
+    return new Draft(Editor.init())
+  }
+  mount(archive: DatArchive): Model {
+    return this
+  }
+  open(document: Document): Model {
+    return this
+  }
+  edit(message: Editor.Message): Model {
+    return new Draft(Editor.update(message, this.document))
+  }
 }
 
-export class Notebook {
-  status: "idle" | "load" | "save"
-  document: Document
-  archive: DatArchive
+export class Archived {
+  path: string[]
+  name: string
+  archive: ?DatArchive
+  document: ?Document
   constructor(
-    status: "idle" | "load" | "save",
-    document: Document,
-    archive: DatArchive
+    name: string,
+    path: string[],
+    archive: ?DatArchive,
+    document: ?Document
   ) {
-    this.status = status
-    this.document = document
+    this.path = path
+    this.name = name
     this.archive = archive
+    this.document = document
   }
-
-  static path(state: Model): string[] {
-    switch (state.status) {
-      case "unmount":
-        return state.path
-      default:
-        return state.document.path
-    }
+  static new(name: string, path: string[]) {
+    return new Archived(name, path, null, null)
   }
-  static name(state: Model, url: DatURL): string {
-    switch (state.status) {
-      case "unmount":
-        return url.replace("dat://", "")
-      default:
-        return state.document.name
-    }
+  mount(archive: DatArchive): Model {
+    return new Archived(this.name, this.path, archive, this.document)
   }
-}
-
-export const save = (state: Model, content: string): Model => {
-  if (state.status === "idle") {
-    const { document: { name, path }, archive } = state
-    return new Notebook(
-      "save",
-      new TheDocument(name, path, content, Date.now()),
-      archive
-    )
-  } else {
-    return state
+  open(document: Document): Model {
+    return new Archived(this.name, this.path, this.archive, document)
   }
-}
-
-export const select = (path: string[] = []) => new UnmountNotebook(true, path)
-export const unmount = (path: string[] = []) => new UnmountNotebook(false, path)
-
-export const mount = (name: string, path: string[]): Model => {
-  const document = new TheDocument(name, path, "", Date.now())
-  return new MountNotebook(document)
-}
-
-export const load = (
-  name: string,
-  path: string[],
-  archive: DatArchive
-): Model => {
-  const document = new TheDocument(name, path, "", Date.now())
-  return new Notebook("load", document, archive)
-}
-
-export const open = (state: Model, path: string[]): Model => {
-  switch (state.status) {
-    case "unmount": {
-      return unmount(path)
-    }
-    case "mount": {
-      return mount(state.document.name, path)
-    }
-    default: {
-      const document = new TheDocument(
-        state.document.name,
-        path,
-        "",
-        Date.now()
+  edit(message: Editor.Message): Model {
+    if (this.document) {
+      return new Archived(
+        this.name,
+        this.path,
+        this.archive,
+        Editor.update(message, this.document)
       )
-      return new Notebook("load", document, state.archive)
+    } else {
+      return this
     }
   }
 }
 
-export const idle = (state: Model, document: Document): Model => {
-  switch (state.status) {
-    case "unmount":
-    case "mount": {
-      return mount(document.name, document.path)
-    }
-    default: {
-      return new Notebook("idle", document, state.archive)
-    }
-  }
-}
+// export class Notebook {
+//   status: "idle" | "load" | "save"
+//   document: Document
+//   archive: DatArchive
+//   constructor(
+//     status: "idle" | "load" | "save",
+//     document: Document,
+//     archive: DatArchive
+//   ) {
+//     this.status = status
+//     this.document = document
+//     this.archive = archive
+//   }
 
-export const init = ({ name, path }: Info): Model => {
-  if (name == null) {
-    return select(path)
-  } else {
-    return mount(name, path)
-  }
-}
+//   static path(state: Model): string[] {
+//     switch (state.status) {
+//       case "unmount":
+//         return state.path
+//       default:
+//         return state.document.path
+//     }
+//   }
+//   static name(state: Model, url: DatURL): string {
+//     switch (state.status) {
+//       case "unmount":
+//         return url.replace("dat://", "")
+//       default:
+//         return state.document.name
+//     }
+//   }
+// }
 
-export const update = (state: Model, message: Message): Model => {
-  switch (message.type) {
-    case "selected": {
-      const archive = message.selected
-      const path = Notebook.path(state)
-      const name = Notebook.name(state, archive.url)
-      return load(name, path, archive)
-    }
-    case "mounted": {
-      const archive = message.mounted
-      const path = Notebook.path(state)
-      const name = Notebook.name(state, archive.url)
-      return load(name, path, archive)
-    }
-    case "loaded": {
-      return idle(state, message.loaded)
-    }
-    case "saved": {
-      return idle(state, message.saved)
-    }
-    default: {
-      throw Error(`Unexpected message ${JSON.stringify(message)}`)
-    }
+// export const save = (state: Model, content: string): Model => {
+//   if (state.status === "idle") {
+//     const { document: { name, path }, archive } = state
+//     return new Notebook(
+//       "save",
+//       new TheDocument(name, path, Editor.parse(content)),
+//       archive
+//     )
+//   } else {
+//     return state
+//   }
+// }
+
+// export const select = (path: string[] = []) => new UnmountNotebook(true, path)
+// export const unmount = (path: string[] = []) => new UnmountNotebook(false, path)
+
+// export const mount = (name: string, path: string[]): Model => {
+//   const document = new TheDocument(name, path, Editor.init())
+//   return new MountNotebook(document)
+// }
+
+// export const load = (
+//   name: string,
+//   path: string[],
+//   archive: DatArchive
+// ): Model => {
+//   const document = new TheDocument(name, path, Editor.init())
+//   return new Notebook("load", document, archive)
+// }
+
+// export const open = (state: Model, path: string[]): Model => {
+//   switch (state.status) {
+//     case "unmount": {
+//       return unmount(path)
+//     }
+//     case "mount": {
+//       return mount(state.document.name, path)
+//     }
+//     default: {
+//       const document = new TheDocument(state.document.name, path, Editor.init())
+//       return new Notebook("load", document, state.archive)
+//     }
+//   }
+// }
+
+// export const idle = (state: Model, document: Document): Model => {
+//   switch (state.status) {
+//     case "unmount":
+//     case "mount": {
+//       return mount(document.name, document.path)
+//     }
+//     default: {
+//       return new Notebook("idle", document, state.archive)
+//     }
+//   }
+// }
+
+// export const init = ({ name, path }: Info): Model => {
+//   if (name == null) {
+//     return select()
+//   } else {
+//     return mount(name, path)
+//   }
+// }
+
+export const update = match({
+  // selected(archive: DatArchive, state: Model) {
+  //   const path = Notebook.path(state)
+  //   const name = Notebook.name(state, archive.url)
+  //   return load(name, path, archive)
+  // },
+  // mounted(archive: DatArchive, state: Model) {
+  //   const path = Notebook.path(state)
+  //   const name = Notebook.name(state, archive.url)
+  //   return load(name, path, archive)
+  // },
+  // loaded(document: Document, state: Model) {
+  //   return idle(state, document)
+  // },
+  // saved(document: Document, state: Model) {
+  //   return idle(state, document)
+  // },
+  mount(archive: DatArchive, state: Model) {
+    return state.mount(archive)
+  },
+  open(document: Document, state: Model) {
+    return state.open(document)
+  },
+  edit(message: Editor.Message, state: Model) {
+    return state.edit(message)
   }
-}
+})
 
 const selectNotebook = (): Promise<DatArchive> =>
   Archive.selectArchive({
@@ -211,13 +266,12 @@ const loadDocument = async (
   const documentPath = path.join("/")
   const content = await readDocument(archive, documentPath)
   window.localStorage.documentPath = documentPath
-  const document = new TheDocument(
-    name,
-    path,
-    content || `/ ${documentPath}\n`,
-    Date.now()
+  const document = content ? Editor.parse(content) : Editor.init()
+  window.history.pushState(
+    JSON.parse(JSON.stringify(document)),
+    "",
+    `/${name}/${documentPath}`
   )
-  window.history.pushState(document, "", `/${name}/${documentPath}`)
   return document
 }
 
@@ -232,51 +286,94 @@ export const readDocument = async (
   }
 }
 
-export const saveDocument = async (
-  archive: DatArchive,
-  document: Document
-): Promise<Document> => {
-  try {
-    await archive.writeFile(`${document.path.join("/")}.md`, document.content, {
-      encoding: "utf8"
-    })
-  } catch (error) {
-    console.error(`Failed to save document`, error)
-  }
-  return document
-}
+// export const saveDocument = async (
+//   archive: DatArchive,
+//   document: Document
+// ): Promise<Document> => {
+//   try {
+//     await archive.writeFile(
+//       `${document.path.join("/")}.md`,
+//       Editor.serialize(document.state),
+//       {
+//         encoding: "utf8"
+//       }
+//     )
+//   } catch (error) {
+//     console.error(`Failed to save document`, error)
+//   }
+//   return document
+// }
+
+// export const receive = async (state: Model): Promise<Message[]> => {
+//   switch (state.status) {
+//     case "unmount": {
+//       if (state.select) {
+//         const archive = await selectNotebook()
+//         return [{ type: "selected", selected: archive }]
+//       } else {
+//         return []
+//       }
+//     }
+//     case "mount": {
+//       const document = await mountNotebook(state.document.name)
+//       return [{ type: "mounted", mounted: document }]
+//     }
+//     case "load": {
+//       const { archive } = state
+//       const { name, path } = state.document
+//       const document = await loadDocument(name, path, archive)
+//       return [{ type: "loaded", loaded: document }]
+//     }
+//     case "save": {
+//       const { archive } = state
+//       const document = await saveDocument(archive, state.document)
+//       return [{ type: "saved", saved: document }]
+//     }
+//     default: {
+//       return []
+//     }
+//   }
+// }
 
 export const receive = async (state: Model): Promise<Message[]> => {
-  switch (state.status) {
-    case "unmount": {
-      if (state.select) {
-        const archive = await selectNotebook()
-        return [{ type: "selected", selected: archive }]
-      } else {
-        return []
-      }
-    }
-    case "mount": {
-      const document = await mountNotebook(state.document.name)
-      return [{ type: "mounted", mounted: document }]
-    }
-    case "load": {
-      const { archive } = state
-      const { name, path } = state.document
-      const document = await loadDocument(name, path, archive)
-      return [{ type: "loaded", loaded: document }]
-    }
-    case "save": {
-      const { archive } = state
-      const document = await saveDocument(archive, state.document)
-      return [{ type: "saved", saved: document }]
-    }
-    default: {
+  if (state instanceof Draft) {
+    return []
+  } else {
+    const { archive, document } = state
+    if (archive == null) {
+      const archive = await mountNotebook(state.name)
+      return [{ mount: archive }]
+    } else if (document == null) {
+      const document = await loadDocument(state.name, state.path, archive)
+      return [{ open: document }]
+    } else {
       return []
     }
   }
 }
 
-export const send = async (state: Model): Promise<[]> => {
-  return []
+// export const view = (mailbox: Mailbox<Message>) =>
+//   Editor.view({
+//     send(message: Editor.Message) {
+//       mailbox.send({ edit: message })
+//     }
+//   })
+
+export const view = (mailbox: Mailbox<Message>) => {
+  const editor = Editor.view({
+    send(message: Editor.Message) {
+      return mailbox.send({ edit: message })
+    }
+  })
+
+  return {
+    editor: editor,
+    render(state: Model, document: *): ?Element {
+      if (state.document) {
+        return editor.render(state.document, document)
+      } else {
+        return null
+      }
+    }
+  }
 }

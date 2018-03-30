@@ -1,183 +1,111 @@
 // @flow strict
 
-import { Plugin, PluginKey } from "prosemirror-state"
-import { Decoration, DecorationSet, EditorView } from "prosemirror-view"
-import type { EditorState, Selection, Transaction } from "prosemirror-state"
-import type { Schema, Node } from "prosemirror-model"
-import CodeBlock from "./CodeBlock"
-import InlineNode from "./InlineNode"
-import HeadingView from "./Allusion/NodeView/Heading"
-import {
-  Link,
-  Address,
-  URL,
-  Title,
-  Words,
-  Markup
-} from "./Allusion/NodeView/Link"
-import keyDownHandler from "./CodeBlock/KeyDownHandler"
+import type { Transaction, EditorState } from "prosemirror-state"
+import type { DatArchive, DatURL } from "./DatArchive"
+import { Selection } from "prosemirror-state"
 import Archive from "./DatArchive"
-import type { DatArchive } from "./DatArchive"
-import type { Program } from "./Allusion/Program"
-import * as program from "./Allusion/Program"
-import pluginKey from "./Allusion/Key"
+import * as Notebook from "./Allusion/Notebook"
+import match from "match.flow"
+import type { Mailbox } from "./Program"
 
-export type EditorConfig = {
-  schema?: Schema,
-  doc?: Node,
-  selection?: Selection,
-  plugins?: Plugin<*>[]
+export class Model {
+  notebook: ?Notebook.Model
+  constructor(notebook: ?Notebook.Model) {
+    this.notebook = notebook
+  }
+
+  static new(notebook: Notebook.Model) {
+    return new Model(notebook)
+  }
+  static load(self: Model, notebook: Notebook.Model) {
+    return Model.setNotebook(self, notebook)
+  }
+  static loaded(self: Model, notebook: Notebook.Model, tr: Transaction) {
+    return new Model(notebook)
+  }
+  static setNotebook(self: Model, notebook: Notebook.Model) {
+    return new Model(notebook)
+  }
 }
 
-export default (): Plugin<Allusion<program.Message, program.Model>> => {
-  const plugin: Plugin<Allusion<program.Message, program.Model>> = new Plugin({
-    key: pluginKey,
-    state: Allusion,
-    view(editor: EditorView) {
-      const allusion = this.key.getState(editor.state)
-      allusion.editor = editor
+export const init = (): Model => new Model(null)
 
-      return {}
-    },
-    props: {
-      decorations(state: EditorState): ?DecorationSet {
-        return plugin.getState(state).decorations()
-        // return this.getState(state).decorations()
-      },
-      handleKeyDown: keyDownHandler,
-      handleTextInput(
-        view: EditorView,
-        from: number,
-        to: number,
-        text: string
-      ): boolean {
-        // if (/[\*~#_\[\]\(\)`]/.test(text)) {
-        //   const { schema, tr, selection } = view.state
-        //   const { from, to } = selection
-        //   const mark = schema.mark("markup")
-        //   view.dispatch(
-        //     tr
-        //       .addStoredMark(mark)
-        //       .insertText(text)
-        //       .removeStoredMark(mark)
-        //       .setMeta(pluginKey, { type: "syntaxInput", text })
-        //   )
-        //   return true
-        // }
-        return false
-      },
-      nodeViews: {
-        code_block: CodeBlock.new
-        // heading: HeadingView.new,
-        // code: InlineNode.new
-        // [Link.blotName]: Link.view(),
-        // [Address.blotName]: Address.view(),
-        // [URL.blotName]: URL.view(),
-        // [Title.blotName]: Title.view()
-        // [Words.blotName]: Words.view()
-        // [Markup.blotName]: Markup.view()
-      }
+export const update = match({
+  info({ name, path }: Info, state: Model) {
+    const notebook = name ? Notebook.open(name, path) : Notebook.draft()
+    return Model.setNotebook(state, notebook)
+  },
+  notebook(message: Notebook.Message, state: Model) {
+    return Model.setNotebook(state, Notebook.update(message, state.notebook))
+  }
+  // load(load: string, state: Model) {
+  //   const notebook = state.notebook
+  //   const path = load.split("/")
+  //   return Model.setNotebook(state, Notebook.open(notebook, path))
+  // },
+  // loaded(source: string, state: Model) {
+  //   const content = parseDocument(source)
+  //   return Model.setNotebook(state, Notebook.update(state.notebook, content))
+  // },
+  // save(_, state) {
+  //   const content = Serializer.serialize(state.editor.doc)
+  //   return Model.setNotebook(state, Notebook.save(state.notebook, content))
+  // }
+})
+
+type Message = { info: Info } | { notebook: Notebook.Message }
+
+export const receive = async (state: Model): Promise<Message[]> => {
+  const { notebook } = state
+  if (notebook == null) {
+    const info = await readInfo()
+    return [{ info }]
+  } else {
+    const messages = await Notebook.receive(notebook)
+    return messages.map(notebook => ({ notebook }))
+  }
+}
+
+const readInfo = async (): Promise<Info> => {
+  const { host, protocol, pathname } = window.location
+  const [root, key, ...path] = decodeURI(pathname).split("/")
+  if (key != "") {
+    return new Info(key, path)
+  } else {
+    const { notebookName, documentPath } = window.localStorage
+    if (notebookName != null) {
+      const path = documentPath ? documentPath.split("/") : []
+
+      return new Info(notebookName, path)
+    } else {
+      return new Info(null, [])
+    }
+  }
+}
+
+export class Info {
+  name: ?string
+  path: string[]
+  constructor(name: ?string, path: string[]) {
+    this.name = name
+    this.path = path
+  }
+}
+
+export const view = (mailbox: Mailbox<Message>) => {
+  const notebook = Notebook.view({
+    send(message: Notebook.Message) {
+      mailbox.send({ notebook: message })
     }
   })
-  return plugin
-}
 
-interface Transact {
-  transaction: Transaction;
-  before: EditorState;
-  after: EditorState;
-  // TODO: Remove this dependency
-  meta: program.Meta;
-}
-
-interface ProsemirrorProgram<message, model>
-  extends Program<message, model, Transaction, EditorState> {
-  transact(model, Transact): message[];
-}
-
-class Allusion<message, model> {
-  program: ProsemirrorProgram<message, model>
-  state: model
-  inbox: message[]
-  editor: ?EditorView
-  constructor(
-    program: ProsemirrorProgram<message, model>,
-    state: model,
-    inbox: message[],
-    editor: ?EditorView
-  ) {
-    this.program = program
-    this.state = state
-    this.inbox = inbox
-    this.editor = editor
-  }
-  decorations() {
-    return this.program.decorations(this.state)
-  }
-  static init(
-    config: EditorConfig,
-    editor: EditorState
-  ): Allusion<program.Message, program.Model> {
-    const state = program.init(editor)
-    const self = new Allusion(program, state, [], null)
-    return Allusion.transct(self, state)
-  }
-  static apply(
-    tr: Transaction,
-    self: Allusion<message, model>,
-    before: EditorState,
-    after: EditorState
-  ): Allusion<message, model> {
-    const { program, inbox } = self
-    let { state } = self
-    const meta = tr.getMeta(pluginKey) || { type: "noop" }
-    const messages = program.transact(state, {
-      transaction: tr,
-      before,
-      after,
-      meta
-    })
-
-    if (messages != null) {
-      const queued = inbox.splice(0)
-      for (let payload of [...messages, ...queued]) {
-        state = program.update(state, payload)
-      }
-    }
-
-    return Allusion.transct(self, state)
-  }
-
-  static transct(
-    self: Allusion<message, model>,
-    state: model
-  ): Allusion<message, model> {
-    self.state = state
-    Allusion.receive(self)
-    Allusion.send(self)
-    return self
-  }
-
-  static async receive(self: Allusion<message, model>) {
-    const { state, inbox, program } = self
-    const messages = await program.receive(state)
-    if (messages.length > 0) {
-      inbox.push(...messages)
-    }
-
-    // Note on first receive self does not has editor set yet, accessing
-    // property here allows it to be set in the meantime.
-    const { editor } = self
-    if (editor != null && inbox.length > 0) {
-      editor.dispatch(editor.state.tr)
-    }
-  }
-  static async send(self: Allusion<message, model>) {
-    const { state, program, editor } = self
-    if (editor != null) {
-      const transactions = await program.send(state)
-      for (const transaction of transactions) {
-        editor.dispatch(transaction.setMeta(pluginKey, { type: "ignore" }))
+  return {
+    notebook: notebook,
+    render(model: Model, document: Document) {
+      if (model.notebook) {
+        return notebook.render(model.notebook, document)
+      } else {
+        return null
       }
     }
   }
