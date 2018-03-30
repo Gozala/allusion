@@ -266,7 +266,11 @@ class Root implements NodeFactory {
     this.type = type
   }
   create(token: Token, content: Node[], marks: Mark[]): Node {
-    return this.type.create(null, content, marks)
+    if (this.type.contentMatch == null) {
+      return this.type.create(null, content, marks)
+    } else {
+      return this.type.createChecked(null, content, marks)
+    }
   }
 }
 
@@ -380,13 +384,14 @@ export class MarkdownParser {
   // Parse a string as [CommonMark](http://commonmark.org/) markup,
   // and create a ProseMirror document as prescribed by this parser's
   // rules.
-  parse(text: string): Node {
-    return this.parseTokens(this.tokenizer.parse(text, {}))
+  parse(text: string, type: ?NodeType = null): Node {
+    const root = type || new NodeType("doc", this.schema, { content: "block*" })
+    const tokens = this.tokenizer.parse(text, {})
+    return this.parseTokens(tokens, root)
   }
   parseInline(text: string): Fragment {
+    const root = new NodeType("doc", this.schema, { content: "inline*" })
     const tokens = this.tokenizer.parseInline(text, {})[0].children
-    const root = new NodeType(":root", this.schema, { content: "inline+" })
-
     return this.parseTokens(tokens, root).content
   }
   parseTokens(tokens: Token[], root: NodeType = this.schema.topNodeType): Node {
