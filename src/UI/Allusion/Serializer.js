@@ -31,19 +31,30 @@ export default new Serializer(
       state.closeBlock(node)
     },
     bullet_list(state, node) {
-      state.renderList(node, "  ", () => (node.attrs.bullet || "*") + " ")
+      state.renderList(node, "  ", item => `${item.attrs.markup} `)
     },
     ordered_list(state, node) {
       let start = node.attrs.order || 1
       let maxW = String(start + node.childCount - 1).length
       let space = state.repeat(" ", maxW + 2)
-      state.renderList(node, space, i => {
+      state.renderList(node, space, (child, i) => {
         let nStr = String(start + i)
         return state.repeat(" ", maxW - nStr.length) + nStr + ". "
       })
     },
     list_item(state, node) {
       state.renderContent(node)
+    },
+    checkbox(state, node) {
+      if (node.attrs.checked == null) {
+        state.write("[ ]")
+      } else {
+        state.write("[x]")
+      }
+      state.renderContent(node)
+    },
+    label(state, node) {
+      state.renderInline(node)
     },
     paragraph(state, node) {
       state.renderInline(node)
