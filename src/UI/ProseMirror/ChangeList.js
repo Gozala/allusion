@@ -25,15 +25,10 @@ export default class ChangeList {
     this.markupMarker = this.schema.mark("markup", { code: "" })
   }
   markup(text: string, marks: Mark[] = Mark.none): Node {
-    return this.schema.text(text, [this.markupText, ...marks])
+    return this.schema.text(text, [this.markupText]) //, ...marks])
   }
   marker(text: string, marks: Mark[] = Mark.none): Node {
-    return this.schema.text(text, [this.markupMarker, ...marks])
-  }
-  mark(mark: ?Mark = null) {
-    return mark == null
-      ? this.markupMarker
-      : this.schema.mark("markup", { markup: mark.attrs.markup, code: "" })
+    return this.schema.text(text, [this.markupMarker]) //, ...marks])
   }
   updateMarks(marks: Mark[]) {
     const newMarks = new Map()
@@ -87,7 +82,7 @@ export default class ChangeList {
   }
   insertMarker(markup: string, marks: Mark[] = Mark.none) {
     return this.updateMarks(marks).insertNode(
-      this.schema.text(markup, [this.markupMarker, ...marks])
+      this.schema.text(markup, [this.markupMarker]) //, ...marks])
     )
   }
   // insertMarkupCode(code: string, marks: Mark[]) {
@@ -109,12 +104,10 @@ export default class ChangeList {
   //   return this
   // }
   startMark(markup: string, mark: Mark) {
-    return this.insertNode(
-      this.schema.text(markup, [asMarked(mark), this.mark(mark)])
-    )
+    return this.insertNode(this.schema.text(markup, [this.markupMarker]))
   }
   endMark(markup: string, mark: Mark) {
-    return this.insertNode(this.schema.text(markup, [this.mark(mark)]))
+    return this.insertNode(this.schema.text(markup, [this.markupMarker]))
   }
   insertMarkup(
     markup: string,

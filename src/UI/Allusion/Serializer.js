@@ -112,14 +112,14 @@ export default new Serializer(
     em: {
       open: unmarkedMarkup,
       close: unmarkedMarkup,
-      mixable: true,
-      expelEnclosingWhitespace: true
+      mixable: true
+      // expelEnclosingWhitespace: true
     },
     strong: {
       open: unmarkedMarkup,
       close: unmarkedMarkup,
-      mixable: true,
-      expelEnclosingWhitespace: true
+      mixable: true
+      // expelEnclosingWhitespace: true
     },
     markup: {
       open: "",
@@ -128,8 +128,8 @@ export default new Serializer(
     strike_through: {
       open: unmarkedMarkup,
       close: unmarkedMarkup,
-      mixable: true,
-      expelEnclosingWhitespace: true
+      mixable: true
+      // expelEnclosingWhitespace: true
     },
     code: {
       open: unmarkedMarkup,

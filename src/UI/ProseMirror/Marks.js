@@ -49,7 +49,7 @@ export const findMarkupRangeStart = (
   let mark = marks[--markIndex]
 
   while (child && mark) {
-    if (child.marks.some($ => $.attrs.markup === mark)) {
+    if (child.marks.some($ => $.attrs.markup === mark || isMarkup($))) {
       offset = offset - child.nodeSize
       child = childIndex > 0 ? parent.child(--childIndex) : null
     } else {
@@ -74,7 +74,7 @@ export const findMarkupRangeEnd = (
   let mark = marks[--markIndex]
 
   while (child && mark) {
-    if (child.marks.some($ => $.attrs.markup === mark)) {
+    if (child.marks.some($ => $.attrs.markup === mark || isMarkup($))) {
       offset = offset + child.nodeSize
       child = ++childIndex < childCount ? parent.child(childIndex) : null
     } else {
@@ -83,4 +83,9 @@ export const findMarkupRangeEnd = (
   }
 
   return offset
+}
+
+const isMarkup = (mark: Mark) => {
+  const { group } = mark.type.spec
+  return group && group.includes("markup")
 }
