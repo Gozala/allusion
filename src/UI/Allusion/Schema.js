@@ -5,17 +5,70 @@ import Markdown from "../Markdown/Schema"
 import { Link, Address, URL, Title, Words, Markup } from "./NodeView/Link"
 import OrderedMap from "orderedmap"
 
-export const schema = new Schema({
-  // topNode: "root",
+export default new Schema({
   nodes: {
     doc: {
-      content: "block+"
+      content: "header article"
+      // content: "heading paragraph block+"
+    },
+    header: {
+      content: "title author",
+      toDOM(node) {
+        return ["header", 0]
+      }
+    },
+    title: {
+      content: "inline*",
+      group: "heading paragraph",
+      defining: true,
+      attrs: {
+        markup: { default: "" },
+        marked: { default: null },
+        placeholder: { default: "Title" },
+        label: { default: "Title" },
+        tabindex: { default: 0 }
+      },
+      toDOM(node) {
+        return ["h1", node.attrs, 0]
+      }
+    },
+    author: {
+      content: "inline*",
+      defining: true,
+      group: "paragraph",
+      attrs: {
+        markup: { default: "" },
+        marked: { default: null },
+        placeholder: { default: "Your name" },
+        label: { default: "Author" },
+        tabindex: { default: 0 }
+      },
+      toDOM(node) {
+        return ["address", node.attrs, 0]
+      }
+    },
+    article: {
+      content: "block+",
+      attrs: {
+        placeholder: {
+          default: "Your story..."
+        },
+        tabindex: { default: 0 }
+      },
+      toDOM(node) {
+        return ["article", node.attrs, 0]
+      }
     },
     paragraph: {
       content: "inline*",
       group: "block",
       parseDOM: [{ tag: "p" }],
-      toDOM() {
+      attrs: {
+        marked: {
+          default: null
+        }
+      },
+      toDOM(node) {
         return ["p", 0]
       }
     },
@@ -56,14 +109,7 @@ export const schema = new Schema({
         { tag: "h6", attrs: { level: 6 } }
       ],
       toDOM(node) {
-        return [
-          "h" + node.attrs.level,
-          {
-            markup: node.attrs.markup,
-            marked: node.attrs.marked
-          },
-          0
-        ]
+        return ["h" + node.attrs.level, 0]
       }
     },
     code_block: {
@@ -136,6 +182,7 @@ export const schema = new Schema({
     list_item: {
       content: "paragraph block*",
       defining: true,
+      attrs: { markup: { default: "-" } },
       parseDOM: [{ tag: "li" }],
       toDOM() {
         return ["li", 0]
@@ -198,17 +245,17 @@ export const schema = new Schema({
     //   },
     //   parseDOM: [{ tag: "article" }]
     // },
-    header: {
-      defining: true,
-      marks: "_",
-      group: "block",
-      content: "text*",
-      inline: false,
-      toDOM() {
-        return ["header", {}, 0]
-      },
-      parseDOM: [{ tag: "header" }]
-    },
+    // header: {
+    //   defining: true,
+    //   marks: "_",
+    //   group: "block",
+    //   content: "text*",
+    //   inline: false,
+    //   toDOM() {
+    //     return ["header", {}, 0]
+    //   },
+    //   parseDOM: [{ tag: "header" }]
+    // },
 
     checkbox: {
       group: "inline",
@@ -454,5 +501,3 @@ export const schema = new Schema({
     }
   }
 })
-
-export default schema

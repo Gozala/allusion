@@ -410,93 +410,9 @@ li.ProseMirror-selectednode:after {
   position: relative;
 }
 
-.ProseMirror article {
-  position: relative;
-  border-left: 1px solid #eee;
-  margin-left: -18px;
-  padding-left: 40px;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
+article h1 {
+  font-size: 1.8em;
 }
-
-/* .ProseMirror strong::after, */
-/* .ProseMirror em::after,
-.ProseMirror del::after,
-.ProseMirror code::after {
-  content:attr(data-suffix);
-  opacity: 0.1;
-  font-weight: normal;
-  font-style: normal;
-  text-decoration: none;
-} */
-
-/* .ProseMirror h1::before,
-.ProseMirror h2::before,
-.ProseMirror h3::before,
-.ProseMirror h4::before,
-.ProseMirror h5::before,
-.ProseMirror h6::before, */
-.ProseMirror blockquote p::before,
-.ProseMirror header::before,
-/* .ProseMirror h1 mark,
-.ProseMirror h2 mark,
-.ProseMirror h3 mark,
-.ProseMirror h4 mark,
-.ProseMirror h5 mark,
-.ProseMirror h6 mark */
- {
-  position: absolute;
-  left: 0px;
-  text-align: right;
-  margin-left: -60px;
-  width: 50px;
-}
-
-.ProseMirror header::before {
-  content: "/";
-}
-
-/* .ProseMirror h1::before {
-  content: "#";
-}
-.ProseMirror h2::before {
-  content: "##";
-}
-
-.ProseMirror h3::before {
-  content: "###";
-}
-
-.ProseMirror h4::before {
-  content: "####";
-}
-
-.ProseMirror h5::before {
-  content: "#####";
-}
-
-.ProseMirror h6::before {
-  content: "######";
-} */
-
-/* .ProseMirror h1 mark,
-.ProseMirror h2 mark,
-.ProseMirror h3 mark,
-.ProseMirror h4 mark,
-.ProseMirror h5 mark,
-.ProseMirror h6 mark {
-  display: none;
-  position: relative;
-}
-
-.ProseMirror h1.expand mark,
-.ProseMirror h2.expand mark,
-.ProseMirror h3.expand mark,
-.ProseMirror h4.expand mark,
-.ProseMirror h5.expand mark,
-.ProseMirror h6.expand mark {
-  display: inline;
-} */
 
 .ProseMirror blockquote p::before {
   content: ">";
@@ -516,11 +432,6 @@ li.ProseMirror-selectednode:after {
   box-shadow: rgba(0, 0, 0, 0.02) 0px 0px 0px 2px;
 }
 
-.ProseMirror header {
-  font-size: 1.7em;
-  font-weight: bold;
-}
-
 body {
   /* background-color: rgb(240, 240, 240); */
   color: rgb(28, 28, 23);
@@ -530,10 +441,6 @@ body {
   text-decoration: none;
   color: initial;
 }
-
-/* a.read .markup {
-  display: none;
-} */
 
 .markup[code],
 .markup[code] * {
@@ -551,24 +458,11 @@ body {
   box-shadow: none;
 }
 
-h1[marked] > .markup:first-child,
-h2[marked] > .markup:first-child,
-h3[marked] > .markup:first-child,
-h4[marked] > .markup:first-child,
-h5[marked] > .markup:first-child,
-h6[marked] > .markup:first-child {
+.markup.heading {
+  margin-left: -50px;
   width: 50px;
   display: inline-block;
   line-height: 90%;
-}
-
-h1[marked],
-h2[marked],
-h3[marked],
-h4[marked],
-h5[marked],
-h6[marked] {
-  margin-left: -50px;
 }
 
 u {
@@ -672,4 +566,62 @@ picture.image .image-markup {
 
 .edit-range {
   background-color: var(--edit-range-color) !important;
+}
+
+[empty]::before {
+  float: left;
+  color: #aaa;
+  pointer-events: none;
+  height: 0;
+  content: attr(placeholder);
+  font-weight: normal;
+}
+
+header {
+  margin: 20px 0;
+}
+
+header h1,
+h1[role="title"] {
+  margin: 21px 0px 12px;
+}
+
+address {
+  color: #79828b;
+  font-style: normal;
+}
+
+[label] {
+  position: relative;
+}
+
+[label]::after {
+  position: absolute;
+  content: attr(label);
+  color: rgba(0, 0, 0, 0.44);
+  border-right: 1px solid rgba(0, 0, 0, 0.15);
+  right: 100%;
+  top: -6px;
+  bottom: -6px;
+  padding: 6px 12px;
+  font-weight: 400;
+  margin: 0 21px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+[label]::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+[label][empty]::after {
+  opacity: 0;
+  visibility: hidden;
+}
+
+a {
+  word-wrap: break-word;
 }

@@ -49,6 +49,8 @@ export const expandNode = (node: Node, changeList: ChangeList): ChangeList => {
     case nodes.text: {
       return expandText(node, changeList)
     }
+    case nodes.author:
+    case nodes.title:
     case nodes.paragraph: {
       return expandParagraph(node, changeList)
     }
@@ -127,7 +129,7 @@ export const expandHeading = (node: Node, changeList: ChangeList) => {
 }
 
 export const expandParagraph = (node: Node, changeList: ChangeList) => {
-  changeList.enterNode(node)
+  changeList.enterMarked(node)
   expandFragment(node.content, changeList)
   return changeList.exitNode()
 }

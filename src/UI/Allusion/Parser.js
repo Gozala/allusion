@@ -12,7 +12,7 @@ import { link } from "./NodeView/Link"
 import { Fragment } from "prosemirror-model"
 
 const tokenizer = new MarkdownIt({ html: false, trim: false })
-tokenizer.block.ruler.after("heading", "header", Header)
+// tokenizer.block.ruler.after("heading", "header", Header)
 tokenizer.use(TaskList, { label: true, labelAfter: true, enabled: true })
 tokenizer.block.ruler.at("paragraph", Paragraph)
 tokenizer.block.ruler.at("heading", Heading)

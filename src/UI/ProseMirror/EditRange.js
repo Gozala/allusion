@@ -21,6 +21,7 @@ import {
   collapseFragment
 } from "../ProseMirror/Collapse"
 import ChangeList from "../ProseMirror/ChangeList"
+import { createFrom } from "../ProseMirror/Node"
 
 export interface Range {
   index: number;
@@ -101,9 +102,7 @@ export class EditRange implements Range {
     return from >= index && index + length >= to
   }
   includes({ index, length }: Range): boolean {
-    if (length === 0) {
-      return true
-    } else if (this.length === 0) {
+    if (this.length === 0) {
       return false
     } else {
       return index >= this.index && this.index + this.length >= index + length
@@ -124,7 +123,6 @@ export class EditRange implements Range {
 }
 
 export const editableRange = (selection: Selection): EditRange => {
-  // TODO:
   // 1. First find an editable block
   // 2. If editable block is a link, hr, image, then just use it as edit range.
   // 3. If editable block is a paragaraph then find markupRange range with-in it.
@@ -137,6 +135,9 @@ export const editableRange = (selection: Selection): EditRange => {
     if (block) {
       const { nodes } = block.node.type.schema
       switch (block.node.type) {
+        case nodes.author:
+        // case nodes.heading:
+        case nodes.title:
         case nodes.paragraph: {
           const target = nodePosition(isEditNode, $anchor)
           if (target) {
@@ -179,10 +180,13 @@ export const isEditBlock = (node: Node): boolean => {
     case nodes.expandedHorizontalRule:
     case nodes.expandedImage:
     case nodes.expandedHorizontalRule:
+    case nodes.intro:
     case nodes.paragraph:
     case nodes.heading:
     case nodes.horizontal_rule:
     case nodes.image:
+    case nodes.title:
+    case nodes.author:
       return true
     default:
       return false
@@ -191,13 +195,10 @@ export const isEditBlock = (node: Node): boolean => {
 
 export { expandRange, collapseRange }
 
-export const updateRange = (
-  range: EditRange,
-  tr: Transaction
-): ?Transaction => {
+export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
   const block = range.editBlock(tr.doc)
   if (!block) {
-    return null
+    return tr
   }
 
   const changeList = ChangeList.new(block.index, tr)
@@ -206,7 +207,7 @@ export const updateRange = (
   const tr2 = expandNode(block.node, changeList).toTransaction()
   const block2 = editableRange(tr2.selection).editBlock(tr2.doc)
   if (!block2) {
-    return null
+    return tr
   }
 
   // 2. Then we serialize expanded block & then parse it as markdown. And abort
@@ -216,12 +217,11 @@ export const updateRange = (
   const content = node.isBlock
     ? Parser.parse(markup)
     : Parser.parseInline(markup)
-  const output = content.firstChild
-
+  const output = content.firstChild && createFrom(node.type, content.firstChild)
   // If output is missing, which should never be the case, but if it does it's
   // better to just keep whatever user typed unchanged).
   if (!output) {
-    return null
+    return tr
   }
 
   // If parsed output does not serialize to the original markup then something
@@ -229,15 +229,21 @@ export const updateRange = (
   // like trimming white-spaces in which cases we abort as we won't be able to
   // recover cursor position correctly.
   const result = Serializer.serialize(content).trim()
-  if (markup.trim() !== result || result === "") {
-    return null
+  if (
+    markup.trim() !== result ||
+    result === "" ||
+    result === "-" ||
+    result === ">" ||
+    result === "*"
+  ) {
+    return tr
   }
 
   // 3. If we got this far we capture current cursor position. So we can restore
   // it later. Then we replace original block with a new parsed block. If cursor
   // position can't be capturer abort.
   const offset = textOffsetFromPosition(tr2.doc, tr2.selection.from)
-  if (!offset) return null
+  if (!offset) return tr
   const tr3 = tr.replaceWith(index, index + node.nodeSize, output)
 
   // 4. Now we expand new node to get to the same textContent as in step 1.
@@ -253,7 +259,7 @@ export const updateRange = (
   // 5. Finally restore position from the text content. If unable to abort,
   // otherwise restore selection.
   const position = positionFromTextOffset(tr4.doc, offset)
-  if (!position) return null
+  if (!position) return tr
   const tr5 = tr4.setSelection(TextSelection.create(tr4.doc, position))
 
   // 6. Figure out what should new editRange. If it's empty than we can just
@@ -261,7 +267,7 @@ export const updateRange = (
   const range6 = editableRange(tr5.selection)
   const node6 = tr5.doc.nodeAt(index)
   if (node6 == null) {
-    return null
+    return tr
   }
 
   if (range6.length === 0) {
@@ -270,19 +276,27 @@ export const updateRange = (
   } else {
     const block = range6.editBlock(tr5.doc)
     if (!block) {
-      return null
+      return tr
     }
 
     const start = range6.index + range6.length + 1
     const end = block.index + block.node.nodeSize - 1
-    const tr6 = collapseFragment(
-      tr5.doc.slice(start, end).content,
-      ChangeList.new(start, tr5)
-    ).toTransaction()
-    const tr7 = collapseFragment(
-      tr6.doc.slice(index + 1, range6.index - 1).content,
-      ChangeList.new(index + 1, tr6)
-    ).toTransaction()
+    const tr6 =
+      start < tr5.doc.content.size
+        ? collapseFragment(
+            tr5.doc.slice(start, end).content,
+            ChangeList.new(start, tr5)
+          ).toTransaction()
+        : tr5
+
+    const tr7 =
+      range6.index > index
+        ? collapseFragment(
+            tr6.doc.slice(index + 1, range6.index - 1).content,
+            ChangeList.new(index + 1, tr6)
+          ).toTransaction()
+        : tr6
+
     return tr7
   }
 }
