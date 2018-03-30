@@ -318,7 +318,7 @@ declare module "prosemirror-model" {
     isBlock: boolean;
     isText: boolean;
     isInline: boolean;
-    isTextBlock: boolean;
+    isTextblock: boolean;
     isLeaf: boolean;
     isAtom: boolean;
 
