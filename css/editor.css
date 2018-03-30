@@ -625,3 +625,7 @@ address {
 a {
   word-wrap: break-word;
 }
+
+.ProseMirror [tabindex] {
+  outline: none;
+}
