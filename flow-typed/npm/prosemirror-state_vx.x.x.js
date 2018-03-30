@@ -55,7 +55,7 @@ declare module "prosemirror-state" {
     storedMarks: Mark[];
     schema: Schema;
     plugins: Plugin<*>[];
-    apply(Transaction): Transaction;
+    apply(Transaction): EditorState;
     applyTransaction(
       Transaction
     ): { state: EditorState, transaction: Transaction };
@@ -177,8 +177,8 @@ declare module "prosemirror-state" {
     key?: PluginKey<state>;
 
     view?: EditorView => {
-      update?: (view: EditorView, prevState: EditorState) => state,
-      destroy?: () => void
+      update?: ?(view: EditorView, prevState: EditorState) => state,
+      destroy?: ?() => void
     };
 
     filterTransaction?: (Transaction, EditorState) => boolean;
