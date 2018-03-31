@@ -125,6 +125,10 @@ export default new Serializer(
       open: "",
       close: ""
     },
+    edit: {
+      open: "",
+      close: ""
+    },
     strike_through: {
       open: unmarkedMarkup,
       close: unmarkedMarkup,

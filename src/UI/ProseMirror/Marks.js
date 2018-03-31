@@ -12,21 +12,56 @@ export type Marker = {
 }
 
 export const getMarkupMarksAround = (at: ResolvedPos): string[] => {
-  const markers = []
-  const { parent, pos, nodeBefore, nodeAfter } = at
+  const { parent, pos } = at
   const index = at.index()
-  const marksAt = at.marks()
-  const marksBefore = nodeBefore ? nodeBefore.marks : Mark.none
-  const marksAfter = nodeAfter ? nodeAfter.marks : Mark.none
-  const marks = new Set()
-  for (const mark of [...marksAt, ...marksBefore, ...marksAfter]) {
-    const markup = mark.attrs.markup || ""
+
+  const nodeBefore = getNodeBefore(at)
+  const nodeAfter = getNodeAfter(at)
+  const marks = [
+    ...at.marks(),
+    ...(nodeBefore ? nodeBefore.marks : Mark.none),
+    ...(nodeAfter ? nodeAfter.marks : Mark.none)
+  ]
+
+  const markMarkup = new Set()
+  for (const mark of marks) {
+    const markup: string = mark.attrs.markup || ""
     if (markup != "") {
-      marks.add(markup)
+      markMarkup.add(markup)
     }
   }
-  return [...marks]
+  return [...markMarkup]
 }
+
+export const findNode = (
+  at: ResolvedPos,
+  is: Node => boolean,
+  dir: -1 | 1
+): ?Node => {
+  const node = dir > 0 ? at.nodeAfter : at.nodeBefore
+  if (node != null && is(node)) {
+    return node
+  } else {
+    const { parent } = at
+    const { childCount } = parent
+    let index = at.index() + dir
+    while (index >= 0 && index < childCount) {
+      const node = parent.child(index)
+      if (is(node)) {
+        return node
+      } else {
+        index += dir
+      }
+    }
+    return null
+  }
+}
+
+export const getNodeBefore = (at: ResolvedPos): ?Node =>
+  findNode(at, isntMarkupNode, -1)
+
+export const getNodeAfter = (at: ResolvedPos): ?Node =>
+  findNode(at, isntMarkupNode, 1)
 
 export const findMarkupRange = (position: ResolvedPos): [number, number] => {
   const marks = getMarkupMarksAround(position)
@@ -36,56 +71,52 @@ export const findMarkupRange = (position: ResolvedPos): [number, number] => {
   ]
 }
 
-export const findMarkupRangeStart = (
+export const findMarkupBoundry = (
   position: ResolvedPos,
-  marks: string[]
+  marks: string[],
+  dir: -1 | 1
 ): number => {
   const { parent, pos, textOffset } = position
+  const { childCount } = parent
+
+  // If walking left then we want to jump to the start of the node under given
+  // position so we decrement index and subtract textOffset. If we are walking
+  // right we still subtract textOffset but use unmodified index to consider
+  // this node as well.
+  let childIndex = dir < 0 ? position.index() + dir : position.index()
   let offset = pos - textOffset
-  let childIndex = position.index() - 1
   let markIndex = marks.length
-
-  let child = childIndex >= 0 ? parent.child(childIndex) : null
   let mark = marks[--markIndex]
-
-  while (child && mark) {
+  while (childIndex >= 0 && childIndex < childCount && mark) {
+    const child = parent.child(childIndex)
     if (child.marks.some($ => $.attrs.markup === mark || isMarkup($))) {
-      offset = offset - child.nodeSize
-      child = childIndex > 0 ? parent.child(--childIndex) : null
+      offset = dir < 0 ? offset - child.nodeSize : offset + child.nodeSize
+      childIndex += dir
     } else {
       mark = markIndex > 0 ? marks[--markIndex] : null
     }
   }
-
   return offset
 }
+
+export const findMarkupRangeStart = (
+  position: ResolvedPos,
+  marks: string[]
+): number => findMarkupBoundry(position, marks, -1)
 
 export const findMarkupRangeEnd = (
   position: ResolvedPos,
   marks: string[]
-): number => {
-  const { parent, pos, textOffset } = position
-  let offset = pos - textOffset
-  let childIndex = position.index()
-  const { childCount } = parent
-  let markIndex = marks.length
+): number => findMarkupBoundry(position, marks, 1)
 
-  let child = childIndex < childCount ? parent.child(childIndex) : null
-  let mark = marks[--markIndex]
-
-  while (child && mark) {
-    if (child.marks.some($ => $.attrs.markup === mark || isMarkup($))) {
-      offset = offset + child.nodeSize
-      child = ++childIndex < childCount ? parent.child(childIndex) : null
-    } else {
-      mark = markIndex > 0 ? marks[--markIndex] : null
-    }
-  }
-
-  return offset
-}
-
-const isMarkup = (mark: Mark) => {
+export const isMarkup = (mark: Mark) => {
   const { group } = mark.type.spec
   return group && group.includes("markup")
 }
+
+export const isntMarkup = (mark: Mark) => !isMarkup(mark)
+
+export const isMarkupNode = (node: Node) => node.marks.some(isMarkup)
+
+export const isntMarkupNode = (node: Node): boolean =>
+  !node.marks.some(isMarkup)

@@ -3,6 +3,7 @@
 import ChangeList from "./ChangeList"
 import { Fragment, Node, Schema, Mark } from "prosemirror-model"
 import type { Transaction } from "prosemirror-state"
+import { isMarkupNode } from "./Marks"
 
 export const collapseRange = (
   tr: Transaction,
@@ -32,7 +33,7 @@ export const collapseNode = (
   node: Node,
   changeList: ChangeList
 ): ChangeList => {
-  if (isMarkup(node)) {
+  if (isMarkupNode(node)) {
     return changeList.deleteNode(node)
   } else {
     const { nodes } = node.type.schema
@@ -87,10 +88,3 @@ export const collapseHorizontalRule = (
   )
   return changeList.deleteNode(node).insertNode(collapsedNode)
 }
-
-export const isMarkupNode = (node: Node): boolean => "markup" in node.type.spec
-
-export const isMarkupMark = (mark: Mark): boolean => "markup" in mark.type.spec
-
-export const isMarkup = (node: Node): boolean =>
-  isMarkupNode(node) || node.marks.some(isMarkupMark)

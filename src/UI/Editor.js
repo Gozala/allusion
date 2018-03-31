@@ -202,7 +202,7 @@ export const edit = (state: Model, tr: Transaction): Model => {
   const { editRange } = state
   let change = tr
   let range = editableRange(selection)
-  if (editRange.excludes(range)) {
+  if (editRange.length > 0 && editRange.excludes(range)) {
     change = collapseRange(tr, editRange)
     range = editableRange(change.selection)
   }

@@ -4,6 +4,7 @@ import type { Transaction } from "prosemirror-state"
 import type { Node, Schema, Fragment } from "prosemirror-model"
 import { Mark } from "prosemirror-model"
 import { TextSelection } from "prosemirror-state"
+import { isntMarkup, isMarkup } from "./Marks"
 
 export default class ChangeList {
   tr: Transaction
@@ -12,6 +13,7 @@ export default class ChangeList {
   storedMarks: Map<string, Mark>
   markupText: Mark
   markupMarker: Mark
+  editMark: Mark
   static new(index: number, tr: Transaction): ChangeList {
     return new ChangeList(index, tr, new Map())
   }
@@ -23,12 +25,13 @@ export default class ChangeList {
 
     this.markupText = this.schema.mark("markup")
     this.markupMarker = this.schema.mark("markup", { code: "" })
+    this.editMark = this.schema.mark("edit")
   }
   markup(text: string, marks: Mark[] = Mark.none): Node {
-    return this.schema.text(text, [this.markupText]) //, ...marks])
+    return this.schema.text(text, [this.markupText, this.editMark]) //, ...marks])
   }
   marker(text: string, marks: Mark[] = Mark.none): Node {
-    return this.schema.text(text, [this.markupMarker]) //, ...marks])
+    return this.schema.text(text, [this.markupMarker, this.editMark]) //, ...marks])
   }
   updateMarks(marks: Mark[]) {
     const newMarks = new Map()
@@ -64,14 +67,12 @@ export default class ChangeList {
     return this.retain(1).updateMarks(node.marks)
   }
   enterMarked(node: Node) {
-    const marks = node.marks.map(asMarked)
-    return this.setNodeMarkup(node, marked(node.attrs), marks)
+    return this.updateNodeAttrs(node, marked)
       .retain(1)
       .updateMarks(node.marks)
   }
   enterUnmarked(node: Node) {
-    const marks = node.marks.map(asUnmarked)
-    return this.setNodeMarkup(node, unmarked(node.attrs), marks)
+    return this.updateNodeAttrs(node, unmarked)
       .retain(1)
       .updateMarks(node.marks)
   }
@@ -104,10 +105,14 @@ export default class ChangeList {
   //   return this
   // }
   startMark(markup: string, mark: Mark) {
-    return this.insertNode(this.schema.text(markup, [this.markupMarker]))
+    return this.insertNode(
+      this.schema.text(markup, [this.markupMarker, this.editMark])
+    )
   }
   endMark(markup: string, mark: Mark) {
-    return this.insertNode(this.schema.text(markup, [this.markupMarker]))
+    return this.insertNode(
+      this.schema.text(markup, [this.markupMarker, this.editMark])
+    )
   }
   insertMarkup(
     markup: string,
@@ -144,42 +149,53 @@ export default class ChangeList {
     return this.retain(node.nodeSize)
   }
   retainMarked(node: Node) {
-    const marks = node.marks.map(asMarked)
-    const attrs = marked(node.attrs)
-    return this.updateMarks(node.marks)
-      .setNodeMarkup(node, attrs, marks)
-      .retainNode(node)
+    return node.isText
+      ? this.retainMarkedText(node)
+      : this.retainMarkedNode(node)
   }
-  retainUnmarked(node: Node) {
-    const marks = node.marks.map(asUnmarked)
-    const attrs = unmarked(node.attrs)
+  retainMarkedNode(node: Node) {
     return this.updateMarks(node.marks)
-      .setNodeMarkup(node, attrs, marks)
+      .updateNodeAttrs(node, marked)
       .retainNode(node)
   }
   retainMarkedText(node: Node) {
-    return this.retainMarked(node)
+    if (node.marks.some(mark => mark.attrs.edit)) {
+      return this.retainNode(node)
+    } else {
+      const marks = [...node.marks, this.editMark]
+      return this.updateMarks(marks)
+        .markText(node, this.editMark)
+        .retainNode(node)
+    }
   }
-  setNodeMarkup(
-    node: Node,
-    attrs: Object = node.attrs,
-    marks: Mark[] = node.marks
-  ) {
-    const { selection } = this.tr
-    this.tr = node.isText
-      ? this.tr
-          .replaceWith(this.index, this.index + node.nodeSize, node.mark(marks))
-          .setSelection(selection)
-      : this.tr.setNodeMarkup(this.index, node.type, attrs, marks)
+  retainUnmarked(node: Node) {
+    return node.isText
+      ? this.retainUnmarkedText(node)
+      : this.retainUnmarkedNode(node)
+  }
+  retainUnmarkedText(node: Node) {
+    return this.unmarkText(node, this.editMark).retainNode(node)
+  }
+  retainUnmarkedNode(node: Node) {
+    return this.updateNodeAttrs(node, unmarked).retainNode(node)
+  }
+  updateNodeAttrs(node: Node, update: Object => Object) {
+    this.tr = this.tr.setNodeMarkup(
+      this.index,
+      node.type,
+      update(node.attrs),
+      node.marks
+    )
     return this
   }
-  // markupNode(markup: string, node: Node) {
-  //   this.index += 1
-  //   this.insertMarkupCode(markup, node.marks)
-  //   this.index += node.nodeSize - 1
-  //   this.retainNode(node)
-  //   return this
-  // }
+  markText(node: Node, mark: Mark) {
+    this.tr = this.tr.addMark(this.index, this.index + node.nodeSize, mark)
+    return this
+  }
+  unmarkText(node: Node, mark: Mark) {
+    this.tr = this.tr.removeMark(this.index, this.index + node.nodeSize, mark)
+    return this
+  }
   deleteNode(node: Node) {
     this.tr = this.tr.delete(this.index, this.index + node.nodeSize)
     return this

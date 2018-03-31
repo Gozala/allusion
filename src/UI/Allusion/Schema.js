@@ -389,35 +389,21 @@ export default new Schema({
     }
   },
   marks: {
-    markup: {
-      inline: true,
-      group: "inline markup code",
-      content: "text*",
-      selectable: true,
+    edit: {
+      group: "edit",
       inclusive: false,
-      markup: true,
-      excludes: "_",
       attrs: {
-        class: { default: "markup" },
-        code: { default: null },
-        marked: { default: "" },
-        markup: { default: "" }
+        edit: { default: true }
       },
       toDOM(node) {
-        return ["u", node.attrs, 0]
+        return ["mark", 0]
       }
     },
     code: {
-      // inline: true,
-      code: true,
       group: "inline code",
-      // content: "text*",
-      // selectable: true,
-
       excludes: "_",
       attrs: {
-        markup: { default: "`" },
-        marked: { default: null }
+        markup: { default: "`" }
       },
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
@@ -425,16 +411,10 @@ export default new Schema({
       }
     },
     strong: {
-      inline: true,
       group: "inline",
-      content: "inline*",
-      selectable: true,
-      defining: true,
       attrs: {
-        markup: { default: "**" },
-        marked: { default: null }
+        markup: { default: "**" }
       },
-
       parseDOM: [
         { tag: "b" },
         { tag: "strong" },
@@ -448,15 +428,10 @@ export default new Schema({
       }
     },
     em: {
-      inline: true,
       group: "inline",
-      content: "inline*",
-      selectable: true,
       attrs: {
-        markup: { default: "_" },
-        marked: { default: null }
+        markup: { default: "_" }
       },
-
       parseDOM: [
         { tag: "i" },
         { tag: "em" },
@@ -467,17 +442,13 @@ export default new Schema({
       }
     },
     strike_through: {
-      inline: true,
       group: "inline",
-      content: "inline*",
-      selectable: true,
       attrs: {
-        markup: { default: "~~" },
-        marked: { default: null }
+        markup: { default: "~~" }
       },
-
       parseDOM: [
         { tag: "del" },
+        { tag: "s" },
         {
           style: "text-decoration",
           getAttrs: $ => $ === "line-through" && null
@@ -485,6 +456,18 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["del", node.attrs]
+      }
+    },
+    markup: {
+      group: "markup code",
+      inclusive: false,
+      // excludes: "_",
+      attrs: {
+        class: { default: "markup" },
+        code: { default: null }
+      },
+      toDOM(node) {
+        return ["u", node.attrs, 0]
       }
     }
   }

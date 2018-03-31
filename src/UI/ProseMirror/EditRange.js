@@ -123,6 +123,12 @@ export class EditRange implements Range {
       this.length === 0 ? start : doc.resolve(this.index + this.length)
     return new NodeRange(start, end, start.depth)
   }
+  sliceFrom(node: Node): Slice {
+    return node.slice(this.index, this.index + this.length)
+  }
+  fragmentFrom(node: Node): Fragment {
+    return node.slice(this.index, this.index + this.length).content
+  }
 }
 
 export const editableRange = (selection: Selection): EditRange => {
@@ -231,15 +237,18 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
   // is wrong with serializer or parser, most likely parser does some normalization
   // like trimming white-spaces in which cases we abort as we won't be able to
   // recover cursor position correctly.
-  const result = Serializer.serialize(content).trim()
-  if (
-    markup.trim() !== result ||
-    result === "" ||
-    result === "-" ||
-    result === ">" ||
-    result === "*"
-  ) {
+  const result = Serializer.serialize(content)
+  if (result !== markup) {
     return tr
+  }
+
+  switch (result) {
+    case "":
+    case "-":
+    case "`":
+    case "#":
+    case "*":
+      return tr
   }
 
   // 3. If we got this far we capture current cursor position. So we can restore
@@ -282,10 +291,10 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
       return tr
     }
 
-    const start = range6.index + range6.length + 1
+    const start = range6.index + range6.length
     const end = block.index + block.node.nodeSize - 1
     const tr6 =
-      start < tr5.doc.content.size
+      start < end
         ? collapseFragment(
             tr5.doc.slice(start, end).content,
             ChangeList.new(start, tr5)
@@ -293,9 +302,9 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
         : tr5
 
     const tr7 =
-      range6.index > index
+      index + 1 < range6.index
         ? collapseFragment(
-            tr6.doc.slice(index + 1, range6.index - 1).content,
+            tr6.doc.slice(index + 1, range6.index).content,
             ChangeList.new(index + 1, tr6)
           ).toTransaction()
         : tr6

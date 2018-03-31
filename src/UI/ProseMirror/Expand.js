@@ -137,7 +137,6 @@ export const expandParagraph = (node: Node, changeList: ChangeList) => {
 export const expandHorizontalRule = (node: Node, changeList: ChangeList) => {
   const { schema } = node.type
   const isSelected = changeList.isSelected(node)
-  // return changeList.retainMarked(node)
   const expandedNode = schema.node("expandedHorizontalRule", node.attrs, [
     changeList.marker(node.attrs.markup, node.marks)
   ])
