@@ -5,15 +5,21 @@ import { Fragment, Node, Schema, Mark } from "prosemirror-model"
 import type { Transaction } from "prosemirror-state"
 import { isMarkupNode } from "./Marks"
 
+export const collapse = (
+  tr: Transaction,
+  start: number,
+  end: number
+): Transaction => {
+  const { selection, doc } = tr
+  const { content } = doc.slice(start, end)
+  const changeList = ChangeList.new(start, tr)
+  return collapseFragment(content, changeList).toTransaction()
+}
+
 export const collapseRange = (
   tr: Transaction,
   range: { index: number, length: number }
-): Transaction => {
-  const { selection, doc } = tr
-  const { content } = doc.slice(range.index, range.index + range.length)
-  const changeList = ChangeList.new(range.index, tr)
-  return collapseFragment(content, changeList).toTransaction()
-}
+): Transaction => collapse(tr, range.index, range.index + range.length)
 
 export const collapseFragment = (
   content: Fragment,

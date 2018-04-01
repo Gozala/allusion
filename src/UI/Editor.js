@@ -2,7 +2,7 @@
 
 import type { Mailbox } from "./Program"
 import { EditorView } from "prosemirror-view"
-import { EditorState, Transaction } from "prosemirror-state"
+import { EditorState, Transaction, TextSelection } from "prosemirror-state"
 import match from "match.flow"
 import "../../css/editor.css"
 import "../../css/code.css"
@@ -20,8 +20,8 @@ import keyBindings from "./Allusion/KeyBindings"
 import CodeBlock from "./ProseMirror/CodeBlock"
 import {
   editableRange,
-  expandRange,
-  collapseRange,
+  expand,
+  collapse,
   updateRange,
   EditRange
 } from "./ProseMirror/EditRange"
@@ -159,33 +159,37 @@ export const update = match({
 })
 
 export const selectionChange = (state: Model, change: Transaction): Model => {
-  const { editRange } = state
   const { selection, doc } = change
-
-  // if (editRange.includesSelection(selection)) {
-  //   return Model.setEditor(state, after)
-  // } else {
   const range = editableRange(selection)
+  const index = selection.$cursor ? selection.from : -1
+
+  const { start: lastStart, end: lastEnd } = state.editRange
+  const { start: newStart, end: newEnd } = range
+
   let tr = change
 
-  if (editRange.length > 0 && range.length === 0) {
-    tr = collapseRange(tr, editRange)
-  } else if (editRange.length === 0 && range.length > 0) {
-    tr = expandRange(tr, range)
-  } else if (editRange.includes(range)) {
-    // If user selects segment with in the exanded strong mark and executes
-    // em command we'll need to execute expandsion even though editRange will
-    // include new range.
-    tr = tr
-  } else {
-    // Need to do replace range that is further off in the document
-    // so that other edit ranges won't get shifted.
-    if (range.index > editRange.index) {
-      tr = expandRange(tr, range)
-      tr = collapseRange(tr, editRange)
-    } else {
-      tr = collapseRange(tr, editRange)
-      tr = expandRange(tr, editableRange(tr.selection))
+  // First deal with the rear part that way ranges in the front will remain same
+  // and will not require computing new ranges
+  if (lastEnd < newEnd) {
+    const start = Math.max(newStart, lastEnd)
+    tr = expand(tr, start, newEnd)
+    if (start === index) {
+      tr = tr.setSelection(TextSelection.create(tr.doc, index))
+    }
+  }
+
+  if (newEnd < lastEnd) {
+    tr = collapse(tr, Math.max(lastStart, newEnd), lastEnd)
+  }
+
+  if (lastStart < newStart) {
+    tr = collapse(tr, lastStart, Math.min(lastEnd, newStart))
+  }
+
+  if (newStart < lastStart) {
+    tr = expand(tr, newStart, Math.min(newEnd, lastStart))
+    if (newStart === index) {
+      tr = tr.setSelection(TextSelection.create(tr.doc, index))
     }
   }
 

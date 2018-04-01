@@ -4,15 +4,21 @@ import ChangeList from "./ChangeList"
 import { Fragment, Node, Schema, Mark } from "prosemirror-model"
 import type { Transaction } from "prosemirror-state"
 
-export const expandRange = (
+export const expand = (
   tr: Transaction,
-  range: { index: number, length: number }
+  start: number,
+  end: number
 ): Transaction => {
-  const { content } = tr.doc.slice(range.index, range.index + range.length)
-  const changeList = ChangeList.new(range.index, tr)
+  const { content } = tr.doc.slice(start, end)
+  const changeList = ChangeList.new(start, tr)
 
   return expandFragment(content, changeList).toTransaction()
 }
+
+export const expandRange = (
+  tr: Transaction,
+  range: { index: number, length: number }
+): Transaction => expand(tr, range.index, range.index + range.length)
 
 export const expandFragment = (
   content: Fragment,

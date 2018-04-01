@@ -14,8 +14,14 @@ import {
   textOffsetFromPosition,
   positionFromTextOffset
 } from "./Position"
-import { expandRange, expandNode, expandFragment } from "../ProseMirror/Expand"
 import {
+  expand,
+  expandRange,
+  expandNode,
+  expandFragment
+} from "../ProseMirror/Expand"
+import {
+  collapse,
   collapseRange,
   collapseNode,
   collapseFragment
@@ -31,10 +37,18 @@ export interface Range {
 export class EditRange implements Range {
   index: number
   length: number
+  start: number
+  end: number
+  from: number
+  to: number
   decorations: DecorationSet
   constructor(index: number, length: number, decorations: DecorationSet) {
     this.index = index
     this.length = length
+    this.start = index
+    this.from = index
+    this.end = index + length
+    this.to = this.end
     this.decorations = decorations
   }
   static empty = new EditRange(0, 0, DecorationSet.empty)
@@ -202,7 +216,7 @@ export const isEditBlock = (node: Node): boolean => {
   }
 }
 
-export { expandRange, collapseRange }
+export { expandRange, collapseRange, expand, collapse }
 
 export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
   const block = range.editBlock(tr.doc)

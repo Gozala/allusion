@@ -213,6 +213,10 @@ export default class ChangeList {
     this.tr = this.tr.setSelection(new TextSelection(position))
     return this
   }
+  direction(): number {
+    const { anchor, head } = this.tr.selection
+    return anchor < head ? -1 : anchor > head ? 1 : 0
+  }
   isSelected(target: Node): boolean {
     const { selection, doc } = this.tr
     const { node, $cursor } = selection
