@@ -366,8 +366,8 @@ export default new Schema({
         return [
           "picture",
           { class: "image expanded" },
-          ["img", node.attrs],
-          ["span", { class: "image-markup" }, 0]
+          ["span", { class: "image-markup" }, 0],
+          ["span", { contenteditable: false }, ["img", node.attrs]]
         ]
       }
     },
