@@ -382,8 +382,8 @@ export default new Schema({
         return [
           "div",
           { class: "horizontal-rule expanded" },
-          ["hr"],
-          ["span", { class: "horizontal-rule-markup" }, 0]
+          ["span", { class: "horizontal-rule-markup" }, 0],
+          ["span", { contenteditable: false }, ["hr"]]
         ]
       }
     }
