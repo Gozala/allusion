@@ -158,15 +158,16 @@ export const update = match({
   }
 })
 
-export const selectionChange = (state: Model, change: Transaction): Model => {
+export const selectionChange = (model: Model, change: Transaction): Model => {
+  const { state, editRange } = model
   const { selection, doc } = change
   const range = editableRange(selection)
   const index = selection.$cursor ? selection.from : -1
 
-  const { start: lastStart, end: lastEnd } = state.editRange
+  const { start: lastStart, end: lastEnd } = editRange
   const { start: newStart, end: newEnd } = range
 
-  let tr = change
+  let tr = change.setMeta("selectionBefore", state.selection)
 
   // First deal with the rear part that way ranges in the front will remain same
   // and will not require computing new ranges
@@ -193,17 +194,17 @@ export const selectionChange = (state: Model, change: Transaction): Model => {
     }
   }
 
-  return Model.edit(tr, state)
+  return Model.edit(tr, model)
 }
 
-export const edit = (state: Model, tr: Transaction): Model => {
+export const edit = (model: Model, tr: Transaction): Model => {
   const { selection } = tr
 
   if (!selection.empty) {
-    return selectionChange(state, tr)
+    return selectionChange(model, tr)
   }
+  const { state, editRange } = model
 
-  const { editRange } = state
   let change = tr
   let range = editableRange(selection)
   // Whenever change switch block of the edit range collapse of the former
@@ -221,7 +222,7 @@ export const edit = (state: Model, tr: Transaction): Model => {
     range = editableRange(change.selection)
   }
 
-  return Model.edit(updateRange(range, change), state)
+  return Model.edit(updateRange(range, change), model)
 }
 
 export const receive = async (state: Model) => {

@@ -214,8 +214,15 @@ export default class ChangeList {
     return this
   }
   direction(): number {
-    const { anchor, head } = this.tr.selection
-    return anchor < head ? -1 : anchor > head ? 1 : 0
+    const after = this.tr.selection
+    const before = this.tr.getMeta("selectionBefore") || after
+    if ((before.empty || before.node) && (after.empty || after.node)) {
+      const last = (before.from + before.to) / 2
+      const next = (after.from + after.to) / 2
+      return last > next ? -1 : last < next ? 1 : 0
+    } else {
+      return 0
+    }
   }
   isSelected(target: Node): boolean {
     const { selection, doc } = this.tr

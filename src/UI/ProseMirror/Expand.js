@@ -93,11 +93,8 @@ export const expandImage = (node: Node, changeList: ChangeList) => {
     node.attrs.title == null ? "" : JSON.stringify(String(node.attrs.title))
 
   const isSelected = changeList.isSelected(node)
+  const direction = changeList.direction()
 
-  // return changeList
-  //   .insertMarkup(`${node.attrs.src} ${title}`, node.marks)
-  //   .insertMarkupCode(")", node.marks)
-  //   .retainMarked(node)
   const expandedNode = schema.node(
     "expandedImage",
     node.attrs,
@@ -113,7 +110,12 @@ export const expandImage = (node: Node, changeList: ChangeList) => {
 
   const changes = changeList.deleteNode(node).insertNode(expandedNode)
 
-  return isSelected ? changes.setCaret(-expandedNode.nodeSize + 3) : changes
+  const result = !isSelected
+    ? changes
+    : direction < 0
+      ? changes.setCaret(-2)
+      : changes.setCaret(-expandedNode.nodeSize + 3)
+  return result
 }
 
 export const expandText = (node: Node, changeList: ChangeList) => {
@@ -143,9 +145,16 @@ export const expandParagraph = (node: Node, changeList: ChangeList) => {
 export const expandHorizontalRule = (node: Node, changeList: ChangeList) => {
   const { schema } = node.type
   const isSelected = changeList.isSelected(node)
+  const direction = changeList.direction()
   const expandedNode = schema.node("expandedHorizontalRule", node.attrs, [
     changeList.marker(node.attrs.markup, node.marks)
   ])
   const changes = changeList.deleteNode(node).insertNode(expandedNode)
-  return isSelected ? changes.setCaret(-expandedNode.nodeSize + 1) : changes
+
+  const result = !isSelected
+    ? changes
+    : direction < 0
+      ? changes.setCaret(-1)
+      : changes.setCaret(-expandedNode.nodeSize + 1)
+  return result
 }
