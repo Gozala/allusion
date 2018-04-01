@@ -12,11 +12,11 @@ export type Marker = {
 }
 
 export const getMarkupMarksAround = (at: ResolvedPos): string[] => {
-  const { parent, pos } = at
+  const { parent, pos, nodeBefore, nodeAfter } = at
   const index = at.index()
 
-  const nodeBefore = getNodeBefore(at)
-  const nodeAfter = getNodeAfter(at)
+  // const nodeBefore = getNodeBefore(at)
+  // const nodeAfter = getNodeAfter(at)
   const marks = [
     ...at.marks(),
     ...(nodeBefore ? nodeBefore.marks : Mark.none),
@@ -29,39 +29,46 @@ export const getMarkupMarksAround = (at: ResolvedPos): string[] => {
     if (markup != "") {
       markMarkup.add(markup)
     }
+
+    const marks = mark.attrs.marks || ""
+    if (marks != "") {
+      for (const markup of marks.split(" ")) {
+        markMarkup.add(markup)
+      }
+    }
   }
   return [...markMarkup]
 }
 
-export const findNode = (
-  at: ResolvedPos,
-  is: Node => boolean,
-  dir: -1 | 1
-): ?Node => {
-  const node = dir > 0 ? at.nodeAfter : at.nodeBefore
-  if (node != null && is(node)) {
-    return node
-  } else {
-    const { parent } = at
-    const { childCount } = parent
-    let index = at.index() + dir
-    while (index >= 0 && index < childCount) {
-      const node = parent.child(index)
-      if (is(node)) {
-        return node
-      } else {
-        index += dir
-      }
-    }
-    return null
-  }
-}
+// export const findNode = (
+//   at: ResolvedPos,
+//   is: Node => boolean,
+//   dir: -1 | 1
+// ): ?Node => {
+//   const node = dir > 0 ? at.nodeAfter : at.nodeBefore
+//   if (node != null && is(node)) {
+//     return node
+//   } else {
+//     const { parent } = at
+//     const { childCount } = parent
+//     let index = at.index() + dir
+//     while (index >= 0 && index < childCount) {
+//       const node = parent.child(index)
+//       if (is(node)) {
+//         return node
+//       } else {
+//         index += dir
+//       }
+//     }
+//     return null
+//   }
+// }
 
-export const getNodeBefore = (at: ResolvedPos): ?Node =>
-  findNode(at, isntMarkupNode, -1)
+// export const getNodeBefore = (at: ResolvedPos): ?Node =>
+//   findNode(at, () => true, -1)
 
-export const getNodeAfter = (at: ResolvedPos): ?Node =>
-  findNode(at, isntMarkupNode, 1)
+// export const getNodeAfter = (at: ResolvedPos): ?Node =>
+//   findNode(at, () => true, 1)
 
 export const findMarkupRange = (position: ResolvedPos): [number, number] => {
   const marks = getMarkupMarksAround(position)
@@ -87,9 +94,10 @@ export const findMarkupBoundry = (
   let offset = pos - textOffset
   let markIndex = marks.length
   let mark = marks[--markIndex]
-  while (childIndex >= 0 && childIndex < childCount && mark) {
+  while (childIndex >= 0 && childIndex < childCount && mark != null) {
     const child = parent.child(childIndex)
-    if (child.marks.some($ => $.attrs.markup === mark || isMarkup($))) {
+    const markup = mark
+    if (isMarkedWith(child, markup)) {
       offset = dir < 0 ? offset - child.nodeSize : offset + child.nodeSize
       childIndex += dir
     } else {
@@ -98,6 +106,14 @@ export const findMarkupBoundry = (
   }
   return offset
 }
+
+export const isMarkedWith = (node: Node, mark: string): boolean =>
+  node.marks.some(
+    ({ attrs: { markup, marks } }) =>
+      markup === mark || icludesMark(marks, mark)
+  )
+
+const icludesMark = (marks, mark) => `${marks} `.includes(`${mark} `)
 
 export const findMarkupRangeStart = (
   position: ResolvedPos,

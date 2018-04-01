@@ -13,6 +13,7 @@ export default class ChangeList {
   storedMarks: Map<string, Mark>
   markupText: Mark
   markupMarker: Mark
+  markupMark: Mark
   editMark: Mark
   static new(index: number, tr: Transaction): ChangeList {
     return new ChangeList(index, tr, new Map())
@@ -25,7 +26,20 @@ export default class ChangeList {
 
     this.markupText = this.schema.mark("markup")
     this.markupMarker = this.schema.mark("markup", { code: "" })
+    this.markupMark = this.markupMarker
     this.editMark = this.schema.mark("edit")
+  }
+  storedMarkup(): string {
+    return [...this.storedMarks.keys()].join(" ")
+  }
+  markupNode(markup: string) {
+    return this.schema.text(markup, [
+      this.editMark,
+      this.schema.mark("markup", {
+        code: "",
+        marks: [...this.storedMarks.keys()]
+      })
+    ])
   }
   markup(text: string, marks: Mark[] = Mark.none): Node {
     return this.schema.text(text, [this.markupText, this.editMark]) //, ...marks])
@@ -50,15 +64,23 @@ export default class ChangeList {
       if (newMarks.has(markup)) {
         newMarks.delete(markup)
       } else {
+        this.markupMark = this.schema.mark("markup", {
+          code: "",
+          marks: this.storedMarkup()
+        })
         storedMarks.delete(markup)
-        this.endMark(markup, mark)
+        this.endMark(markup)
       }
     }
 
     // Open new marks
     for (const [markup, mark] of newMarks.entries()) {
       storedMarks.set(markup, mark)
-      this.startMark(markup, mark)
+      this.markupMark = this.schema.mark("markup", {
+        code: "",
+        marks: this.storedMarkup()
+      })
+      this.startMark(markup)
     }
 
     return this
@@ -86,32 +108,14 @@ export default class ChangeList {
       this.schema.text(markup, [this.markupMarker]) //, ...marks])
     )
   }
-  // insertMarkupCode(code: string, marks: Mark[]) {
-  //   const { schema, markup } = this
-  //   // this.insertNode(
-  //   //   schema.text(code, [
-  //   //     meta,
-  //   //     ...marks.map(mark =>
-  //   //       mark.type.create(Object.assign({}, mark.attrs, { marked: true }))
-  //   //     )
-  //   //   ])
-  //   // )
-  //   // for (let char of code) {
-  //   //   this.insertNode(
-  //   //     schema.node("Markup", { markup: char }, schema.text(char, marks))
-  //   //   )
-  //   // }
-  //   this.insertNode(schema.text(code, [this.mark(), ...marks]))
-  //   return this
-  // }
-  startMark(markup: string, mark: Mark) {
+  startMark(markup: string) {
     return this.insertNode(
-      this.schema.text(markup, [this.markupMarker, this.editMark])
+      this.schema.text(markup, [this.markupMark, this.editMark])
     )
   }
-  endMark(markup: string, mark: Mark) {
+  endMark(markup: string) {
     return this.insertNode(
-      this.schema.text(markup, [this.markupMarker, this.editMark])
+      this.schema.text(markup, [this.markupMark, this.editMark])
     )
   }
   insertMarkup(
@@ -160,7 +164,7 @@ export default class ChangeList {
   }
   retainMarkedText(node: Node) {
     if (node.marks.some(mark => mark.attrs.edit)) {
-      return this.retainNode(node)
+      return this.updateMarks(Mark.none).retainNode(node)
     } else {
       const marks = [...node.marks, this.editMark]
       return this.updateMarks(marks)
