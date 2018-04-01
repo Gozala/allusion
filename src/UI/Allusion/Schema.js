@@ -399,6 +399,19 @@ export default new Schema({
         return ["mark", 0]
       }
     },
+    markup: {
+      group: "markup code",
+      inclusive: false,
+      // excludes: "_",
+      attrs: {
+        class: { default: "markup" },
+        code: { default: null },
+        marks: { default: [] }
+      },
+      toDOM(node) {
+        return ["u", node.attrs, 0]
+      }
+    },
     code: {
       group: "inline code",
       excludes: "_",
@@ -456,18 +469,6 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["del", node.attrs]
-      }
-    },
-    markup: {
-      group: "markup code",
-      inclusive: false,
-      // excludes: "_",
-      attrs: {
-        class: { default: "markup" },
-        code: { default: null }
-      },
-      toDOM(node) {
-        return ["u", node.attrs, 0]
       }
     }
   }
