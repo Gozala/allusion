@@ -40,36 +40,6 @@ export const getMarkupMarksAround = (at: ResolvedPos): string[] => {
   return [...markMarkup]
 }
 
-// export const findNode = (
-//   at: ResolvedPos,
-//   is: Node => boolean,
-//   dir: -1 | 1
-// ): ?Node => {
-//   const node = dir > 0 ? at.nodeAfter : at.nodeBefore
-//   if (node != null && is(node)) {
-//     return node
-//   } else {
-//     const { parent } = at
-//     const { childCount } = parent
-//     let index = at.index() + dir
-//     while (index >= 0 && index < childCount) {
-//       const node = parent.child(index)
-//       if (is(node)) {
-//         return node
-//       } else {
-//         index += dir
-//       }
-//     }
-//     return null
-//   }
-// }
-
-// export const getNodeBefore = (at: ResolvedPos): ?Node =>
-//   findNode(at, () => true, -1)
-
-// export const getNodeAfter = (at: ResolvedPos): ?Node =>
-//   findNode(at, () => true, 1)
-
 export const findMarkupRange = (position: ResolvedPos): [number, number] => {
   const marks = getMarkupMarksAround(position)
   return [
