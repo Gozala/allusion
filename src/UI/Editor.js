@@ -206,8 +206,18 @@ export const edit = (state: Model, tr: Transaction): Model => {
   const { editRange } = state
   let change = tr
   let range = editableRange(selection)
-  if (editRange.length > 0 && editRange.excludes(range)) {
-    change = collapseRange(tr, editRange)
+  // Whenever change switch block of the edit range collapse of the former
+  // edit range won't be handled by a `updateRange` function. For example
+  // typeing `# Hi↵` would cause former edit block to be in h1 and new one
+  // in a paragraph below it.
+  // We workaround that specific issue here, but a proper solution should just
+  // compare edit blocks instead of ranges here and collapse the old one.
+  // Complication is that old block may no longer even exist in a new version
+  // so proper fix is more envolved and would likely require storing block node
+  // position in a `EditRange` etc.. But this is good enough for now as in
+  // practice it seems to behave as expected.
+  if (editRange.end < range.start) {
+    change = collapse(tr, editRange.start, editRange.end)
     range = editableRange(change.selection)
   }
 
