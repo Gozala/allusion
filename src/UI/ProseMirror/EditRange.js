@@ -1,6 +1,6 @@
 // @flow strict
 
-import type { Transaction } from "prosemirror-state"
+import { Transaction } from "prosemirror-state"
 import type { Node, Schema, ResolvedPos } from "prosemirror-model"
 import { findMarkupRange } from "./Marks"
 import { Selection, TextSelection } from "prosemirror-state"
@@ -162,19 +162,19 @@ export const editableRange = (selection: Selection): EditRange => {
         // case nodes.heading:
         case nodes.title:
         case nodes.paragraph: {
-          const target = nodePosition(isEditNode, $anchor)
-          if (target) {
-            return EditRange.new(target.index, target.node.nodeSize, doc)
-          } else {
-            const [start, end] = findMarkupRange($anchor)
-            if ($head.pos !== $anchor.pos) {
-              const [from, to] = findMarkupRange($head)
-              if (from !== start || to !== end) {
-                return EditRange.empty
-              }
+          // const target = nodePosition(isEditNode, $anchor)
+          // if (target) {
+          //   return EditRange.new(target.index, target.node.nodeSize, doc)
+          // } else {
+          const [start, end] = findMarkupRange($anchor)
+          if ($head.pos !== $anchor.pos) {
+            const [from, to] = findMarkupRange($head)
+            if (from !== start || to !== end) {
+              return EditRange.empty
             }
-            return EditRange.new(start, end - start, doc)
           }
+          return EditRange.new(start, end - start, doc)
+          // }
         }
         default: {
           return EditRange.new(block.index, block.node.nodeSize, doc)
@@ -218,13 +218,21 @@ export const isEditBlock = (node: Node): boolean => {
 
 export { expandRange, collapseRange, expand, collapse }
 
+const fork = (tr: Transaction): Transaction => {
+  const forked = Object.create(Transaction.prototype)
+  for (let key in tr) {
+    forked[key] = (tr: any)[key]
+  }
+  return forked
+}
+
 export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
   const block = range.editBlock(tr.doc)
   if (!block) {
     return tr
   }
 
-  const changeList = ChangeList.new(block.index, tr)
+  const changeList = ChangeList.new(block.index, fork(tr))
   // 1. First we expand block so we can capture cursor position so we can
   // restore it.
   const tr2 = expandNode(block.node, changeList).toTransaction()
@@ -270,7 +278,7 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
   // position can't be capturer abort.
   const offset = textOffsetFromPosition(tr2.doc, tr2.selection.from)
   if (!offset) return tr
-  const tr3 = tr.replaceWith(index, index + node.nodeSize, output)
+  const tr3 = tr2.replaceWith(index, index + node.nodeSize, output)
 
   // 4. Now we expand new node to get to the same textContent as in step 1.
   const tr4 = expandNode(output, ChangeList.new(index, tr3)).toTransaction()
