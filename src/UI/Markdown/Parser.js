@@ -405,39 +405,3 @@ export class MarkdownParser {
     return (doc: any)
   }
 }
-
-export const parser = new MarkdownParser(
-  schema,
-  new MarkdownIt({ html: false, trim: false }),
-  {
-    blockquote: MarkdownParser.node(schema.nodes.blockquote),
-    paragraph: MarkdownParser.node(schema.nodes.paragraph),
-    list_item: MarkdownParser.node(schema.nodes.list_item),
-    bullet_list: MarkdownParser.node(schema.nodes.bullet_list),
-    ordered_list: MarkdownParser.node(schema.nodes.ordered_list, tok => ({
-      order: +tok.attrGet("order") || 1
-    })),
-    heading: MarkdownParser.node(schema.nodes.heading, tok => ({
-      level: +tok.tag.slice(1)
-    })),
-    code_block: MarkdownParser.node(schema.nodes.code_block),
-    fence: MarkdownParser.node(schema.nodes.code_block, tok => ({
-      params: tok.info || ""
-    })),
-    hr: MarkdownParser.node(schema.nodes.horizontal_rule),
-    image: MarkdownParser.node(schema.nodes.image, tok => ({
-      src: tok.attrGet("src"),
-      title: tok.attrGet("title") || null,
-      alt: (tok.children[0] && tok.children[0].content) || null
-    })),
-    hardbreak: MarkdownParser.node(schema.nodes.hard_break),
-    em: MarkdownParser.mark(schema.marks.em),
-    strong: MarkdownParser.mark(schema.marks.strong),
-    s: MarkdownParser.mark(schema.marks.strike_through),
-    link: MarkdownParser.mark(schema.marks.link, tok => ({
-      href: tok.attrGet("href"),
-      title: tok.attrGet("title") || null
-    })),
-    code_inline: MarkdownParser.mark(schema.marks.code)
-  }
-)
