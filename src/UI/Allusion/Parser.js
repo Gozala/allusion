@@ -8,7 +8,6 @@ import TaskList from "./Parser/TaskList"
 import Paragraph from "./Parser/Paragraph"
 import Heading from "./Parser/Heading"
 import HorizontalRule from "./Parser/HorizontalRule"
-import { link } from "./NodeView/Link"
 import { Fragment } from "prosemirror-model"
 
 const tokenizer = new MarkdownIt({ html: false, trim: false })
