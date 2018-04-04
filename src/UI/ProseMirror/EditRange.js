@@ -2,7 +2,7 @@
 
 import { Transaction } from "prosemirror-state"
 import type { Node, Schema, ResolvedPos } from "prosemirror-model"
-import { findMarkupRange } from "./Marks"
+import { findEditRange, isEditNode } from "./Marks"
 import { Selection, TextSelection } from "prosemirror-state"
 import { Fragment, Slice, Mark, NodeRange } from "prosemirror-model"
 import Parser from "../Allusion/Parser"
@@ -162,15 +162,13 @@ export const editableRange = (selection: Selection): EditRange => {
         // case nodes.heading:
         case nodes.title:
         case nodes.paragraph: {
-          // const target = nodePosition(isEditNode, $anchor)
-          // if (target) {
-          //   return EditRange.new(target.index, target.node.nodeSize, doc)
-          // } else {
-          const [start, end] = findMarkupRange($anchor)
+          const [start, end] = findEditRange($anchor)
+          // TODO: Figure out why when we have a node we end up with a different
+          // range.
           if ($head.pos !== $anchor.pos) {
-            const [from, to] = findMarkupRange($head)
+            const [from, to] = findEditRange($head)
             if (from !== start || to !== end) {
-              return EditRange.empty
+              return EditRange.new($anchor.pos, 0, doc)
             }
           }
           return EditRange.new(start, end - start, doc)
@@ -181,18 +179,8 @@ export const editableRange = (selection: Selection): EditRange => {
         }
       }
     } else {
-      return EditRange.empty
+      return EditRange.new($anchor.pos, 0, doc)
     }
-  }
-}
-
-export const isEditNode = (node: Node): boolean => {
-  const { nodes } = node.type.schema
-  switch (node.type) {
-    case nodes.link:
-      return true
-    default:
-      return false
   }
 }
 
@@ -313,7 +301,7 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
       return tr
     }
 
-    const start = range6.index + range6.length
+    const start = range6.end
     const end = block.index + block.node.nodeSize - 1
     const tr6 =
       start < end
@@ -324,9 +312,9 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
         : tr5
 
     const tr7 =
-      index + 1 < range6.index
+      index + 1 < range6.start
         ? collapseFragment(
-            tr6.doc.slice(index + 1, range6.index).content,
+            tr6.doc.slice(index + 1, range6.start).content,
             ChangeList.new(index + 1, tr6)
           ).toTransaction()
         : tr6

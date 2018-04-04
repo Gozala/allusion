@@ -77,8 +77,14 @@ export const nodePosition = (
   isDesiredNode: Node => boolean,
   anchor: ResolvedPos
 ): ?NodePosition => {
-  const { doc } = anchor
-  const { nodes } = doc.type.schema
+  const { doc, pos, textOffset } = anchor
+  const node = doc.nodeAt(pos)
+  if (node && isDesiredNode(node)) {
+    return {
+      node,
+      index: pos - textOffset
+    }
+  }
 
   let depth = anchor.depth
   while (depth > 0) {
@@ -93,4 +99,27 @@ export const nodePosition = (
     }
   }
   return null
+}
+
+export const resolvePosition = (
+  isDesiredNode: Node => boolean,
+  anchor: ResolvedPos
+): ResolvedPos => {
+  const { doc, pos, textOffset } = anchor
+  const node = anchor.nodeAfter
+  if (node && isDesiredNode(node)) {
+    return anchor
+  }
+
+  let depth = anchor.depth
+  while (depth > 0) {
+    const node = anchor.node(depth)
+    if (isDesiredNode(node)) {
+      return doc.resolve(anchor.start(depth) - 1)
+    } else {
+      depth--
+    }
+  }
+
+  return anchor
 }

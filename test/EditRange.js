@@ -12,11 +12,20 @@ import test from "blue-tape"
 import { assign } from "markdown-it/lib/common/utils"
 import {
   isMarkup,
+  isMarkedWith,
   getMarkupMarksAround,
   findMarkupRange,
   findMarkupRangeStart,
-  findMarkupRangeEnd
+  findMarkupRangeEnd,
+  findMarkupBoundry,
+  isEditNode,
+  getMarkup,
+  findNodeBoundry,
+  findMarkedBoundry,
+  findEditBoundry,
+  findEditRange
 } from "../src/UI/ProseMirror/Marks"
+import { nodePosition } from "../src/UI/ProseMirror/Position"
 import { traverse } from "../src/UI/ProseMirror/Traverse"
 
 test("strong link", async test => {
@@ -327,6 +336,41 @@ test("marks next to each other", async test => {
         end: 17
       }
     })
+  }
+})
+
+test("marks next to each other", async test => {
+  const source = `hello [world](/world )` //?
+  const doc = Parser.parse(source)
+
+  findEditRange(doc.resolve(0), isEditNode) //?
+  findEditRange(doc.resolve(1), isEditNode) //?
+  findEditRange(doc.resolve(2), isEditNode) //?
+  findEditRange(doc.resolve(3), isEditNode) //?
+  findEditRange(doc.resolve(4), isEditNode) //?
+  findEditRange(doc.resolve(5), isEditNode) //?
+  findEditRange(doc.resolve(6), isEditNode) //?
+  findEditRange(doc.resolve(7), isEditNode) //?
+
+  doc.slice(0, 7).toString() //?
+
+  markup(doc) //?
+
+  const selection = TextSelection.create(doc, 9) //?
+  const range = editableRange(selection)
+  const state = EditorState.create({ doc, selection })
+  const tr = expandRange(state.tr, range)
+
+  {
+    const doc = tr.doc //?$.toString()
+
+    findEditRange(doc.resolve(25), isEditNode) //?
+    findEditRange(doc.resolve(20), isEditNode) //?
+    findEditRange(doc.resolve(9), isEditNode) //?
+    findEditRange(doc.resolve(7), isEditNode) //?
+    findEditRange(doc.resolve(6), isEditNode) //?
+    findEditRange(doc.resolve(25), isEditNode) //?
+    findEditRange(doc.resolve(26), isEditNode) //?
   }
 })
 

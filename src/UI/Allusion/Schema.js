@@ -314,7 +314,8 @@ export default new Schema({
       inline: true,
       group: "inline",
       content: "inline+",
-      selectable: true,
+      // Otherwise node get's selected here and there.
+      selectable: false,
       marks: "_",
 
       attrs: {
@@ -396,7 +397,7 @@ export default new Schema({
         edit: { default: true }
       },
       toDOM(node) {
-        return ["mark", 0]
+        return ["span", 0]
       }
     },
     markup: {
@@ -406,7 +407,7 @@ export default new Schema({
       attrs: {
         class: { default: "markup" },
         code: { default: null },
-        marks: { default: [] }
+        marks: { default: "" }
       },
       toDOM(node) {
         return ["u", node.attrs, 0]

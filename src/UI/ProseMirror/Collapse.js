@@ -56,7 +56,7 @@ export const collapseNode = (
       default: {
         changeList.enterUnmarked(node)
         collapseFragment(node.content, changeList)
-        return changeList.exitNode()
+        return changeList.exitNode(node)
       }
     }
   }

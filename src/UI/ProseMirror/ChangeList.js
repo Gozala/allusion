@@ -47,7 +47,7 @@ export default class ChangeList {
   marker(text: string, marks: Mark[] = Mark.none): Node {
     return this.schema.text(text, [this.markupMarker, this.editMark]) //, ...marks])
   }
-  updateMarks(marks: Mark[]) {
+  updateMarks(marks: Mark[], ignore: boolean = false) {
     const newMarks = new Map()
     const { storedMarks } = this
 
@@ -60,7 +60,7 @@ export default class ChangeList {
     }
 
     // Delete or preserve existing marks
-    for (let [markup, mark] of storedMarks.entries()) {
+    for (let [markup, mark] of [...storedMarks.entries()].reverse()) {
       if (newMarks.has(markup)) {
         newMarks.delete(markup)
       } else {
@@ -69,7 +69,9 @@ export default class ChangeList {
           marks: this.storedMarkup()
         })
         storedMarks.delete(markup)
-        this.endMark(markup)
+        if (!ignore) {
+          this.endMark(markup)
+        }
       }
     }
 
@@ -80,33 +82,29 @@ export default class ChangeList {
         code: "",
         marks: this.storedMarkup()
       })
-      this.startMark(markup)
+      if (!ignore) {
+        this.startMark(markup)
+      }
     }
 
     return this
   }
-  enterNode(node: Node) {
-    return this.retain(1).updateMarks(node.marks)
+  enterNode(node: Node, update: Object => Object = identity) {
+    return this.updateNodeAttrs(node, update).retain(1)
   }
   enterMarked(node: Node) {
-    return this.updateNodeAttrs(node, marked)
-      .retain(1)
-      .updateMarks(node.marks)
+    // It is important to update marks before entering the node because
+    // for example **[link](#foo)** isn't the same as [**link**](#foo) and
+    // updating marks after entering node woud translate former to later.
+    return this.updateMarks(node.marks).enterNode(node, marked)
   }
   enterUnmarked(node: Node) {
-    return this.updateNodeAttrs(node, unmarked)
-      .retain(1)
-      .updateMarks(node.marks)
+    return this.enterNode(node, unmarked)
   }
-  exitNode() {
-    this.updateMarks(Mark.none)
-    this.index++
-    return this
-  }
-  insertMarker(markup: string, marks: Mark[] = Mark.none) {
-    return this.updateMarks(marks).insertNode(
-      this.schema.text(markup, [this.markupMarker]) //, ...marks])
-    )
+  exitNode(node: Node) {
+    // In paragraph we do want to update marks before we exit otherwise we wind
+    // up adding new paragraph.
+    return (node.isBlock ? this.updateMarks(Mark.none) : this).retain(1)
   }
   startMark(markup: string) {
     return this.insertNode(
@@ -118,18 +116,13 @@ export default class ChangeList {
       this.schema.text(markup, [this.markupMark, this.editMark])
     )
   }
-  insertMarkup(
-    markup: string,
-    marks: Mark[] = Mark.none,
-    attrs: ?Object = null
-  ) {
-    const node =
+  insertMarkup(markup: string, attrs: ?Object = null) {
+    const marks =
       attrs == null
-        ? this.markup(markup, marks)
-        : this.schema.text(markup, [
-            this.markupText.type.create(attrs),
-            ...marks
-          ])
+        ? [this.markupMark]
+        : [this.schema.mark("markup", attrs), this.markupMark]
+
+    const node = this.schema.text(markup, marks)
     return this.insertNode(node)
   }
   insertText(text: string, marks: Mark[]) {
@@ -163,11 +156,11 @@ export default class ChangeList {
       .retainNode(node)
   }
   retainMarkedText(node: Node) {
-    if (node.marks.some(mark => mark.attrs.edit)) {
-      return this.updateMarks(Mark.none).retainNode(node)
+    const isEdited = node.marks.some(mark => mark.attrs.edit)
+    if (isEdited) {
+      return this.updateMarks(node.marks, isEdited).retainNode(node)
     } else {
-      const marks = [...node.marks, this.editMark]
-      return this.updateMarks(marks)
+      return this.updateMarks(node.marks)
         .markText(node, this.editMark)
         .retainNode(node)
     }
@@ -184,12 +177,15 @@ export default class ChangeList {
     return this.updateNodeAttrs(node, unmarked).retainNode(node)
   }
   updateNodeAttrs(node: Node, update: Object => Object) {
-    this.tr = this.tr.setNodeMarkup(
-      this.index,
-      node.type,
-      update(node.attrs),
-      node.marks
-    )
+    const attrs = update(node.attrs)
+    if (attrs != node.attrs) {
+      this.tr = this.tr.setNodeMarkup(
+        this.index,
+        node.type,
+        update(node.attrs),
+        node.marks
+      )
+    }
     return this
   }
   markText(node: Node, mark: Mark) {
@@ -236,6 +232,9 @@ export default class ChangeList {
       return doc.nodeAt(from) === target || doc.nodeAt(to) === target
     }
   }
+  update<a>(update: (a, ChangeList) => ChangeList, param: a): ChangeList {
+    return update(param, this)
+  }
   toTransaction() {
     return this.updateMarks(Mark.none).tr
   }
@@ -252,3 +251,5 @@ const asMarked = (mark: Mark): Mark =>
 
 const asUnmarked = (mark: Mark): Mark =>
   mark.attrs.marked != null ? mark.type.create(unmarked(mark.attrs)) : mark
+
+const identity = <a>(value: a): a => value

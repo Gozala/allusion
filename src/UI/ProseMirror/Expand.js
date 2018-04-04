@@ -8,12 +8,10 @@ export const expand = (
   tr: Transaction,
   start: number,
   end: number
-): Transaction => {
-  const { content } = tr.doc.slice(start, end)
-  const changeList = ChangeList.new(start, tr)
-
-  return expandFragment(content, changeList).toTransaction()
-}
+): Transaction =>
+  ChangeList.new(start, tr)
+    .update(expandFragment, tr.doc.slice(start, end).content)
+    .toTransaction()
 
 export const expandRange = (
   tr: Transaction,
@@ -73,13 +71,15 @@ export const expandLink = (node: Node, changeList: ChangeList) => {
     const title =
       node.attrs.title == null ? "" : JSON.stringify(String(node.attrs.title))
 
-    changeList.enterMarked(node).insertMarker("[", node.marks)
-    expandFragment(node.content, changeList)
     return changeList
-      .insertMarker("](", node.marks)
-      .insertMarkup(`${node.attrs.href} ${title}`, node.marks)
-      .insertMarker(")", node.marks)
-      .exitNode()
+      .enterMarked(node)
+      .insertMarkup("[")
+      .update(expandFragment, node.content)
+      .updateMarks(node.marks)
+      .insertMarkup("](")
+      .insertMarkup(`${node.attrs.href} ${title}`)
+      .insertMarkup(")")
+      .exitNode(node)
   }
 }
 
@@ -126,21 +126,21 @@ export const expandHeading = (node: Node, changeList: ChangeList) => {
   if (node.attrs.marked != null) {
     return changeList.retainNode(node)
   } else {
-    const level: number = node.attrs.level || 1
-    changeList.enterMarked(node)
-    changeList.insertMarkup(`${"#".repeat(level)} `, node.marks, {
-      class: "markup heading"
-    })
-    expandFragment(node.content, changeList)
-    return changeList.exitNode()
+    return changeList
+      .enterMarked(node)
+      .insertMarkup(`${node.attrs.markup} `, {
+        class: "markup heading"
+      })
+      .update(expandFragment, node.content)
+      .exitNode(node)
   }
 }
 
-export const expandParagraph = (node: Node, changeList: ChangeList) => {
-  changeList.enterMarked(node)
-  expandFragment(node.content, changeList)
-  return changeList.exitNode()
-}
+export const expandParagraph = (node: Node, changeList: ChangeList) =>
+  changeList
+    .enterMarked(node)
+    .update(expandFragment, node.content)
+    .exitNode(node)
 
 export const expandHorizontalRule = (node: Node, changeList: ChangeList) => {
   const { schema } = node.type
