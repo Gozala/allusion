@@ -274,36 +274,35 @@ declare module "prosemirror-model" {
 
   declare export type SchemaSpec = {
     nodes: { [name: string]: NodeSpec } /* | OrderedMap<NodeSpec> */,
-
     marks?: { [name: string]: MarkSpec } /* | OrderedMap<MarkSpec> */,
 
     topNode?: string
   }
 
-  declare export type NodeSpec = {
+  declare export type NodeSpec = $Subtype<{
     content?: string,
     marks?: string,
     group?: string,
     inline?: boolean,
     atom?: boolean,
-    attrs?: Object,
+    +attrs?: Object,
     selectable?: boolean,
     draggable?: boolean,
     code?: boolean,
     defining?: boolean,
     isolating?: boolean,
     toDOM?: (node: Node) => DOMOutputSpec,
-    parseDOM?: Array<any>
-  }
+    parseDOM?: ParseRule[]
+  }>
 
-  declare export type MarkSpec = {
-    attrs?: { [name: string]: AttributeSpec },
+  declare export type MarkSpec = $Subtype<{
+    +attrs?: { [name: string]: AttributeSpec },
     inclusive?: boolean,
     excludes?: string,
     group?: string,
     toDOM: (mark: Mark, inline: boolean) => DOMOutputSpec,
-    parseDOM?: Array<any>
-  }
+    parseDOM?: ParseRule[]
+  }>
 
   declare export type AttributeSpec = {
     default?: any
@@ -386,9 +385,9 @@ declare module "prosemirror-model" {
 
   declare export class DOMParser {
     schema: Schema;
-    rules: Array<ParseRule>;
+    rules: ParseRule[];
 
-    constructor(schema: Schema, rules: Array<ParseRule>): DOMParser;
+    constructor(schema: Schema, rules: ParseRule[]): DOMParser;
 
     parse(dom: Node, options?: ParseOptions): Node;
 
@@ -407,10 +406,8 @@ declare module "prosemirror-model" {
     context?: ResolvedPos
   }
 
-  declare type ParseRule = {
-    tag?: string,
+  declare type BaseParseRule = {
     namespace?: string,
-    style?: string,
     priority?: string,
     content?: string,
     node?: string,
@@ -418,11 +415,22 @@ declare module "prosemirror-model" {
     ignore?: boolean,
     skip?: boolean,
     attrs?: Object,
-    getAttrs?: (Node | string) => Object | false | null,
     contentElement?: string | (Node => Node),
     getContent?: Node => Fragment,
     preserveWhitespace?: boolean | "full"
   }
+
+  declare type StyleParseRule = BaseParseRule & {
+    style: string,
+    getAttrs?: string => Object | false | null
+  }
+
+  declare type TagParseRule = BaseParseRule & {
+    tag: string,
+    getAttrs?: Element => Object | false | null
+  }
+
+  declare export type ParseRule = StyleParseRule | TagParseRule
 
   declare export class DOMSerializer {
     nodes: { [key: string]: (node: Node) => DOMOutputSpec };
