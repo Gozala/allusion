@@ -130,6 +130,10 @@ alphanum-sort@^1.0.1, alphanum-sort@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/alphanum-sort/-/alphanum-sort-1.0.2.tgz#97a1119649b211ad33691d9f9f486a8ec9fbe0a3"
 
+always.flow@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/always.flow/-/always.flow-1.0.0.tgz#a9d33b2c024ec554309cbbcbc817b68f2d0b0c52"
+
 ansi-escapes@^1.0.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/ansi-escapes/-/ansi-escapes-1.4.0.tgz#d3a8a83b319aa67793662b13e761c7911422306e"
@@ -4263,6 +4267,10 @@ p-map@^1.1.1:
 p-try@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/p-try/-/p-try-1.0.0.tgz#cbc79cdbaf8fd4228e13f621f2b1a237c1b207b3"
+
+panic.flow@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/panic.flow/-/panic.flow-1.0.0.tgz#d03549802084d53fb164bb44d81b7482bc6f90ff"
 
 parents@^1.0.0:
   version "1.0.1"

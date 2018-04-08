@@ -1,407 +1,568 @@
 // @flow strict
 
-import schema from "./Schema"
-import MarkdownIt from "markdown-it"
+import Tokenizer from "markdown-it"
 import type { Token } from "markdown-it"
-import { Mark, MarkType, NodeType } from "prosemirror-model"
-import type { Schema, Node, Fragment } from "prosemirror-model"
+import { Mark, Fragment, MarkType, NodeType } from "prosemirror-model"
+import type { Node } from "prosemirror-model"
+import type Schema from "./Schema"
+import type { NodeParseRule, MarkParseRule, AttributeParseRule } from "./Schema"
+import {
+  withoutTrailingNewline,
+  priority,
+  insertByPriority,
+  concat
+} from "./Parser/Util"
+import always from "always.flow"
+import panic from "panic.flow"
 
-function maybeMerge(a, b) {
-  if (a.isText && b.isText && Mark.sameSet(a.marks, b.marks)) {
-    const fragment: any = (a: any).text + (b: any).text
-    return a.copy(fragment)
-  }
-}
+type TokenHandlers = { [string]: Rule[] }
+type Decoder<a, b> = a => ?b
+type TokenDecoder<a> = Decoder<Token, a>
+type NodeEncoder<a> = (Schema, a, Node[], Mark[]) => Node
+type MarkEncoder<a> = (Schema, a, Mark[]) => [Node[], 0, Node[]]
 
-type Attributes = { [string]: null | void | boolean | number | string }
-
-type TokenHandlers = { [string]: TokenHandler }
-type TokenDecoder<a> = Token => a
-type NodeEncoder<a> = (a, Node[], Mark[]) => Node
-
-interface Parser {
+export interface Parser {
+  marks: Mark[];
+  content: Node[];
   schema: Schema;
-  parseTokens(Token[]): void;
-  addText(string): void;
-  openMark(MarkType, ?Attributes): void;
-  closeMark(MarkType): void;
-  openNode(NodeFactory, Token): void;
-  closeNode(): ?Node;
+  appendNode(node: Node): Parser;
+  appendText(text: string): Parser;
+  enter(): Parser;
+  exit(): Parser;
 }
 
-interface TokenHandler {
-  handleToken(Parser, Token): void;
-}
-
-interface NodeFactory {
-  create(Token, Node[], Mark[]): Node;
-}
-
-type TokenFrame = {
-  content: Node[],
-  token: Token,
-  factory: NodeFactory
-}
-
-type Stack = TokenFrame[]
-
-// Object used to track the context of a running parse.
-export class MarkdownParseState implements Parser {
+class FragmentParser implements Parser {
   schema: Schema
+  content: Node[]
   marks: Mark[]
-  tokenHandlers: TokenHandlers
-  stack: Stack
-  constructor(schema: Schema, tokenHandlers: TokenHandlers, root: NodeType) {
+  constructor(schema: Schema, content: Node[], marks: Mark[]) {
     this.schema = schema
-    this.stack = [
-      {
-        factory: new Root(root),
-        content: [],
-        token: (null: any)
-      }
-    ]
-    this.marks = Mark.none
-    this.tokenHandlers = tokenHandlers
+    this.marks = marks
+    this.content = content
   }
-
-  top() {
-    return this.stack[this.stack.length - 1]
-  }
-
-  push(elt: Node) {
-    if (this.stack.length) this.top().content.push(elt)
-  }
-
-  // : (string)
-  // Adds the given text to the current position in the document,
-  // using the current marks as styling.
-  addText(text: string) {
-    if (!text) return
-    let nodes = this.top().content,
-      last = nodes[nodes.length - 1]
-    let node = this.schema.text(text, this.marks),
-      merged
-    if (last && (merged = maybeMerge(last, node)))
-      nodes[nodes.length - 1] = merged
-    else nodes.push(node)
-  }
-
-  // : (Mark)
-  // Adds the given mark to the set of active marks.
-  openMark(markType: MarkType, attributes: ?Attributes) {
-    this.marks = markType.create(attributes).addToSet(this.marks)
-  }
-
-  // : (MarkType)
-  // Removes the given mark from the set of active marks.
-  closeMark(markType: MarkType) {
-    this.marks = markType.removeFromSet(this.marks)
-  }
-
-  parseTokens(toks: Token[]) {
-    for (let i = 0; i < toks.length; i++) {
-      let tok = toks[i]
-      let handler = this.tokenHandlers[tok.type]
-      if (!handler)
-        throw new Error(
-          "Token type `" + tok.type + "` not supported by Markdown parser"
-        )
-      handler.handleToken(this, tok)
+  appendFragment(nodes: Node[]) {
+    for (const node of nodes) {
+      this.content.push(node)
     }
   }
+  appendNode(node: Node) {
+    this.content.push(node)
+    return this
+  }
+  appendText(text: string) {
+    if (text !== "") {
+      const { content } = this
+      const last = content[content.length - 1]
 
-  // : (NodeType, ?Object, ?[Node]) → ?Node
-  // Add a node at the current position.
-  addNode(
-    factory: NodeFactory,
-    token: Token,
+      const node = this.schema.text(text, this.marks)
+      const merged = last ? concat(last, node) : null
+
+      if (merged) {
+        content[content.length - 1] = merged
+      } else {
+        content.push(node)
+      }
+    }
+    return this
+  }
+  enter() {
+    return this
+  }
+  exit() {
+    return this
+  }
+}
+
+class NodeParser<a> extends FragmentParser {
+  rule: NodeRule<a>
+  attributes: a
+  parent: Parser
+
+  constructor(
+    parent: Parser,
+    rule: NodeRule<a>,
+    attributes: a,
     content: Node[],
     marks: Mark[]
-  ): ?Node {
-    let node = factory.create(token, content, marks)
-    if (!node) return null
-    this.push(node)
-    return node
+  ) {
+    super(parent.schema, content, marks)
+    this.parent = parent
+    this.rule = rule
+    this.attributes = attributes
+  }
+  static new(
+    parent: Parser,
+    rule: NodeRule<a>,
+    attributes: a,
+    content: Node[] = [],
+    marks: Mark[] = Mark.none
+  ): NodeParser<a> {
+    return new this(parent, rule, attributes, content, marks)
   }
 
-  openNode(factory: NodeFactory, token: Token): void {
-    this.stack.push({ token, factory, content: [] })
+  enter() {
+    return this
+  }
+  exit() {
+    return this.parent.appendNode(
+      this.rule.encodeNode(
+        this.schema,
+        this.attributes,
+        this.content,
+        this.parent.marks
+      )
+    )
   }
 
-  // : () → ?Node
-  // Close and return the node that is currently on top of the stack.
-  closeNode(): ?Node {
-    const { marks } = this
-    this.marks = Mark.none
-    const { factory, token, content } = this.stack.pop()
-    return this.addNode(factory, token, content, marks)
+  create(): Node {
+    return this.rule.encodeNode(
+      this.schema,
+      this.attributes,
+      this.content,
+      this.marks
+    )
   }
 }
 
-// Code content is represented as a single token with a `content`
-// property in Markdown-it.
-function noOpenClose(type) {
-  return type == "code_inline" || type == "code_block" || type == "fence"
-}
-
-function withoutTrailingNewline(str) {
-  return str[str.length - 1] == "\n" ? str.slice(0, str.length - 1) : str
-}
-
-function noOp() {}
-
-function tokenHandlers(tokens) {
-  let handlers: TokenHandlers = (Object.create(null): Object)
-  for (const type in tokens) {
-    const handler = tokens[type]
-    handlers[`${type}_open`] = handler
-    handlers[`${type}_close`] = handler
-    handlers[type] = handler
+class MarkParser<a: Object> extends FragmentParser {
+  rule: MarkRule<a>
+  attributes: a
+  parent: Parser
+  markup: void | Node[]
+  static new(parent: Parser, rule: MarkRule<a>, attributes: a) {
+    return new this(
+      parent,
+      rule,
+      attributes,
+      parent.content,
+      rule.markType.create(attributes).addToSet(parent.marks)
+    )
+  }
+  constructor(
+    parent: Parser,
+    rule: MarkRule<a>,
+    attributes: a,
+    content: Node[],
+    marks: Mark[]
+  ) {
+    super(parent.schema, content, marks)
+    this.parent = parent
+    this.rule = rule
+    this.attributes = attributes
   }
 
-  handlers.text = Text
-  handlers.inline = InlineContent
-  handlers.softbreak = SoftBreak
-
-  return handlers
+  addMarkup(markup: string) {
+    if (markup !== "") {
+      const { schema, marks } = this
+      return this.appendNode(
+        schema.text(markup, [
+          schema.mark("markup", {
+            class: "markup inline",
+            marks
+          })
+        ])
+      )
+    }
+    return this
+  }
+  exit(): Parser {
+    if (this.markup) {
+      this.appendFragment(this.markup)
+    } else if (this.attributes.markup) {
+      this.addMarkup(this.attributes.markup)
+    }
+    return this.parent
+  }
+  enter(): Parser {
+    const { encodeMarkup } = this.rule
+    if (encodeMarkup) {
+      const [openingMarkup, _, closingMarkup] = encodeMarkup(
+        this.schema,
+        this.attributes,
+        this.marks
+      )
+      this.markup = closingMarkup
+      this.appendFragment(openingMarkup)
+    } else if (this.attributes.markup) {
+      this.addMarkup(this.attributes.markup)
+    }
+    return this
+  }
 }
 
 const OPEN = 1
 const ATOMIC = 0
 const CLOSE = -1
 
-class Text {
-  static handleToken(parser: Parser, token: Token) {
-    parser.addText(token.content)
-  }
-}
+type Rule = NodeRule<*> | MarkRule<*>
+type Rules = Rule[]
 
-class SoftBreak {
-  static handleToken(parser: Parser, token: Token) {
-    parser.addText("\n")
-  }
-}
+class NodeRule<a> {
+  schema: Schema
+  type: string
+  priority: number
+  tag: ?string
 
-class InlineContent {
-  static handleToken(parser: Parser, token: Token) {
-    parser.parseTokens(token.children)
-  }
-}
+  decodeToken: TokenDecoder<a>
+  encodeNode: NodeEncoder<a>
 
-class Block<a> implements TokenHandler, NodeFactory {
-  nodeType: NodeType
-  decode: TokenDecoder<a>
-  +encode: NodeEncoder<a>
-  code: boolean
-  constructor(nodeType: NodeType, decoder: TokenDecoder<a>) {
-    this.nodeType = nodeType
-    this.code = nodeType.spec.code === true
-    this.decode = decoder
-  }
-  openNode(parser: Parser, token: Token) {
-    parser.openNode(this, token)
-  }
-  closeNode(parser: Parser, token: Token) {
-    parser.closeNode()
-  }
-  createNode(parser: Parser, token: Token) {
-    this.openNode(parser, token)
-    if (this.code) {
-      parser.addText(withoutTrailingNewline(token.content))
-    }
-    this.closeNode(parser, token)
-  }
-  handleToken(parser: Parser, token: Token) {
-    switch (token.nesting) {
-      case OPEN:
-        return this.openNode(parser, token)
-      case ATOMIC:
-        return this.createNode(parser, token)
-      case CLOSE:
-        return this.closeNode(parser, token)
-      default:
-        throw new Error(
-          `Token ${token.type} has invalid nesting ${token.nesting}`
-        )
-    }
-  }
-  create(token: Token, content: Node[], marks: Mark[]): Node {
-    return this.encode(this.decode(token), content, marks)
-  }
-}
-
-class Custom<a> extends Block<a> {
-  static new<a>(
-    nodeType: NodeType,
-    decoder: TokenDecoder<a>,
-    encoder: NodeEncoder<a>
-  ): Block<a> {
-    return new Custom(nodeType, decoder, encoder)
-  }
   constructor(
-    nodeType: NodeType,
-    decoder: TokenDecoder<a>,
-    encoder: NodeEncoder<a>
+    schema: Schema,
+    type: string,
+    priority: number,
+    tag: ?string,
+    decodeToken: TokenDecoder<a>,
+    encodeNode: NodeEncoder<a>
   ) {
-    super(nodeType, decoder)
-    this.encode = encoder
-  }
-}
-
-class Attributor extends Block<?Attributes> {
-  static new(
-    nodeType: NodeType,
-    decoder: TokenDecoder<?Attributes> = Void
-  ): Attributor {
-    return new Attributor(nodeType, decoder)
-  }
-  encode(attributes: ?Attributes, content: Node[], marks: Mark[]): Node {
-    return this.nodeType.createAndFill(attributes, content, marks)
-  }
-}
-
-class Root implements NodeFactory {
-  type: NodeType
-  constructor(type: NodeType) {
     this.type = type
+    this.priority = priority
+    this.tag = tag
+    this.decodeToken = decodeToken
+    this.encodeNode = encodeNode
   }
-  create(token: Token, content: Node[], marks: Mark[]): Node {
-    if (this.type.contentMatch == null) {
-      return this.type.create(null, content, marks)
-    } else {
-      return this.type.createChecked(null, content, marks)
+  match(token: Token, schema: Schema, top: Parser): ?Parser {
+    if (this.tag == null || this.tag === token.tag) {
+      const attributes = this.decodeToken(token)
+      if (attributes != null) {
+        return NodeParser.new(top, this, attributes)
+      }
     }
+    return null
+  }
+
+  static createEncoder<a: Object>(nodeType: NodeType): NodeEncoder<a> {
+    return (
+      schema: Schema,
+      attributes: a,
+      content: Node[],
+      marks: Mark[]
+    ): Node => nodeType.createChecked(attributes, content, marks)
+  }
+
+  static fromAttributeRule(
+    rule: AttributeParseRule,
+    name: string,
+    schema: Schema
+  ): NodeRule<Object> {
+    const { type, tag } = rule
+    const decodeToken = createAttributeTokenDecoder(rule, always.EmptyTable)
+    const encodeNode = this.createEncoder(schema.nodes[name])
+    return new NodeRule(
+      schema,
+      type,
+      priority(rule),
+      tag,
+      decodeToken,
+      encodeNode
+    )
+  }
+  static fromNodeRule<a>(
+    rule: NodeParseRule<a>,
+    name: string,
+    schema: Schema
+  ): NodeRule<a> {
+    const { type, tag, createNode, getAttrs, attrs } = rule
+    const decodeToken = attrs != null ? always(attrs) : getAttrs
+    return new NodeRule(
+      schema,
+      type,
+      priority(rule),
+      tag,
+      decodeToken,
+      createNode
+    )
   }
 }
 
-const Void = () => {}
-
-class Inline implements TokenHandler {
-  code: boolean
+class MarkRule<a: Object> {
+  schema: Schema
+  type: string
+  priority: number
+  tag: ?string
   markType: MarkType
-  decode: Token => ?Attributes
-  static new(
+
+  decodeToken: TokenDecoder<a>
+  encodeMarkup: ?MarkEncoder<a>
+
+  constructor(
+    schema: Schema,
+    type: string,
+    priority: number,
+    tag: ?string,
     markType: MarkType,
-    decoder: TokenDecoder<?Attributes> = Void
-  ): TokenHandler {
-    return new Inline(markType, decoder)
-  }
-  constructor(markType: MarkType, decode: TokenDecoder<?Attributes>) {
+    decodeToken: TokenDecoder<a>,
+    encodeMarkup: ?MarkEncoder<a>
+  ) {
+    this.type = type
+    this.priority = priority
+    this.tag = tag
     this.markType = markType
-    this.decode = decode
-    this.code = (markType.spec.group || "").includes("code")
+    this.decodeToken = decodeToken
+    this.encodeMarkup = encodeMarkup
   }
-  openMark(parser: Parser, token: Token) {
-    parser.openMark(this.markType, this.decode(token))
-  }
-  closeMark(parser: Parser, token: Token) {
-    parser.closeMark(this.markType)
-  }
-  mark(parser: Parser, token: Token) {
-    this.openMark(parser, token)
-    if (this.code) {
-      parser.addText(withoutTrailingNewline(token.content))
+  match(token: Token, schema: Schema, top: Parser): ?Parser {
+    if (this.tag == null || this.tag === token.tag) {
+      const attributes = this.decodeToken(token)
+      if (attributes != null) {
+        return MarkParser.new(top, this, attributes)
+      }
     }
-    this.closeMark(parser, token)
   }
-  handleToken(parser: Parser, token: Token) {
-    switch (token.nesting) {
-      case OPEN:
-        return this.openMark(parser, token)
-      case ATOMIC:
-        return this.mark(parser, token)
-      case CLOSE:
-        return this.closeMark(parser, token)
-      default:
-        throw new Error(
-          `Token ${token.type} has invalid nesting ${token.nesting}`
-        )
-    }
+
+  static fromAttributeRule(
+    rule: AttributeParseRule,
+    name: string,
+    schema: Schema
+  ): MarkRule<Object> {
+    const { type, tag } = rule
+    const markType = schema.marks[name]
+    const decodeToken = createAttributeTokenDecoder(rule, always.EmptyTable)
+
+    return new MarkRule(
+      schema,
+      type,
+      priority(rule),
+      tag,
+      markType,
+      decodeToken
+    )
+  }
+  static fromMarkRule<a: Object>(
+    rule: MarkParseRule<a>,
+    name: string,
+    schema: Schema
+  ): MarkRule<a> {
+    const { type, tag, attrs, getAttrs } = rule
+    const markType = schema.marks[name]
+    const decodeToken = attrs != null ? always(attrs) : getAttrs
+
+    return new MarkRule(
+      schema,
+      type,
+      priority(rule),
+      tag,
+      markType,
+      decodeToken,
+      rule.createMarkup
+    )
+  }
+  static encodeMark(markType: MarkType, attributes: Object): Mark {
+    return markType.create(attributes)
   }
 }
+
+type ParseRule<a> =
+  | (AttributeParseRule & { mark: string, node?: void })
+  | (AttributeParseRule & { mark?: void, node: string })
+  | (MarkParseRule<a> & { mark: string, node?: void })
+  | (NodeParseRule<a> & { mark?: void, node: string })
 
 // ::- A configuration of a Markdown parser. Such a parser uses
 // [markdown-it](https://github.com/markdown-it/markdown-it) to
 // tokenize a file, and then runs the custom rules it is given over
 // the tokens to create a ProseMirror document tree.
-export class MarkdownParser {
-  static node = Attributor.new
-  static mark = Inline.new
-  static custom = Custom.new
-
-  tokens: Object
+export class MarkdownParser extends FragmentParser {
+  rules: ?Rules
   schema: Schema
-  tokenizer: MarkdownIt
-  tokenHandlers: TokenHandlers
-  // :: (Schema, MarkdownIt, Object)
-  // Create a parser with the given configuration. You can configure
-  // the markdown-it parser to parse the dialect you want, and provide
-  // a description of the ProseMirror entities those tokens map to in
-  // the `tokens` object, which maps token names to descriptions of
-  // what to do with them. Such a description is an object, and may
-  // have the following properties:
-  //
-  // **`node`**`: ?string`
-  //   : This token maps to a single node, whose type can be looked up
-  //     in the schema under the given name. Exactly one of `node`,
-  //     `block`, or `mark` must be set.
-  //
-  // **`block`**`: ?string`
-  //   : This token comes in `_open` and `_close` variants (which are
-  //     appended to the base token name provides a the object
-  //     property), and wraps a block of content. The block should be
-  //     wrapped in a node of the type named to by the property's
-  //     value.
-  //
-  // **`mark`**`: ?string`
-  //   : This token also comes in `_open` and `_close` variants, but
-  //     should add a mark (named by the value) to its content, rather
-  //     than wrapping it in a node.
-  //
-  // **`attrs`**`: ?Object`
-  //   : Attributes for the node or mark. When `getAttrs` is provided,
-  //     it takes precedence.
-  //
-  // **`getAttrs`**`: ?(MarkdownToken) → Object`
-  //   : A function used to compute the attributes for the node or mark
-  //     that takes a [markdown-it
-  //     token](https://markdown-it.github.io/markdown-it/#Token) and
-  //     returns an attribute object.
-  //
-  // **`ignore`**`: ?bool`
-  //   : When true, ignore content for the matched token.
-  constructor(schema: Schema, tokenizer: MarkdownIt, tokens: TokenHandlers) {
-    // :: Object The value of the `tokens` object used to construct
-    // this parser. Can be useful to copy and modify to base other
-    // parsers on.
-    this.tokens = tokens
-    this.schema = schema
+  tokenizer: Tokenizer
+  handlers: TokenHandlers
+  top: Parser
+
+  constructor(
+    schema: Schema,
+    tokenizer: Tokenizer,
+    handlers: TokenHandlers,
+    rules?: Rules
+  ) {
+    super(schema, [], Mark.none)
+
     this.tokenizer = tokenizer
-    this.tokenHandlers = tokenHandlers(tokens)
+    this.handlers = handlers
+    this.rules = rules
+    this.top = this
+  }
+  static fromSchema(schema: Schema, tokenizer: Tokenizer): MarkdownParser {
+    return new this(
+      schema,
+      tokenizer,
+      this.ruleHandlers(this.schemaRules(schema))
+    )
+  }
+  static fromRules(
+    schema: Schema,
+    tokenizer: Tokenizer,
+    rules: ParseRule<*>[]
+  ) {
+    return new this(
+      schema,
+      tokenizer,
+      this.ruleHandlers(rules.map(rule => this.toRule(rule, schema)))
+    )
+  }
+  static toRule(rule: ParseRule<*>, schema: Schema): Rule {
+    if (rule.createNode) {
+      return NodeRule.fromNodeRule(rule, rule.node, schema)
+    } else if (rule.node) {
+      return NodeRule.fromAttributeRule(rule, rule.node, schema)
+    } else if (rule.createMarkup) {
+      return MarkRule.fromMarkRule(rule, rule.mark, schema)
+    } else if (rule.mark) {
+      return MarkRule.fromAttributeRule(rule, rule.mark, schema)
+    } else {
+      return panic(
+        RangeError(
+          `Invalid ParseRule was supplied: ${JSON.stringify(
+            rule
+          )}. It must have either "node" or "mark" string property`
+        )
+      )
+    }
+  }
+  static schemaRules(schema: Schema): Rules {
+    let rules = []
+    const { nodes, marks } = schema.markdownSpec
+
+    for (const name in marks) {
+      const { parseMarkdown } = marks[name]
+      if (parseMarkdown) {
+        for (const rule of parseMarkdown) {
+          const markRule = rule.createMarkup
+            ? MarkRule.fromMarkRule(rule, name, schema)
+            : MarkRule.fromAttributeRule(rule, name, schema)
+          rules = insertByPriority(markRule, rules)
+        }
+      }
+    }
+
+    for (const name in nodes) {
+      const { parseMarkdown } = nodes[name]
+      if (parseMarkdown) {
+        for (const rule of parseMarkdown) {
+          const nodeRule = rule.createNode
+            ? NodeRule.fromNodeRule(rule, name, schema)
+            : NodeRule.fromAttributeRule(rule, name, schema)
+          rules = insertByPriority(nodeRule, rules)
+        }
+      }
+    }
+
+    return rules
+  }
+  static ruleHandlers(rules: Rules): TokenHandlers {
+    const handlers = {}
+
+    for (const rule of rules) {
+      const type = rule.type
+      const rules = handlers[type] || []
+      rules.push(rule)
+
+      handlers[type] = rules
+      handlers[`${type}_open`] = rules
+    }
+
+    return handlers
   }
 
-  // :: (string) → Node
-  // Parse a string as [CommonMark](http://commonmark.org/) markup,
-  // and create a ProseMirror document as prescribed by this parser's
-  // rules.
-  parse(text: string, type: ?NodeType = null): Node {
+  parseBlock(source: string, type: ?NodeType = null): Error | Node {
     const root = type || new NodeType("doc", this.schema, { content: "block*" })
-    const tokens = this.tokenizer.parse(text, {})
+    const tokens = this.tokenizer.parse(source, {})
     return this.parseTokens(tokens, root)
   }
-  parseInline(text: string): Fragment {
+  parseInline(source: string): Error | Fragment {
     const root = new NodeType("doc", this.schema, { content: "inline*" })
-    const tokens = this.tokenizer.parseInline(text, {})[0].children
-    return this.parseTokens(tokens, root).content
+    const tokens = this.tokenizer.parseInline(source, {})[0].children
+    const node = this.parseTokens(tokens, root)
+    if (node instanceof Error) {
+      return node
+    } else {
+      return node.content
+    }
   }
-  parseTokens(tokens: Token[], root: NodeType = this.schema.topNodeType): Node {
-    const state = new MarkdownParseState(this.schema, this.tokenHandlers, root)
-    let doc
+  parse(source: string) {
+    return this.parseBlock(source, this.schema.topNodeType)
+  }
+  parseTokens(
+    tokens: Token[],
+    nodeType: NodeType = this.schema.topNodeType
+  ): Error | Node {
+    this.top = this
 
-    state.parseTokens(tokens)
-    do {
-      doc = state.closeNode()
-    } while (state.stack.length)
-    return (doc: any)
+    const error = this.handleTokens(tokens)
+    if (error) {
+      return error
+    }
+
+    this.top.exit()
+    const node = nodeType.create(null, this.content.splice(0), this.marks)
+    this.marks = Mark.none
+
+    return node
   }
+  handleTokens(tokens: Token[]): ?Error {
+    for (const token of tokens) {
+      const error = this.handleToken(token)
+      if (error) {
+        return error
+      }
+    }
+  }
+  handleOpenToken(token: Token) {
+    const { handlers } = this
+    const rules = handlers[token.type]
+    for (const rule of rules) {
+      const parser = rule.match(token, this.schema, this.top)
+      if (parser != null) {
+        this.top = parser.enter()
+        return null
+      }
+    }
+
+    return RangeError(`Parser was unable to match "${token.type}" token`)
+  }
+  handleCloseToken(token: Token): ?Error {
+    this.top = this.top.exit()
+  }
+  handleAtomicToken(token: Token) {
+    const error = this.handleOpenToken(token)
+    if (error) {
+      return error
+    } else {
+      this.top.appendText(withoutTrailingNewline(token.content))
+      return this.handleCloseToken(token)
+    }
+  }
+  handleToken(token: Token): ?Error {
+    switch (token.type) {
+      case "text": {
+        return void this.top.appendText(token.content)
+      }
+      case "inline": {
+        return this.handleTokens(token.children)
+      }
+      case "softbreak": {
+        return void this.top.appendText("\n")
+      }
+      default: {
+        switch (token.nesting) {
+          case OPEN:
+            return this.handleOpenToken(token)
+          case ATOMIC:
+            return this.handleAtomicToken(token)
+          case CLOSE:
+            return this.handleCloseToken(token)
+          default:
+            return new Error(
+              `Token ${token.type} has invalid nesting ${token.nesting}`
+            )
+        }
+      }
+    }
+  }
+}
+
+const createAttributeTokenDecoder = <a>(
+  { attrs, getAttrs }: { attrs?: a, getAttrs?: Token => ?a },
+  fallback: Token => ?a
+): TokenDecoder<a> => {
+  return attrs != null ? always(attrs) : getAttrs != null ? getAttrs : fallback
 }

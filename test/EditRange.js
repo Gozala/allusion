@@ -14,10 +14,6 @@ import {
   isMarkup,
   isMarkedWith,
   getMarkupMarksAround,
-  findMarkupRange,
-  findMarkupRangeStart,
-  findMarkupRangeEnd,
-  findMarkupBoundry,
   isEditNode,
   getMarkup,
   findNodeBoundry,
@@ -31,6 +27,9 @@ import { traverse } from "../src/UI/ProseMirror/Traverse"
 test("strong link", async test => {
   const source = `**strong _statement_ here**`
   const doc = Parser.parse(source)
+  if (doc instanceof Error) {
+    throw doc
+  }
   const selection = TextSelection.create(doc, 2)
   const range = editableRange(selection) //?
   const state = EditorState.create({ doc, selection })
@@ -48,6 +47,9 @@ test("strong link", async test => {
 test("strong link", async test => {
   const source = `**hello** world`
   const doc = Parser.parse(source)
+  if (doc instanceof Error) {
+    throw doc
+  }
 
   {
     const marks = marksAt(doc)
@@ -97,6 +99,9 @@ test("strong link", async test => {
 test("marks next to each other", async test => {
   const source = `**hello**_world_`
   const doc = Parser.parse(source)
+  if (doc instanceof Error) {
+    throw doc
+  }
 
   markup(doc) //?
   {
@@ -342,6 +347,9 @@ test("marks next to each other", async test => {
 test("marks next to each other", async test => {
   const source = `hello [world](/world )` //?
   const doc = Parser.parse(source)
+  if (doc instanceof Error) {
+    throw doc
+  }
 
   findEditRange(doc.resolve(0), isEditNode) //?
   findEditRange(doc.resolve(1), isEditNode) //?
@@ -383,7 +391,7 @@ const markup = node => {
   while (offset < size) {
     const position = node.resolve(offset)
     const marks = getMarkupMarksAround(position)
-    const [start, end] = findMarkupRange(position)
+    const [start, end] = findEditRange(position)
     out[toDebugString(position)] = {
       marks,
       position: offset,

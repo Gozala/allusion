@@ -14,6 +14,9 @@ test("strong link", async test => {
     "__[pica](https://nodeca.github.io/pica/deamo/ )__ - high quality and fast image resize in browser."
 
   const actual = Parser.parse(source)
+  if (actual instanceof Error) {
+    throw actual
+  }
 
   test.deepEqual(
     actual.toJSON(),
@@ -76,6 +79,9 @@ test("strong link", async test => {
 test("expand strong link", async test => {
   const source = `Paragraph with **[strong link](#bold)** in it.`
   const doc = Parser.parse(source)
+  if (doc instanceof Error) {
+    throw doc
+  }
 
   test.deepEqual(
     doc.toJSON(),
@@ -315,6 +321,9 @@ test("expand strong link", async test => {
 test("expand inner strong link", async test => {
   const source = `Paragraph with inner [**strong link**](#bold) in it.`
   const doc = Parser.parse(source)
+  if (doc instanceof Error) {
+    throw doc
+  }
 
   test.deepEqual(
     doc.toJSON(),

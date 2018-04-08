@@ -1,9 +1,93 @@
-// @flow
+// @flow strict
 
-import { Schema } from "prosemirror-model"
-import Markdown from "../Markdown/Schema"
+import Schema from "../Markdown/Schema"
+import type {
+  AttributeParseRule,
+  NodeParseRule,
+  MarkParseRule
+} from "../Markdown/Schema"
 import { Link, Address, URL, Title, Words, Markup } from "./NodeView/Link"
 import OrderedMap from "orderedmap"
+import type {
+  DOMOutputSpec,
+  NodeSpec,
+  MarkSpec,
+  ParseRule,
+  Node,
+  SchemaSpec
+} from "prosemirror-model"
+import { Mark } from "prosemirror-model"
+
+export class Block {
+  content: string
+  group: string
+  selectable: boolean
+  inline: boolean = false
+  atom: boolean = false
+  draggable: boolean
+  code: boolean
+  defining: boolean
+  toDOM: (node: Node) => DOMOutputSpec
+  parseDOM: ParseRule[]
+  parseMarkdown: (AttributeParseRule | NodeParseRule<*>)[]
+  attrs: Object
+
+  static parseMarkdown = []
+  static toDOM(node: Node) {
+    return ["div", node.attrs, 0]
+  }
+
+  static attrs = Object.create(null)
+
+  constructor(spec: NodeSpec) {
+    this.content = spec.content || ""
+    this.group = spec.group || ""
+    this.selectable = spec.selectable || true
+    this.draggable = spec.draggable || false
+    this.defining = spec.defining || false
+    this.code = spec.code || false
+    this.attrs = spec.attrs || this.constructor.attrs
+    this.toDOM = spec.toDOM || this.constructor.toDOM
+    this.parseMarkdown = spec.parseMarkdown || this.constructor.parseMarkdown
+  }
+}
+
+export class Inline {
+  content: string
+  group: string
+  selectable: boolean
+  inline: boolean = true
+  atom: boolean
+  draggable: boolean
+  code: boolean
+  defining: boolean
+  toDOM: (node: Node) => DOMOutputSpec
+  parseDOM: ParseRule[]
+  parseMarkdown: (AttributeParseRule | NodeParseRule<*>)[]
+  attrs: Object
+
+  static toDOM(node: Node) {
+    return ["span", node.attrs, 0]
+  }
+  static parseMarkdown = []
+
+  static attrs = Object.create(null)
+
+  constructor(spec: NodeSpec) {
+    this.content = spec.content || ""
+    this.group = spec.group || ""
+    this.selectable = spec.selectable || true
+    this.draggable = spec.draggable || false
+    this.defining = spec.defining || false
+    this.atom = spec.atom || false
+    this.attrs = spec.attrs || this.constructor.attrs
+    this.toDOM = spec.toDOM || this.constructor.toDOM
+    this.parseMarkdown = spec.parseMarkdown || this.constructor.parseMarkdown
+  }
+}
+
+export class EditBlock extends Block {}
+export class EditNode extends Inline {}
 
 export default new Schema({
   nodes: {
@@ -17,7 +101,7 @@ export default new Schema({
         return ["header", 0]
       }
     },
-    title: {
+    title: new EditBlock({
       content: "inline*",
       group: "heading paragraph",
       defining: true,
@@ -28,11 +112,17 @@ export default new Schema({
         label: { default: "Title" },
         tabindex: { default: 0 }
       },
+      parseMarkdown: [
+        // {
+        //   type: "heading",
+        //   tag: "h1"
+        // }
+      ],
       toDOM(node) {
         return ["h1", node.attrs, 0]
       }
-    },
-    author: {
+    }),
+    author: new EditBlock({
       content: "inline*",
       defining: true,
       group: "paragraph",
@@ -43,10 +133,15 @@ export default new Schema({
         label: { default: "Author" },
         tabindex: { default: 0 }
       },
+      parseMarkdown: [
+        {
+          type: "paragrpah"
+        }
+      ],
       toDOM(node) {
         return ["address", node.attrs, 0]
       }
-    },
+    }),
     article: {
       content: "block+",
       attrs: {
@@ -59,10 +154,11 @@ export default new Schema({
         return ["article", node.attrs, 0]
       }
     },
-    paragraph: {
+    paragraph: new EditBlock({
       content: "inline*",
       group: "block",
       parseDOM: [{ tag: "p" }],
+      parseMarkdown: [{ type: "paragraph" }],
       attrs: {
         marked: {
           default: null
@@ -71,27 +167,29 @@ export default new Schema({
       toDOM(node) {
         return ["p", 0]
       }
-    },
+    }),
     blockquote: {
       content: "block+",
       group: "block",
       parseDOM: [{ tag: "blockquote" }],
-      toDOM() {
+      parseMarkdown: [{ type: "blockquote" }],
+      toDOM(node) {
         return ["blockquote", 0]
       }
     },
-    horizontal_rule: {
+    horizontal_rule: new EditBlock({
       group: "block",
       attrs: {
         markup: { default: "---" },
         marked: { default: null }
       },
       parseDOM: [{ tag: "hr" }],
+      parseMarkdown: [{ type: "hr" }],
       toDOM() {
         return ["div", { class: "horizontal-rule" }, ["hr"]]
       }
-    },
-    heading: {
+    }),
+    heading: new EditBlock({
       attrs: {
         level: { default: 1 },
         markup: { default: "#" },
@@ -100,6 +198,32 @@ export default new Schema({
       content: "inline*",
       group: "block",
       defining: true,
+      parseMarkdown: [
+        {
+          type: "heading",
+          getAttrs(token) {
+            return {
+              level: +token.tag.slice(1),
+              markup: token.markup
+            }
+          },
+          createNode(schema, attrs, content, marks) {
+            return schema.node(
+              "heading",
+              attrs,
+              [
+                schema.text(`${attrs.markup} `, [
+                  schema.mark("markup", {
+                    class: "block markup heading"
+                  })
+                ]),
+                ...content
+              ],
+              marks
+            )
+          }
+        }
+      ],
       parseDOM: [
         { tag: "h1", attrs: { level: 1 } },
         { tag: "h2", attrs: { level: 2 } },
@@ -111,13 +235,26 @@ export default new Schema({
       toDOM(node) {
         return ["h" + node.attrs.level, 0]
       }
-    },
+    }),
     code_block: {
       content: "text*",
       group: "block",
       code: true,
       defining: true,
       attrs: { params: { default: "" } },
+      parseMarkdown: [
+        { type: "code_block" },
+        {
+          type: "fence",
+          tag: "code",
+          getAttrs(token) {
+            return {
+              params: token.info || "",
+              markup: token.markup
+            }
+          }
+        }
+      ],
       parseDOM: [
         {
           tag: "pre",
@@ -152,6 +289,18 @@ export default new Schema({
           }
         }
       ],
+      parseMarkdown: [
+        {
+          type: "ordered_list",
+          getAttrs(token) {
+            return {
+              class: token.attrGet("class"),
+              order: +token.attrGet("order") || 1,
+              markup: token.markup
+            }
+          }
+        }
+      ],
       toDOM(node) {
         return [
           "ol",
@@ -176,7 +325,18 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["ul", { "data-tight": node.attrs.tight ? "true" : null }, 0]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "bullet_list",
+          getAttrs(token) {
+            return {
+              class: token.attrGet("class"),
+              markup: token.markup
+            }
+          }
+        }
+      ]
     },
 
     list_item: {
@@ -186,7 +346,18 @@ export default new Schema({
       parseDOM: [{ tag: "li" }],
       toDOM() {
         return ["li", 0]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "list_item",
+          getAttrs(token) {
+            return {
+              class: token.attrGet("class"),
+              markup: token.markup
+            }
+          }
+        }
+      ]
     },
 
     text: {
@@ -196,7 +367,7 @@ export default new Schema({
       }
     },
 
-    image: {
+    image: new EditNode({
       inline: true,
       attrs: {
         src: {},
@@ -204,6 +375,7 @@ export default new Schema({
         title: { default: null },
         marked: { default: null }
       },
+      content: "inline*",
       group: "inline",
       draggable: true,
       parseDOM: [
@@ -220,8 +392,20 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["img", node.attrs]
-      }
-    },
+      },
+      parseMarkdown: [
+        {
+          type: "image",
+          getAttrs(token) {
+            return {
+              src: token.attrGet("src"),
+              title: token.attrGet("title") || null,
+              alt: (token.children[0] && token.children[0].content) || null
+            }
+          }
+        }
+      ]
+    }),
 
     hard_break: {
       inline: true,
@@ -230,32 +414,13 @@ export default new Schema({
       parseDOM: [{ tag: "br" }],
       toDOM() {
         return ["br"]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "hardbreak"
+        }
+      ]
     },
-    // root: {
-    //   content: "(block|article)*"
-    // },
-    // article: {
-    //   defining: true,
-    //   group: "article",
-    //   inline: false,
-    //   content: "header (block|article)*",
-    //   toDOM() {
-    //     return ["article", {}, 0]
-    //   },
-    //   parseDOM: [{ tag: "article" }]
-    // },
-    // header: {
-    //   defining: true,
-    //   marks: "_",
-    //   group: "block",
-    //   content: "text*",
-    //   inline: false,
-    //   toDOM() {
-    //     return ["header", {}, 0]
-    //   },
-    //   parseDOM: [{ tag: "header" }]
-    // },
 
     checkbox: {
       group: "inline",
@@ -269,7 +434,7 @@ export default new Schema({
       parseDOM: [
         {
           tag: `input[type="checkbox"]`,
-          getAttrs(node: HTMLElement) {
+          getAttrs(node: Element) {
             return {
               type: node.getAttribute("type"),
               checked: node.getAttribute("checked"),
@@ -281,7 +446,20 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["input", node.attrs]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "checkbox_input",
+          getAttrs(token) {
+            return {
+              checked: token.attrGet("checked"),
+              type: token.attrGet("type"),
+              id: token.attrGet("id"),
+              disabled: token.attrGet("disabled")
+            }
+          }
+        }
+      ]
     },
     label: {
       group: "inline",
@@ -293,7 +471,7 @@ export default new Schema({
       parseDOM: [
         {
           tag: "label",
-          getAttrs(node: HTMLElement) {
+          getAttrs(node: Element) {
             return {
               for: node.getAttribute("for")
             }
@@ -302,44 +480,84 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["label", node.attrs, 0]
-      }
-    },
-    // [Link.blotName]: Link,
-    // [Address.blotName]: Address,
-    // [URL.blotName]: URL,
-    // [Title.blotName]: Title,
-    // [Words.blotName]: Words,
-    // [Markup.blotName]: Markup,
-    link: {
-      inline: true,
-      group: "inline",
-      content: "inline+",
-      // Otherwise node get's selected here and there.
-      selectable: false,
-      marks: "_",
-
-      attrs: {
-        href: {},
-        title: { default: null },
-        marked: { default: null }
       },
-      parseDOM: [
+      parseMarkdown: [
         {
-          tag: "a[href]",
-          getAttrs(dom) {
+          type: "label",
+          getAttrs(token) {
             return {
-              href: dom.getAttribute("href"),
-              title: dom.getAttribute("title"),
-              marked: dom.getAttribute("marked")
+              for: token.attrGet("for")
             }
           }
         }
-      ],
-      toDOM(node) {
-        return ["a", node.attrs, 0]
-      }
+      ]
     },
-    expandedImage: {
+    // link: new EditNode({
+    //   inline: true,
+    //   group: "inline",
+    //   content: "inline+",
+    //   // Otherwise node get's selected here and there.
+    //   selectable: false,
+    //   isolating: true,
+    //   marks: "_",
+
+    //   attrs: {
+    //     href: {},
+    //     title: { default: null },
+    //     marked: { default: null }
+    //   },
+    //   parseDOM: [
+    //     {
+    //       tag: "a[href]",
+    //       getAttrs(dom) {
+    //         return {
+    //           href: dom.getAttribute("href"),
+    //           title: dom.getAttribute("title"),
+    //           marked: dom.getAttribute("marked")
+    //         }
+    //       }
+    //     }
+    //   ],
+    //   toDOM(node) {
+    //     return ["a", node.attrs, 0]
+    //   },
+    //   parseMarkdown: [
+    //     {
+    //       type: "link",
+    //       getAttrs(token) {
+    //         return {
+    //           href: token.attrGet("href"),
+    //           title: token.attrGet("title")
+    //         }
+    //       },
+    //       createNode(schema, attrs, content, marks) {
+    //         const markup = [
+    //           schema.mark("markup", {
+    //             class: "inline markup"
+    //           }),
+    //           ...marks
+    //         ]
+    //         const title =
+    //           attrs.title == null ? "" : JSON.stringify(String(attrs.title))
+    //         const href = attrs.href || "#"
+
+    //         return schema.node(
+    //           "link",
+    //           attrs,
+    //           [
+    //             schema.text("[", markup),
+    //             ...content,
+    //             schema.text("](", markup),
+    //             schema.text(`${href} ${title}`, markup),
+    //             schema.text(")", markup)
+    //           ],
+    //           marks
+    //         )
+    //       }
+    //     }
+    //   ]
+    // }),
+    expandedImage: new EditNode({
       inline: true,
       isolating: true,
       group: "inline",
@@ -366,19 +584,53 @@ export default new Schema({
       toDOM(node) {
         return [
           "picture",
-          { class: "image expanded" },
-          ["span", { class: "image-markup" }, 0],
+          { class: "image" },
+          ["span", { class: "image markup" }, 0],
           ["span", { contenteditable: false }, ["img", node.attrs]]
         ]
-      }
-    },
-    expandedHorizontalRule: {
+      },
+      parseMarkdown: [
+        {
+          priority: 51,
+          type: "image",
+          getAttrs(token) {
+            return {
+              src: token.attrGet("src"),
+              title: token.attrGet("title") || null,
+              alt: (token.children[0] && token.children[0].content) || null
+            }
+          }
+        }
+      ]
+    }),
+    expandedHorizontalRule: new EditBlock({
       group: "block",
       content: "text*",
       attrs: {
         markup: { default: "---" },
         marked: { default: "" }
       },
+      parseMarkdown: [
+        {
+          type: "hr",
+          priority: 51,
+          getAttrs(token) {
+            return {
+              markup: token.markup
+            }
+          },
+          createNode(schema, attributes, content, marks) {
+            return schema.node("expandedHorizontalRule", attributes, [
+              schema.text(attributes.markup, [
+                schema.mark("markup", {
+                  class: "inline markup",
+                  marks
+                })
+              ])
+            ])
+          }
+        }
+      ],
       toDOM() {
         return [
           "div",
@@ -387,7 +639,7 @@ export default new Schema({
           ["span", { contenteditable: false }, ["hr"]]
         ]
       }
-    }
+    })
   },
   marks: {
     edit: {
@@ -407,10 +659,18 @@ export default new Schema({
       attrs: {
         class: { default: "markup" },
         code: { default: null },
-        marks: { default: "" }
+        marks: { default: Mark.none }
       },
       toDOM(node) {
-        return ["u", node.attrs, 0]
+        return [
+          "u",
+          {
+            class: node.attrs.class,
+            code: node.attrs.code,
+            marks: node.attrs.marks.map(mark => mark.attrs.markup).join("/")
+          },
+          0
+        ]
       }
     },
     code: {
@@ -422,7 +682,124 @@ export default new Schema({
       parseDOM: [{ tag: "code" }],
       toDOM(node) {
         return ["code", node.attrs]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "code_inline",
+          getAttrs(token) {
+            return {
+              markup: token.markup
+            }
+          }
+        }
+      ]
+    },
+    link: {
+      inclusive: false,
+      attrs: {
+        href: {},
+        title: { default: null },
+        marked: { default: null }
+      },
+      parseDOM: [
+        {
+          tag: "a[href]",
+          getAttrs(dom) {
+            return {
+              href: dom.getAttribute("href"),
+              title: dom.getAttribute("title")
+            }
+          }
+        }
+      ],
+      toDOM(node) {
+        return ["a", node.attrs, 0]
+      },
+      parseMarkdown: [
+        {
+          type: "link",
+          getAttrs(token) {
+            return {
+              href: token.attrGet("href"),
+              title: token.attrGet("title")
+            }
+          },
+          openMark(schema, attrs, marks) {
+            return [
+              schema.text("[", [
+                schema.mark("markup", {
+                  class: "inline markup",
+                  marks
+                })
+              ])
+            ]
+          },
+          closeMark(schema, attrs, marks) {
+            const markup = [
+              schema.mark("markup", {
+                class: "inline markup",
+                marks
+              })
+            ]
+
+            const title =
+              attrs.title == null ? "" : JSON.stringify(String(attrs.title))
+            const href = attrs.href || "#"
+
+            return [
+              schema.text("](", markup),
+              schema.text(`${href} ${title}`, markup),
+              schema.text(")", markup)
+            ]
+          },
+          createMarkup(schema, attrs, marks) {
+            const markup = [
+              schema.mark("markup", {
+                class: "inline markup",
+                marks
+              })
+            ]
+
+            const title =
+              attrs.title == null ? "" : JSON.stringify(String(attrs.title))
+            const href = attrs.href || "#"
+
+            return [
+              [schema.text("[", markup)],
+              0,
+              [
+                schema.text("](", markup),
+                schema.text(`${href} ${title}`, markup),
+                schema.text(")", markup)
+              ]
+            ]
+          }
+          // createNode(schema, attrs, content, marks) {
+          //   const markup = [
+          //     schema.mark("markup", {
+          //       class: "inline markup"
+          //     }),
+          //     ...marks
+          //   ]
+          //   const title =
+          //     attrs.title == null ? "" : JSON.stringify(String(attrs.title))
+          //   const href = attrs.href || "#"
+
+          //   return schema.node(
+          //     "link",
+          //     attrs,
+          //     [
+          //       schema.text("[", markup),
+          //       ...content,
+          //       schema.text("](", markup),
+          //       schema.text(`${href} ${title}`, markup),
+          //       schema.text(")", markup)
+          //     ],
+          //     marks
+          //   )
+          // }
+        }
+      ]
     },
     strong: {
       group: "inline",
@@ -439,7 +816,17 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["strong", node.attrs]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "strong",
+          getAttrs(token) {
+            return {
+              markup: token.markup
+            }
+          }
+        }
+      ]
     },
     em: {
       group: "inline",
@@ -453,7 +840,17 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["em", node.attrs]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "em",
+          getAttrs(token) {
+            return {
+              markup: token.markup
+            }
+          }
+        }
+      ]
     },
     strike_through: {
       group: "inline",
@@ -470,7 +867,17 @@ export default new Schema({
       ],
       toDOM(node) {
         return ["del", node.attrs]
-      }
+      },
+      parseMarkdown: [
+        {
+          type: "s",
+          getAttrs(token) {
+            return {
+              markup: token.markup
+            }
+          }
+        }
+      ]
     }
   }
 })

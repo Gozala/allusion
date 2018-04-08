@@ -17,7 +17,8 @@ tokenizer.block.ruler.at("paragraph", Paragraph)
 tokenizer.block.ruler.at("heading", Heading)
 tokenizer.block.ruler.at("hr", HorizontalRule)
 
-export default new MarkdownParser(schema, tokenizer, {
+export default MarkdownParser.fromSchema(schema, tokenizer)
+/*, {
   blockquote: MarkdownParser.node(schema.nodes.blockquote),
   paragraph: MarkdownParser.node(schema.nodes.paragraph),
   list_item: MarkdownParser.node(schema.nodes.list_item, tok => {
@@ -39,12 +40,30 @@ export default new MarkdownParser(schema, tokenizer, {
       markup: tok.markup
     }
   }),
-  heading: MarkdownParser.node(schema.nodes.heading, tok => {
-    return {
-      level: +tok.tag.slice(1),
-      markup: tok.markup
+  heading: MarkdownParser.custom(
+    schema.nodes.heading,
+    token => {
+      return {
+        level: +token.tag.slice(1),
+        markup: token.markup
+      }
+    },
+    (attrs, content, marks) => {
+      return schema.node(
+        "heading",
+        attrs,
+        [
+          schema.text(`${attrs.markup} `, [
+            schema.mark("markup", {
+              class: "block markup heading"
+            })
+          ]),
+          ...content
+        ],
+        marks
+      )
     }
-  }),
+  ),
   header: MarkdownParser.node(schema.nodes.header),
   code_block: MarkdownParser.node(schema.nodes.code_block),
   fence: MarkdownParser.node(schema.nodes.code_block, tok => {
@@ -99,12 +118,39 @@ export default new MarkdownParser(schema, tokenizer, {
       markup: token.markup
     }
   }),
-  link: MarkdownParser.node(schema.nodes.link, token => {
-    return {
-      href: token.attrGet("href"),
-      title: token.attrGet("title")
+  link: MarkdownParser.custom(
+    schema.nodes.link,
+    token => {
+      return {
+        href: token.attrGet("href"),
+        title: token.attrGet("title")
+      }
+    },
+    (attrs, content, marks) => {
+      const markup = [
+        schema.mark("markup", {
+          class: "inline markup"
+        }),
+        ...marks
+      ]
+      const title =
+        attrs.title == null ? "" : JSON.stringify(String(attrs.title))
+      const href = attrs.href || "#"
+
+      return schema.node(
+        "link",
+        attrs,
+        [
+          schema.text("[", markup),
+          ...content,
+          schema.text("](", markup),
+          schema.text(`${href} ${title}`, markup),
+          schema.text(")", markup)
+        ],
+        marks
+      )
     }
-  }),
+  ),
   // link: MarkdownParser.custom(
   //   schema.nodes.link,
   //   (token): { href: string, title: ?string } => {
@@ -124,3 +170,4 @@ export default new MarkdownParser(schema, tokenizer, {
     }
   })
 })
+*/

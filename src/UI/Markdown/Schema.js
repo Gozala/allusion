@@ -1,323 +1,73 @@
 // @flow strict
 
-import { Schema } from "prosemirror-model"
+import type { Token } from "markdown-it"
+import type { Serializer } from "../Markdown/Serializer"
+import * as ProseMirror from "prosemirror-model"
+import type { Node, Mark } from "prosemirror-model"
 
-export const schema = new Schema({
-  nodes: {
-    doc: {
-      content: "block+"
-    },
-    paragraph: {
-      content: "inline*",
-      group: "block",
-      parseDOM: [{ tag: "p" }],
-      toDOM() {
-        return ["p", 0]
-      }
-    },
-    blockquote: {
-      content: "block+",
-      group: "block",
-      parseDOM: [{ tag: "blockquote" }],
-      toDOM() {
-        return ["blockquote", 0]
-      }
-    },
-    horizontal_rule: {
-      group: "block",
-      attrs: {
-        markup: { default: "---" },
-        marked: { default: null }
-      },
-      parseDOM: [{ tag: "hr" }],
-      toDOM() {
-        return ["div", { class: "horizontal-rule" }, ["hr"]]
-      }
-    },
-    heading: {
-      attrs: {
-        level: { default: 1 },
-        markup: { default: "#" },
-        marked: { default: null }
-      },
-      content: "inline*",
-      group: "block",
-      defining: true,
-      parseDOM: [
-        { tag: "h1", attrs: { level: 1 } },
-        { tag: "h2", attrs: { level: 2 } },
-        { tag: "h3", attrs: { level: 3 } },
-        { tag: "h4", attrs: { level: 4 } },
-        { tag: "h5", attrs: { level: 5 } },
-        { tag: "h6", attrs: { level: 6 } }
-      ],
-      toDOM(node) {
-        return [
-          "h" + node.attrs.level,
-          {
-            markup: node.attrs.markup
-          },
-          0
-        ]
-      }
-    },
-    code_block: {
-      content: "text*",
-      group: "block",
-      code: true,
-      defining: true,
-      attrs: { params: { default: "" } },
-      parseDOM: [
-        {
-          tag: "pre",
-          preserveWhitespace: true,
-          getAttrs(node) {
-            return {
-              params: node.getAttribute("data-params")
-            }
-          }
-        }
-      ],
-      toDOM(node) {
-        return [
-          "pre",
-          node.attrs.params ? { "data-params": node.attrs.params } : {},
-          ["code", 0]
-        ]
-      }
-    },
-    ordered_list: {
-      content: "list_item+",
-      group: "block",
-      attrs: { order: { default: 1 }, tight: { default: false } },
-      parseDOM: [
-        {
-          tag: "ol",
-          getAttrs(dom) {
-            return {
-              order: dom.hasAttribute("start") ? +dom.getAttribute("start") : 1,
-              tight: dom.hasAttribute("data-tight")
-            }
-          }
-        }
-      ],
-      toDOM(node) {
-        return [
-          "ol",
-          {
-            start: node.attrs.order == 1 ? null : node.attrs.order,
-            "data-tight": node.attrs.tight ? "true" : null
-          },
-          0
-        ]
-      }
-    },
+export type AttributeParseRule = {
+  type: string,
+  tag?: string,
+  +priority?: number,
 
-    bullet_list: {
-      content: "list_item+",
-      group: "block",
-      attrs: { tight: { default: false } },
-      parseDOM: [
-        {
-          tag: "ul",
-          getAttrs: dom => ({ tight: dom.hasAttribute("data-tight") })
-        }
-      ],
-      toDOM(node) {
-        return ["ul", { "data-tight": node.attrs.tight ? "true" : null }, 0]
-      }
-    },
+  attrs?: Object,
+  getAttrs?: Token => ?Object,
+  createMarkup?: void,
+  createNode?: void
+}
 
-    list_item: {
-      content: "paragraph block*",
-      defining: true,
-      parseDOM: [{ tag: "li" }],
-      toDOM() {
-        return ["li", 0]
-      }
-    },
+export type MarkParseRule<a> = {
+  type: string,
+  tag?: string,
+  +priority?: number,
 
-    text: {
-      group: "inline",
-      toDOM(node): string {
-        return node.text || ""
-      }
-    },
+  attrs?: a,
+  getAttrs: Token => ?a,
+  createMarkup: (Schema, a, Mark[]) => [Node[], 0, Node[]],
+  createNode?: void
+}
 
-    image: {
-      inline: true,
-      attrs: {
-        src: {},
-        alt: { default: null },
-        title: { default: null },
-        marked: { default: null }
-      },
-      group: "inline",
-      draggable: true,
-      parseDOM: [
-        {
-          tag: "img[src]",
-          getAttrs(dom) {
-            return {
-              src: dom.getAttribute("src"),
-              title: dom.getAttribute("title"),
-              alt: dom.getAttribute("alt")
-            }
-          }
-        }
-      ],
-      toDOM(node) {
-        return ["img", node.attrs]
-      }
-    },
+export type NodeParseRule<a> = {
+  type: string,
+  tag?: string,
+  +priority?: number,
 
-    hard_break: {
-      inline: true,
-      group: "inline",
-      selectable: false,
-      parseDOM: [{ tag: "br" }],
-      toDOM() {
-        return ["br"]
-      }
-    }
-  },
-  marks: {
-    // em: {
-    //   parseDOM: [{tag: "i"}, {tag: "em"},
-    //              {style: "font-style", getAttrs: value => value == "italic" && null}],
-    //   toDOM() { return ["em"] }
-    // },
+  attrs?: a,
+  getAttrs: Token => ?a,
+  createMarkup?: void,
+  createNode: (Schema, a, ProseMirror.Node[], Mark[]) => Node
+}
 
-    // strong: {
-    //   parseDOM: [{tag: "b"}, {tag: "strong"},
-    //              {style: "font-weight", getAttrs: value => /^(bold(er)?|[5-9]\d{2,})$/.test(value) && null}],
-    //   toDOM() { return ["strong"] }
-    // },
+export type SerilizedNode = {}
 
-    // link: {
-    //   attrs: {
-    //     href: {},
-    //     title: {default: null}
-    //   },
-    //   inclusive: false,
-    //   parseDOM: [{tag: "a[href]", getAttrs(dom) {
-    //     return {href: dom.getAttribute("href"), title: dom.getAttribute("title")}
-    //   }}],
-    //   toDOM(node) { return ["a", node.attrs] }
-    // },
+export type SerilizedMark = {
+  open: string,
+  close: string,
+  ignore?: boolean,
+  mixable?: boolean,
+  expelEnclosingWhitespace?: boolean
+}
 
-    // code: {
-    //   parseDOM: [{tag: "code"}],
-    //   toDOM() { return ["code"] }
-    // },
+export type NodeSpec = ProseMirror.NodeSpec & {
+  parseMarkdown?: (AttributeParseRule | NodeParseRule<*>)[],
+  serializeMarkdown?: (Node, Serializer) => SerilizedNode
+}
 
-    code: {
-      // inline: true,
-      code: true,
-      group: "inline code",
-      // content: "text*",
-      // selectable: true,
+export type MarkSpec = ProseMirror.MarkSpec & {
+  parseMarkdown?: (AttributeParseRule | MarkParseRule<*>)[],
+  serializeMarkdown?: Mark => SerilizedMark
+}
 
-      // excludes: "_",
-      attrs: {
-        markup: { default: "`" },
-        marked: { default: null }
-      },
-      parseDOM: [{ tag: "code" }],
-      toDOM(node) {
-        return ["code", node.attrs]
-      }
-    },
-    strong: {
-      inline: true,
-      group: "inline",
-      content: "inline*",
-      selectable: true,
-      defining: true,
-      attrs: {
-        markup: { default: "**" },
-        marked: { default: null }
-      },
+export type SchemaSpec = {
+  nodes: { [string]: NodeSpec },
+  marks?: { [string]: MarkSpec },
+  topNode?: string
+}
 
-      parseDOM: [
-        { tag: "b" },
-        { tag: "strong" },
-        {
-          style: "font-weight",
-          getAttrs: value => /^(bold(er)?|[5-9]\d{2,})$/.test(value) && null
-        }
-      ],
-      toDOM(node) {
-        return ["strong", node.attrs]
-      }
-    },
-    em: {
-      inline: true,
-      group: "inline",
-      content: "inline*",
-      selectable: true,
-      attrs: {
-        markup: { default: "_" },
-        marked: { default: null }
-      },
-
-      parseDOM: [
-        { tag: "i" },
-        { tag: "em" },
-        { style: "font-style", getAttrs: value => value == "italic" && null }
-      ],
-      toDOM(node) {
-        return ["em", node.attrs]
-      }
-    },
-    strike_through: {
-      inline: true,
-      group: "inline",
-      content: "inline*",
-      selectable: true,
-      attrs: {
-        markup: { default: "~~" },
-        marked: { default: null }
-      },
-
-      parseDOM: [
-        { tag: "del" },
-        {
-          style: "text-decoration",
-          getAttrs: $ => $ === "line-through" && null
-        }
-      ],
-      toDOM(node) {
-        return ["del", node.attrs]
-      }
-    },
-    link: {
-      inline: true,
-      group: "inline",
-      content: "text*",
-      selectable: true,
-      defining: true,
-
-      attrs: {
-        href: {},
-        title: { default: null }
-      },
-      parseDOM: [
-        {
-          tag: "a[href]",
-          getAttrs(dom) {
-            return {
-              href: dom.getAttribute("href"),
-              title: dom.getAttribute("title")
-            }
-          }
-        }
-      ],
-      toDOM(node) {
-        return ["a", node.attrs, 0]
-      }
-    }
+export default class Schema extends ProseMirror.Schema {
+  markdownSpec: SchemaSpec
+  constructor(spec: SchemaSpec) {
+    super(spec)
+    this.markdownSpec = spec
   }
-})
-
-export default schema
+}

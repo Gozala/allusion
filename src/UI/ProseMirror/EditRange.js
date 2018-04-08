@@ -236,6 +236,10 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
   const content = node.isBlock
     ? Parser.parse(markup)
     : Parser.parseInline(markup)
+  if (content instanceof Error) {
+    console.error(content)
+    return tr
+  }
   const output = content.firstChild && createFrom(node.type, content.firstChild)
   // If output is missing, which should never be the case, but if it does it's
   // better to just keep whatever user typed unchanged).

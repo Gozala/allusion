@@ -15,6 +15,7 @@ import { dropCursor } from "prosemirror-dropcursor"
 import { gapCursor } from "prosemirror-gapcursor"
 import { menuBar, type MenuItem } from "prosemirror-menu"
 import * as Placeholder from "./ProseMirror/Placeholder"
+import * as Markup from "./ProseMirror/Markup"
 import * as TabIndex from "./ProseMirror/TabIndex"
 import keyBindings from "./Allusion/KeyBindings"
 import CodeBlock from "./ProseMirror/CodeBlock"
@@ -25,10 +26,10 @@ import {
   updateRange,
   EditRange
 } from "./ProseMirror/EditRange"
-import { findMarkupRange } from "./ProseMirror/Marks"
 import Parser from "./Allusion/Parser"
 import Serializer from "./Allusion/Serializer"
 import { createFrom } from "./ProseMirror/Node"
+import panic from "panic.flow"
 
 export class Model {
   state: EditorState
@@ -59,13 +60,18 @@ const editorPlugins = [
   history(),
   Placeholder.plugin(),
   CodeBlock.plugin(),
-  TabIndex.plugin()
+  TabIndex.plugin(),
+  Markup.plugin()
 ]
 
 export const init = () => parse("")
 
 export const parse = (markdown: string) => {
-  let content = Parser.parse(markdown).content
+  const root = Parser.parse(markdown)
+  if (root instanceof Error) {
+    return panic()
+  }
+  let { content } = root
   let title
   let author
   let article
@@ -160,6 +166,10 @@ export const update = match({
 
 export const selectionChange = (model: Model, change: Transaction): Model => {
   const { state, editRange } = model
+  if (true) {
+    return new Model(state.apply(change), editRange)
+  }
+
   const { selection, doc } = change
   const range = editableRange(selection)
   const index = selection.$cursor ? selection.from : -1
@@ -199,6 +209,9 @@ export const selectionChange = (model: Model, change: Transaction): Model => {
 
 export const edit = (model: Model, tr: Transaction): Model => {
   const { selection } = tr
+  if (true) {
+    return Model.edit(tr, model)
+  }
 
   if (!selection.empty) {
     return selectionChange(model, tr)

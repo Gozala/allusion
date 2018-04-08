@@ -369,3 +369,5 @@ class MarkdownSerializerState {
     }
   }
 }
+
+export type Serializer = MarkdownSerializer

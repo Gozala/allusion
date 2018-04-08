@@ -5,6 +5,7 @@ import type { MarkType, ResolvedPos, Node, Fragment } from "prosemirror-model"
 import { Decoration, DecorationSet } from "prosemirror-view"
 import { Mark } from "prosemirror-model"
 import { nodePosition, resolvePosition } from "./Position"
+import { nodeBy } from "./Node"
 
 export type Marker = {
   mark: Mark,
@@ -41,8 +42,22 @@ export const getMarkupMarksAround = (at: ResolvedPos): string[] => {
   return [...markMarkup]
 }
 
+export const getMarks = (node: Node): Mark[] => {
+  let marks = node.marks
+  for (const mark of marks) {
+    const markupMarks = mark.attrs.marks
+    if (markupMarks) {
+      for (const mark of markupMarks) {
+        marks = mark.addToSet(marks)
+      }
+    }
+  }
+  return marks
+}
+
 export const getMarkup = (node: Node): string[] => {
   let result = new Set()
+
   const marks = node.marks
   for (const mark of marks) {
     const markup: string = mark.attrs.markup || ""
@@ -50,68 +65,24 @@ export const getMarkup = (node: Node): string[] => {
       result.add(markup)
     }
 
-    const marks = mark.attrs.marks || ""
-    if (marks != "") {
+    const marks = mark.attrs.marks
+    if (marks) {
       for (const markup of marks.split(" ")) {
         result.add(markup)
       }
     }
   }
-  return [...result]
-}
 
-export const findMarkupRange = (position: ResolvedPos): [number, number] => {
-  const marks = getMarkupMarksAround(position)
-  return [
-    findMarkupRangeStart(position, marks),
-    findMarkupRangeEnd(position, marks)
-  ]
-}
-
-export const findMarkupBoundry = (
-  anchor: ResolvedPos,
-  marks: string[],
-  dir: -1 | 1
-): number => {
-  let offset = anchor.pos
-  let { depth, textOffset } = anchor
-  let n = marks.length
-
-  while (depth >= 0) {
-    const node = anchor.node(depth)
-    if (isEditNode(node)) {
-      offset = dir > 0 ? anchor.after(depth) : anchor.start(depth) + dir
-    } else {
-      const { childCount } = node
-      let mark = marks[--n]
-      if (mark) {
-        offset = offset === anchor.pos ? offset - textOffset : offset
-        // If walking left then we want to jump to the start of the node under given
-        // position so we decrement index and subtract textOffset. If we are walking
-        // right we still subtract textOffset but use unmodified index to consider
-        // this node as well.
-        let index =
-          anchor.index(depth) + (depth === anchor.depth && dir > 0 ? 0 : dir)
-
-        while (index >= 0 && index < childCount && mark != null) {
-          const child = node.child(index)
-          if (isMarkedWith(child, mark)) {
-            const size = child.isText ? child.nodeSize : child.nodeSize
-            offset += dir * size
-            index += dir
-          } else {
-            mark = n > 0 ? marks[--n] : null
-          }
-        }
+  const nodeMarks = node.attrs.marks
+  if (nodeMarks) {
+    if (marks) {
+      for (const markup of nodeMarks.split(" ")) {
+        result.add(markup)
       }
-      // Only get parents as long as we it's an editNode
-      depth = 0
     }
-
-    depth--
   }
 
-  return offset
+  return [...result]
 }
 
 export const findBoundry = (anchor: ResolvedPos, dir: -1 | 1) => {
@@ -140,28 +111,30 @@ export const findNodeBoundry = (
 }
 
 export const findMarkedBoundry = (
-  marks: string[],
-  index: number,
+  marks: Mark[],
+  position: number,
   anchor: Node,
   dir: -1 | 1,
   root: Node
 ): number => {
-  let offset = index
+  let boundry = position
   const size = root.content.size
   let n = marks.length
   let mark = marks[--n]
   let node = anchor
+  let offset = boundry
   while (node && mark) {
     if (isMarkedWith(node, mark)) {
-      offset += dir * node.nodeSize
+      boundry = dir < 0 ? offset : offset + node.nodeSize
 
-      const next = dir < 0 ? offset + dir : offset
-      node = next > 0 && next < size ? root.nodeAt(next) : null
+      void ({ offset, node } = nodeBy(root, boundry, dir))
+      // const next = dir < 0 ? offset + dir : offset
+      // node = next >= 0 && next < size ? root.nodeAt(next) : null
     } else {
       mark = marks[--n]
     }
   }
-  return offset
+  return boundry
 }
 
 export const findEditBoundry = (
@@ -171,11 +144,11 @@ export const findEditBoundry = (
   dir: -1 | 1,
   root: Node
 ): number => {
-  let offset = findNodeBoundry(isEditNode, index, anchor, dir, root)
+  let offset = findNodeBoundry(isIncluded, index, anchor, dir, root)
   let node = index === offset ? anchor : root.nodeAt(offset)
   return node == null
     ? offset
-    : findMarkedBoundry(getMarkup(anchor), offset, node, dir, root)
+    : findMarkedBoundry(getMarks(anchor), offset, node, dir, root)
 }
 
 export const findEditRange = (
@@ -241,36 +214,33 @@ const getNodeBoundry = (anchor: ResolvedPos, dir: -1 | 1): number => {
   }
 }
 
-export const isMarkedWith = (node: Node, mark: string): boolean =>
+export const isMarkedWith = (node: Node, mark: Mark): boolean =>
   isNodeMarkedWith(node, mark) || isInlineNodeContentMarkedWith(node, mark)
 
-const isNodeMarkedWith = (node: Node, mark: string): boolean =>
-  node.marks.some(
-    ({ attrs: { markup, marks } }) =>
-      markup === mark || icludesMark(marks, mark)
-  )
+const isNodeMarkedWith = (node: Node, mark: Mark): boolean => {
+  for (const nodeMark of node.marks) {
+    if (nodeMark.eq(mark)) {
+      return true
+    }
+    const { marks } = nodeMark.attrs
+    if (marks && mark.isInSet(marks)) {
+      return true
+    }
+  }
+  return false
+}
 
 // prose-mirror bug https://github.com/ProseMirror/prosemirror/issues/780 causes
 // marked links to get unmarked moving those marks down into it's content. In
 // order to avoid incorrect behavior we check all of the node content, if all of
 // it is marked we treat it as marked node.
-const isInlineNodeContentMarkedWith = (node: Node, mark: string): boolean =>
+const isInlineNodeContentMarkedWith = (node: Node, mark: Mark): boolean =>
   !node.isText && node.isInline && isFragmentMarkedWith(node.content, mark)
 
-const isFragmentMarkedWith = (fragment: Fragment, mark: string): boolean =>
+const isFragmentMarkedWith = (fragment: Fragment, mark: Mark): boolean =>
   fragment.content.every(node => isMarkedWith(node, mark))
 
 const icludesMark = (marks, mark) => `${marks} `.includes(`${mark} `)
-
-export const findMarkupRangeStart = (
-  position: ResolvedPos,
-  marks: string[]
-): number => findMarkupBoundry(position, marks, -1)
-
-export const findMarkupRangeEnd = (
-  position: ResolvedPos,
-  marks: string[]
-): number => findMarkupBoundry(position, marks, 1)
 
 export const isMarkup = (mark: Mark) => {
   const { group } = mark.type.spec

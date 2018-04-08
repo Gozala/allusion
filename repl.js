@@ -20,6 +20,8 @@ Object.defineProperty(Transform.prototype, ("toString": string), {
 
   let docBefore = Parser.parse(before) //?$.toString()
   let docAfter = Parser.parse(after) //?$.toString()
+  if (docBefore instanceof Error) throw 1
+  if (docAfter instanceof Error) throw 2
 
   docBefore.content.findDiffStart(docAfter.content) //?
   docBefore.content.findDiffEnd(docAfter.content) //?
@@ -48,6 +50,12 @@ Object.defineProperty(Transform.prototype, ("toString": string), {
 
   let docBefore = Parser.parse(before) //?$.toString()
   let docAfter = Parser.parse(after) //?$.toString()
+  if (docBefore instanceof Error) {
+    throw docBefore
+  }
+  if (docAfter instanceof Error) {
+    throw docAfter
+  }
 
   encode(docBefore) //?
   encode(docAfter) //?
