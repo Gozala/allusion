@@ -86,11 +86,13 @@ declare module "prosemirror-state" {
     replaceSelectionWith(node: Node, inheritMarks?: boolean): Transaction;
     deleteSelection(): Transaction;
     insertText(text: string, from?: number, to?: number): Transaction;
-    setMeta<state>(
+    setMeta<state, value>(
       key: string | Plugin<state> | PluginKey<state>,
-      value: state
+      value: value
     ): Transaction;
-    getMeta<state>(key: string | Plugin<state> | PluginKey<state>): state;
+    getMeta<state, value>(
+      key: string | Plugin<state> | PluginKey<state>
+    ): value;
     isGeneric: boolean;
     scrollIntoView(): Transaction;
   }
@@ -172,17 +174,17 @@ declare module "prosemirror-state" {
   }
 
   declare export interface PluginSpec<state> {
-    props?: EditorProps;
-    state?: StateField<state>;
-    key?: PluginKey<state>;
+    +props?: EditorProps;
+    +state?: StateField<state>;
+    +key?: PluginKey<state>;
 
-    view?: EditorView => {
-      update?: ?(view: EditorView, prevState: EditorState) => state,
-      destroy?: ?() => void
+    +view?: EditorView => {
+      +update?: ?(view: EditorView, prevState: EditorState) => void,
+      +destroy?: ?() => void
     };
 
-    filterTransaction?: (Transaction, EditorState) => boolean;
-    appendTransaction?: (
+    +filterTransaction?: (Transaction, EditorState) => boolean;
+    +appendTransaction?: (
       Transaction[],
       oldState: EditorState,
       newState: EditorState
