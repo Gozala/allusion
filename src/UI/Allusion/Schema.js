@@ -752,8 +752,8 @@ export default new Schema({
       inclusive: false,
       attrs: {
         href: {},
-        title: { default: null },
-        marked: { default: null }
+        auto: { default: false },
+        title: { default: null }
       },
       parseDOM: [
         {
@@ -774,11 +774,16 @@ export default new Schema({
           type: "link",
           getAttrs(token) {
             return {
+              auto: token.info === "auto",
               href: token.attrGet("href"),
               title: token.attrGet("title")
             }
           },
           createMarkup(schema, attrs, marks) {
+            if (attrs.auto) {
+              return [[], 0, []]
+            }
+
             const markup = [
               schema.mark("markup", {
                 class: "inline markup",
