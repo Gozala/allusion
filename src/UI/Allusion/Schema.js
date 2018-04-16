@@ -6,7 +6,6 @@ import type {
   NodeParseRule,
   MarkParseRule
 } from "../Markdown/Schema"
-import { Link, Address, URL, Title, Words, Markup } from "./NodeView/Link"
 import OrderedMap from "orderedmap"
 import type {
   DOMOutputSpec,
@@ -355,6 +354,19 @@ export default new Schema({
               class: token.attrGet("class"),
               markup: token.markup
             }
+          },
+          _createNode(schema, attributes, content, marks) {
+            return schema.node("list_item", attributes, [
+              schema.node("paragraph", null, [
+                schema.text(attributes.markup, [
+                  schema.mark("markup", {
+                    class: "list markup",
+                    marks
+                  })
+                ])
+              ]),
+              ...content
+            ])
           }
         }
       ]
@@ -369,6 +381,7 @@ export default new Schema({
 
     image: new EditNode({
       inline: true,
+      selectable: true,
       attrs: {
         src: {},
         alt: { default: null },
@@ -562,6 +575,7 @@ export default new Schema({
       isolating: true,
       group: "inline",
       content: "text*",
+      selectable: true,
       draggable: false,
       attrs: {
         src: {},
@@ -586,7 +600,11 @@ export default new Schema({
           "picture",
           { class: "image" },
           ["span", { class: "image markup" }, 0],
-          ["span", { contenteditable: false }, ["img", node.attrs]]
+          [
+            "span",
+            { class: "image container", contenteditable: false },
+            ["img", node.attrs]
+          ]
         ]
       },
       parseMarkdown: [
@@ -599,6 +617,17 @@ export default new Schema({
               title: token.attrGet("title") || null,
               alt: (token.children[0] && token.children[0].content) || null
             }
+          },
+          createNode(schema, attributes, content, marks) {
+            const { src, alt } = attributes
+            const title = attributes.title ? `"${attributes.title}"` : ""
+
+            return schema.node(
+              "expandedImage",
+              attributes,
+              [schema.text(`![${alt}](${src} ${title})`, marks)],
+              marks
+            )
           }
         }
       ]
@@ -623,7 +652,7 @@ export default new Schema({
             return schema.node("expandedHorizontalRule", attributes, [
               schema.text(attributes.markup, [
                 schema.mark("markup", {
-                  class: "inline markup",
+                  class: "horizontal-rule markup",
                   marks
                 })
               ])
@@ -634,9 +663,13 @@ export default new Schema({
       toDOM() {
         return [
           "div",
-          { class: "horizontal-rule expanded" },
+          { class: "horizontal-rule" },
           ["span", { class: "horizontal-rule-markup" }, 0],
-          ["span", { contenteditable: false }, ["hr"]]
+          [
+            "span",
+            { class: "horizontal-rule-line", contenteditable: false },
+            ["hr"]
+          ]
         ]
       }
     })
@@ -663,7 +696,7 @@ export default new Schema({
       },
       toDOM(node) {
         return [
-          "u",
+          "span",
           {
             class: node.attrs.class,
             code: node.attrs.code,
@@ -686,6 +719,27 @@ export default new Schema({
       parseMarkdown: [
         {
           type: "code_inline",
+          createMarkup(schema, attrs, marks) {
+            return [
+              [
+                schema.text(attrs.markup, [
+                  schema.mark("markup", {
+                    class: "inline code markup open",
+                    marks
+                  })
+                ])
+              ],
+              0,
+              [
+                schema.text(attrs.markup, [
+                  schema.mark("markup", {
+                    class: "inline code markup close",
+                    marks
+                  })
+                ])
+              ]
+            ]
+          },
           getAttrs(token) {
             return {
               markup: token.markup
@@ -724,34 +778,6 @@ export default new Schema({
               title: token.attrGet("title")
             }
           },
-          openMark(schema, attrs, marks) {
-            return [
-              schema.text("[", [
-                schema.mark("markup", {
-                  class: "inline markup",
-                  marks
-                })
-              ])
-            ]
-          },
-          closeMark(schema, attrs, marks) {
-            const markup = [
-              schema.mark("markup", {
-                class: "inline markup",
-                marks
-              })
-            ]
-
-            const title =
-              attrs.title == null ? "" : JSON.stringify(String(attrs.title))
-            const href = attrs.href || "#"
-
-            return [
-              schema.text("](", markup),
-              schema.text(`${href} ${title}`, markup),
-              schema.text(")", markup)
-            ]
-          },
           createMarkup(schema, attrs, marks) {
             const markup = [
               schema.mark("markup", {
@@ -769,7 +795,18 @@ export default new Schema({
               0,
               [
                 schema.text("](", markup),
-                schema.text(`${href} ${title}`, markup),
+                schema.text(`${href}`, [
+                  schema.mark("markup", {
+                    class: "inline url markup",
+                    marks
+                  })
+                ]),
+                schema.text(` ${title}`, [
+                  schema.mark("markup", {
+                    class: "inline title markup",
+                    marks
+                  })
+                ]),
                 schema.text(")", markup)
               ]
             ]

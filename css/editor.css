@@ -414,22 +414,31 @@ article h1 {
   font-size: 1.8em;
 }
 
-.ProseMirror blockquote p::before {
-  content: ">";
-  opacity: 0.04;
-  white-space: pre;
-  font-family: Consolas, "Lucida Console", Monaco, monospace;
-}
-
 .ProseMirror code {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: var(--code-background);
   border-radius: 2px;
   outline: none;
   white-space: pre !important;
-  font-family: Consolas, "Lucida Console", Monaco, monospace;
+  font-family: var(--code-font);
   margin: 0 0.2rem;
   padding: 0 0.2rem;
-  box-shadow: rgba(0, 0, 0, 0.02) 0px 0px 0px 2px;
+  /* box-shadow: rgba(0, 0, 0, 0.02) 0px 0px 0px 2px; */
+}
+
+.ProseMirror .CodeMirror {
+  font-family: Consolas, "Lucida Console", Monaco, monospace;
+  border: none;
+  height: auto;
+
+  padding: 1rem;
+
+  background-color: var(--code-background);
+  border-radius: 4px;
+  margin: 1.5rem 0.2rem;
+}
+
+.ProseMirror .CodeMirror pre {
+  white-space: pre !important;
 }
 
 body {
@@ -440,22 +449,6 @@ body {
 .markup {
   text-decoration: none;
   color: initial;
-}
-
-.markup[code],
-.markup[code] * {
-  text-decoration: none;
-  border-radius: 0;
-  outline: none;
-  white-space: pre !important;
-  font-family: var(--markup-font);
-  font-style: normal;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  font-weight: normal;
-  color: var(--markup-color);
-  box-shadow: none;
 }
 
 .markup.heading {
@@ -476,26 +469,14 @@ u {
   --markup-font: Consolas, "Lucida Console", Monaco, monospace;
   --edit-block-color: rgb(152, 243, 152);
   --edit-range-color: rgba(252, 255, 94, 0.3);
+
+  --code-font: Consolas, "Lucida Console", Monaco, monospace;
+  --code-background: rgb(249, 249, 249);
 }
 
 .markup {
   color: var(--markup-color);
   font-family: var(--markup-font);
-}
-
-.edit-block > p,
-.edit-block > a,
-.edit-block > picture,
-.edit-block > .horizontal-rule,
-.edit-block > img,
-.edit-block > .ProseMirror-selectednode,
-.edit-block > h1,
-.edit-block > h2,
-.edit-block > h3,
-.edit-block > h4,
-.edit-block > h5,
-.edit-block > h6 {
-  outline: 1px dotted var(--edit-block-color);
 }
 
 picture.image {
@@ -515,6 +496,24 @@ img {
   max-width: 100%;
 }
 
+img::before {
+  content: " ";
+  left: 0;
+  height: calc(100% + 10px);
+  width: 100%;
+  background-color: rgb(230, 230, 230);
+  border: 2px dotted rgb(200, 200, 200);
+  border-radius: 5px;
+}
+
+img::after {
+  content: "\f03e";
+  font-size: 46px;
+  font-style: normal;
+  font-family: FontAwesome;
+  color: rgb(100, 100, 100);
+}
+
 picture.image .image.markup {
   position: absolute;
   left: 0;
@@ -527,6 +526,10 @@ picture.image .image.markup {
   padding: 10px;
   z-index: 2;
   /* backdrop-filter: blur(10px); */
+}
+
+picture.image .image.container {
+  position: relative;
 }
 
 .horizontal-rule {
@@ -633,16 +636,17 @@ a {
 
 /*********************************************************/
 
-[data-edit-block] {
-  box-shadow: inset 0px 0px 0px 20px rgba(255, 249, 18, 0.32);
+.debug [data-edit-block] {
+  box-shadow: inset 0px 0px 0px 20px rgba(255, 249, 18, 0.1);
 }
 
-[data-edit-range] {
-  box-shadow: inset 0px 0px 0px 20px rgba(255, 144, 18, 0.32);
+.debug [data-edit-range] {
+  box-shadow: inset 0px 0px 0px 20px rgba(255, 144, 18, 0.1);
 }
 
 .inline.markup {
   display: none;
+  line-height: 0;
 }
 
 [data-edit-block] .inline.markup {
@@ -650,16 +654,15 @@ a {
 }
 
 .inline.markup [data-edit-block-range] {
-  /* display: none; */
-  z-index: -1;
   opacity: 0;
+  visibility: collapse;
   position: absolute;
 }
 
 .inline.markup [data-edit-range] {
-  /* display: initial; */
-  opacity: 1;
   position: relative;
+  visibility: visible;
+  opacity: 1;
 }
 
 .block.markup {
@@ -677,16 +680,59 @@ header .heading.markup {
   display: none;
 }
 
-picture .image.markup {
+picture .image.markup,
+.horizontal-rule.markup {
   opacity: 0;
 }
 
-[data-edit-range] .image.markup {
+[data-edit-range] .image.markup,
+[data-edit-block] .horizontal-rule.markup {
   opacity: 1;
   transition: opacity 0.5s ease;
 }
 
-[data-edit-block] picture.image img {
+[data-edit-range] picture.image img {
   filter: grayscale(20%) brightness(80%);
   transition: filter 0.5s ease;
+}
+
+li .list.markup {
+  z-index: -1;
+  opacity: 0;
+  position: absolute;
+}
+
+[data-edit-block-range] {
+  overflow: hidden;
+}
+
+/*
+Disable margin for inline code that has markup displayed otherwise spacing
+leaves incorrect impression of traling white-space.
+*/
+.inline.code.markup {
+  font-family: var(--code-font);
+  color: black;
+  border-radius: 2px;
+}
+
+.inline.code.close.markup [data-edit-range] {
+  margin-left: -0.5rem;
+}
+
+.inline.code.open.markup [data-edit-range] {
+  margin-right: -0.5rem;
+}
+
+.url.markup {
+  text-decoration: underline;
+  color: rgb(92, 128, 140);
+}
+
+.title.markup {
+  color: rgb(92, 92, 92);
+}
+
+a {
+  color: rgb(68, 132, 194);
 }
