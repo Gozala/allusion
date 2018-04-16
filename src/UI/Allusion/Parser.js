@@ -16,6 +16,7 @@ tokenizer.use(TaskList, { label: true, labelAfter: true, enabled: true })
 tokenizer.block.ruler.at("paragraph", Paragraph)
 tokenizer.block.ruler.at("heading", Heading)
 tokenizer.block.ruler.at("hr", HorizontalRule)
+tokenizer.block.ruler.disable("table")
 
 export default MarkdownParser.fromSchema(schema, tokenizer)
 /*, {
