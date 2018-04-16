@@ -109,6 +109,16 @@ export default new Serializer(
     }
   },
   {
+    link: {
+      open(state, mark) {
+        return `[`
+      },
+      close(state, mark) {
+        const url = state.esc(mark.attrs.href)
+        const title = mark.attrs.title ? state.quote(mark.attrs.title) : ""
+        return `](${url} ${title})`
+      }
+    },
     em: {
       open: unmarkedMarkup,
       close: unmarkedMarkup,
@@ -136,8 +146,8 @@ export default new Serializer(
       // expelEnclosingWhitespace: true
     },
     code: {
-      open: unmarkedMarkup,
-      close: unmarkedMarkup,
+      open: "",
+      close: "",
       mixable: false
     }
   }
