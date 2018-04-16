@@ -72,13 +72,18 @@ export default class Process<message, model, options = void> {
     }
   }
   async unpark() {
-    this.parked = false
-    while (this.inbox.length > 0) {
-      const message = await this.inbox.shift()
-      this.state = this.update(message, this.state)
-      this.transact()
+    try {
+      this.parked = false
+      while (this.inbox.length > 0) {
+        const message = await this.inbox.shift()
+        this.state = this.update(message, this.state)
+        this.transact()
+      }
+      this.parked = true
+    } catch (error) {
+      this.parked = true
+      throw error
     }
-    this.parked = true
   }
 
   static spawn<message, model, options>(
