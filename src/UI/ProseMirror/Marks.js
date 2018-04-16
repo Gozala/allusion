@@ -105,7 +105,7 @@ export const findNodeBoundry = (
   let node = anchor
   while (node && isIncluded(node)) {
     offset += dir * node.nodeSize
-    node = root.nodeAt(offset + dir)
+    node = root.nodeAt(dir > 0 ? offset : offset + dir)
   }
   return offset
 }
