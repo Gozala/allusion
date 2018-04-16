@@ -485,18 +485,25 @@ export class MarkdownParser extends FragmentParser {
     tokens: Token[],
     nodeType: NodeType = this.schema.topNodeType
   ): Error | Node {
-    this.top = this
+    try {
+      this.top = this
 
-    const error = this.handleTokens(tokens)
-    if (error) {
+      const error = this.handleTokens(tokens)
+      if (error) {
+        return error
+      }
+
+      this.top.exit()
+      const node = nodeType.create(null, this.content.splice(0), this.marks)
+      this.top = top
+      this.marks = Mark.none
+
+      return node
+    } catch (error) {
+      this.top = this
+      this.marks = Mark.none
       return error
     }
-
-    this.top.exit()
-    const node = nodeType.create(null, this.content.splice(0), this.marks)
-    this.marks = Mark.none
-
-    return node
   }
   handleTokens(tokens: Token[]): ?Error {
     for (const token of tokens) {
@@ -565,8 +572,8 @@ export class MarkdownParser extends FragmentParser {
 }
 
 const createAttributeTokenDecoder = <a>(
-  {attrs, getAttrs }: {attrs ?: a, getAttrs?: Token => ?a },
+  { attrs, getAttrs }: { attrs?: a, getAttrs?: Token => ?a },
   fallback: Token => ?a
 ): TokenDecoder<a> => {
   return attrs != null ? always(attrs) : getAttrs != null ? getAttrs : fallback
-        }
+}
