@@ -509,12 +509,16 @@ export class MarkdownParser extends FragmentParser {
   handleOpenToken(token: Token) {
     const { handlers } = this
     const rules = handlers[token.type]
-    for (const rule of rules) {
-      const parser = rule.match(token, this.schema, this.top)
-      if (parser != null) {
-        this.top = parser.enter()
-        return null
+    if (rules) {
+      for (const rule of rules) {
+        const parser = rule.match(token, this.schema, this.top)
+        if (parser != null) {
+          this.top = parser.enter()
+          return null
+        }
       }
+    } else {
+      return RangeError(`Parser has no rules to match "${token.type}" token`)
     }
 
     return RangeError(`Parser was unable to match "${token.type}" token`)
@@ -561,8 +565,8 @@ export class MarkdownParser extends FragmentParser {
 }
 
 const createAttributeTokenDecoder = <a>(
-  { attrs, getAttrs }: { attrs?: a, getAttrs?: Token => ?a },
+  {attrs, getAttrs }: {attrs ?: a, getAttrs?: Token => ?a },
   fallback: Token => ?a
 ): TokenDecoder<a> => {
   return attrs != null ? always(attrs) : getAttrs != null ? getAttrs : fallback
-}
+        }
