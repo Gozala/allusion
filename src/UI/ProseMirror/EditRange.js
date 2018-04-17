@@ -187,15 +187,13 @@ export const editableRange = (selection: Selection): EditRange => {
 export const isEditBlock = (node: Node): boolean => {
   const { nodes } = node.type.schema
   switch (node.type) {
-    case nodes.expandedImage:
-    case nodes.expandedHorizontalRule:
-    case nodes.expandedImage:
+    // case nodes.expandedImage:
     case nodes.expandedHorizontalRule:
     case nodes.intro:
     case nodes.paragraph:
     case nodes.heading:
     case nodes.horizontal_rule:
-    case nodes.image:
+    // case nodes.image:
     case nodes.title:
     case nodes.author:
       return true
@@ -325,4 +323,78 @@ export const updateRange = (range: EditRange, tr: Transaction): Transaction => {
 
     return tr7
   }
+}
+
+export const editBlock = ({ $anchor, $head, node }: Selection) =>
+  node && isEditBlock(node)
+    ? { index: $anchor.pos, node }
+    : nodePosition(isEditBlock, $anchor)
+
+export const updateDocument = (tr: Transaction): Transaction => {
+  const block = editBlock(tr.selection)
+  if (block) {
+    const { index, node } = block
+
+    const markup = Serializer.serialize(node)
+    const content = node.isBlock
+      ? Parser.parse(markup)
+      : Parser.parseInline(markup)
+
+    if (content instanceof Error) {
+      console.error(content)
+      return tr
+    }
+
+    const output =
+      content.firstChild && createFrom(node.type, content.firstChild)
+
+    if (output && markup === Serializer.serialize(output)) {
+      const offset = textOffsetFromPosition(tr.doc, tr.selection.from)
+      if (offset) {
+        tr.replaceRangeWith(index, index + node.nodeSize, output)
+        const position = positionFromTextOffset(tr.doc, offset)
+        if (position) {
+          return tr.setSelection(TextSelection.create(tr.doc, position))
+        }
+      }
+    }
+  }
+
+  return tr
+}
+
+export const updateMarkup = (tr: Transaction): ?Transaction => {
+  const block = editBlock(tr.selection)
+  if (block) {
+    const { index, node } = block
+
+    const markup = Serializer.serialize(node)
+    const content = node.isBlock
+      ? Parser.parse(markup)
+      : Parser.parseInline(markup)
+
+    if (content instanceof Error) {
+      console.error(content)
+      return null
+    }
+    const output =
+      content.firstChild && createFrom(node.type, content.firstChild)
+
+    if (output == null || node.eq(output)) {
+      return null
+    }
+
+    if (markup === Serializer.serialize(output)) {
+      const offset = textOffsetFromPosition(tr.doc, tr.selection.from)
+      if (offset) {
+        tr.replaceRangeWith(index, index + node.nodeSize, output)
+        const position = positionFromTextOffset(tr.doc, offset)
+        if (position) {
+          return tr.setSelection(TextSelection.create(tr.doc, position))
+        }
+      }
+    }
+  }
+
+  return null
 }

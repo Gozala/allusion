@@ -2,15 +2,18 @@
 
 import { Plugin, TextSelection } from "prosemirror-state"
 import type { Node, ResolvedPos } from "prosemirror-model"
-import type { EditorState, Selection } from "prosemirror-state"
+import type { EditorView } from "prosemirror-view"
+import type { EditorState, Selection, Transaction } from "prosemirror-state"
 import { EditBlock, EditNode } from "../Allusion/Schema"
 import { nodePosition } from "./Position"
 import { findEditRange } from "./Marks"
+import { updateMarkup } from "./EditRange"
 import {
   Decoration,
   DecorationSet,
   type InlineDecorationSpec
 } from "prosemirror-view"
+import { debounce } from "../Allusion/Util"
 
 export const isEditBlock = (node: Node): boolean =>
   node.type.spec instanceof EditBlock
@@ -52,15 +55,21 @@ export const editRangeDecoration = inlineDecoration(
   }
 )
 
-export const decorations = (state: EditorState): DecorationSet => {
-  const { $anchor, $head, node } = state.selection
-  const block = editBlock(state.selection)
+export const decorations = ({
+  doc,
+  selection
+}: {
+  doc: Node,
+  selection: Selection
+}): DecorationSet => {
+  const { $anchor, $head, node } = selection
+  const block = editBlock(selection)
   if (block == null) {
     return DecorationSet.empty
   } else {
     const [start, end] = findEditRange($anchor, isEditNode)
 
-    return DecorationSet.create(state.doc, [
+    return DecorationSet.create(doc, [
       blockDecoration(block.index, block.node),
       editBlockDecoration(block.index, block.node),
       editRangeDecoration(start, end)
@@ -73,9 +82,164 @@ export const editBlock = ({ $anchor, node }: Selection) =>
     ? { index: $anchor.pos, node }
     : nodePosition(isEditBlock, $anchor)
 
-export const plugin = () =>
-  new Plugin({
+class Model {
+  block: ?{ index: number, node: Node }
+  editRange: [number, number]
+  decorations: DecorationSet
+  selectTime: number
+  editTime: number
+  time: number
+  constructor(
+    editBlock: ?{ index: number, node: Node },
+    editRange: [number, number],
+    decorations: DecorationSet,
+    selectTime: number,
+    editTime: number,
+    time: number
+  ) {
+    this.block = editBlock
+    this.editRange = editRange
+    this.decorations = decorations
+    this.selectTime = selectTime
+    this.editTime = editTime
+    this.time = time
+  }
+
+  static new(
+    tr: Transaction,
+    selectTime: number = tr.time,
+    editTime: number = tr.time,
+    time: number = tr.time
+  ) {
+    const block = editBlock(tr.selection)
+    if (block == null) {
+      return new Model(
+        null,
+        [0, 0],
+        DecorationSet.empty,
+        selectTime,
+        editTime,
+        time
+      )
+    } else {
+      const { selection, doc } = tr
+      const { index, node } = block
+      const editRange = findEditRange(selection.$anchor, isEditNode)
+      const [start, end] = editRange
+      const decorations = DecorationSet.create(doc, [
+        blockDecoration(index, node),
+        editBlockDecoration(index, node),
+        editRangeDecoration(start, end)
+      ])
+      return new this(block, editRange, decorations, selectTime, editTime, time)
+    }
+  }
+  withinBlock(selection: Selection) {
+    const { block } = this
+    if (!block) {
+      return false
+    } else {
+      const start = block.index
+      const end = start + block.node.nodeSize
+      const { from, to } = selection
+      return from >= start && from <= end && to >= start && to <= end
+    }
+  }
+  withinRange(selection: Selection) {
+    const [start, end] = this.editRange
+    const { from, to } = selection
+    return from >= start && from <= end && to >= start && to <= end
+  }
+  select(tr: Transaction) {
+    if (tr.time - this.selectTime >= 80) {
+      return Model.new(tr, tr.time, this.editTime, tr.time)
+    } else {
+      return new Model(
+        this.block,
+        this.editRange,
+        this.decorations,
+        tr.time,
+        this.editTime,
+        tr.time
+      )
+    }
+  }
+  edit(tr: Transaction) {
+    return Model.new(tr, tr.time, tr.time, tr.time)
+  }
+  transact(tr: Transaction) {
+    return new Model(
+      this.block,
+      this.editRange,
+      this.decorations.map(tr.mapping, tr.doc),
+      this.selectTime,
+      this.editTime,
+      tr.time
+    )
+  }
+}
+
+export const plugin = () => {
+  let timer = null
+  let id = 0
+
+  const dispatch = message => (editorView: EditorView) => {
+    editorView.dispatch(editorView.state.tr.setMeta(plugin, message))
+  }
+
+  const dispatchEdit = debounce(dispatch("edit"), 80)
+  const dispatchSelect = debounce(dispatch("select"), 90)
+
+  const plugin = new Plugin({
+    state: {
+      init(config, state): Model {
+        return Model.new(state.tr)
+      },
+      apply(tr, state, oldState, newState): Model {
+        switch (tr.getMeta(plugin)) {
+          case "edit":
+            return state.edit(tr)
+          case "select":
+            return state.select(tr)
+          default:
+            return state.transact(tr)
+        }
+      }
+    },
+    appendTransaction(
+      changes: Transaction[],
+      oldState: EditorState,
+      newState: EditorState
+    ): ?Transaction {
+      const tr = changes[changes.length - 1]
+      const state = plugin.getState(newState)
+      switch (tr.getMeta(plugin)) {
+        case "edit":
+          return updateMarkup(tr)
+        default:
+          return null
+      }
+    },
+    view(editorView) {
+      return {
+        update(editorView: EditorView, oldState: EditorState) {
+          const newState = editorView.state
+          const state = plugin.getState(newState)
+          if (state.time !== state.editTime) {
+            dispatchEdit(editorView)
+          }
+
+          if (state.time !== state.selectTime) {
+            dispatchSelect(editorView)
+          }
+        }
+      }
+    },
     props: {
-      decorations: decorations
+      decorations(state) {
+        return this.getState(state).decorations
+      }
     }
   })
+  return plugin
+}
