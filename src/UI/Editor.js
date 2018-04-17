@@ -18,6 +18,7 @@ import * as Markup from "./ProseMirror/Markup"
 import * as TabIndex from "./ProseMirror/TabIndex"
 import keyBindings from "./Allusion/KeyBindings"
 import CodeBlock from "./ProseMirror/CodeBlock"
+import Image from "./ProseMirror/View/Image"
 import {
   editableRange,
   expand,
@@ -68,7 +69,7 @@ export const init = () => parse("")
 export const parse = (markdown: string) => {
   const root = Parser.parse(markdown)
   if (root instanceof Error) {
-    return panic()
+    return panic(root.message)
   }
   let { content } = root
   let title
@@ -254,6 +255,9 @@ export const view = (mailbox: Mailbox<Message>) => {
           { mount: document.createElement("main") },
           {
             state: state.state,
+            nodeViews: {
+              expandedImage: Image.view()
+            },
             dispatchTransaction(tr: Transaction) {
               mailbox.send({ transaction: tr })
             }
