@@ -368,9 +368,15 @@ export const view = (mailbox: Mailbox<Message>) => {
 
   return {
     editor: editor,
-    render(state: Model, document: *): ?Element {
-      if (state.document) {
-        return editor.render(state.document, document)
+    render(state: Model, root: *): ?Element {
+      const { document } = state
+      if (document) {
+        const base = window.document.querySelector("base")
+        if (base && state instanceof Archived) {
+          const { name, path } = state
+          base.setAttribute("href", `dat://${name}/${path.join("/")}/`)
+        }
+        return editor.render(document, root)
       } else {
         return null
       }
