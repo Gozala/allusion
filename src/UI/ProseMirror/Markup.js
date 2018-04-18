@@ -109,7 +109,7 @@ class Model {
     tr: Transaction,
     selectTime: number = tr.time,
     editTime: number = tr.time,
-    time: number = tr.time
+    updateTime: number = tr.time
   ) {
     const block = editBlock(tr.selection)
     if (block == null) {
@@ -119,7 +119,7 @@ class Model {
         DecorationSet.empty,
         selectTime,
         editTime,
-        time
+        updateTime
       )
     } else {
       const { selection, doc } = tr
@@ -131,7 +131,14 @@ class Model {
         editBlockDecoration(index, node),
         editRangeDecoration(start, end)
       ])
-      return new this(block, editRange, decorations, selectTime, editTime, time)
+      return new this(
+        block,
+        editRange,
+        decorations,
+        selectTime,
+        editTime,
+        updateTime
+      )
     }
   }
   withinBlock(selection: Selection) {
@@ -151,29 +158,18 @@ class Model {
     return from >= start && from <= end && to >= start && to <= end
   }
   select(tr: Transaction) {
-    if (tr.time - this.selectTime >= 80) {
-      return Model.new(tr, tr.time, this.editTime, tr.time)
-    } else {
-      return new Model(
-        this.block,
-        this.editRange,
-        this.decorations,
-        tr.time,
-        this.editTime,
-        tr.time
-      )
-    }
+    return Model.new(tr, this.selectTime, this.editTime, tr.time)
   }
   edit(tr: Transaction) {
-    return Model.new(tr, tr.time, tr.time, tr.time)
+    return Model.new(tr, this.selectTime, this.editTime, tr.time)
   }
   transact(tr: Transaction) {
     return new Model(
       this.block,
       this.editRange,
       this.decorations.map(tr.mapping, tr.doc),
-      this.selectTime,
-      this.editTime,
+      tr.docChanged ? tr.selectTime : tr.time,
+      tr.docChanged ? tr.time : this.editTime,
       tr.time
     )
   }
@@ -187,8 +183,8 @@ export const plugin = () => {
     editorView.dispatch(editorView.state.tr.setMeta(plugin, message))
   }
 
-  const dispatchEdit = debounce(dispatch("edit"), 80)
-  const dispatchSelect = debounce(dispatch("select"), 90)
+  const requestEdit = debounce(dispatch("edit"), 80)
+  const requestSelect = debounce(dispatch("select"), 90)
 
   const plugin = new Plugin({
     state: {
@@ -225,12 +221,12 @@ export const plugin = () => {
         update(editorView: EditorView, oldState: EditorState) {
           const newState = editorView.state
           const state = plugin.getState(newState)
-          if (state.time !== state.editTime) {
-            dispatchEdit(editorView)
+          if (state.time === state.editTime) {
+            requestEdit(editorView)
           }
 
-          if (state.time !== state.selectTime) {
-            dispatchSelect(editorView)
+          if (state.time === state.selectTime) {
+            requestSelect(editorView)
           }
         }
       }
