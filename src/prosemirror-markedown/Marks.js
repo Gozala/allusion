@@ -5,42 +5,8 @@ import type { MarkType, ResolvedPos, Node, Fragment } from "prosemirror-model"
 import { Decoration, DecorationSet } from "prosemirror-view"
 import { Mark } from "prosemirror-model"
 import { nodePosition, resolvePosition } from "./Position"
+import { EditNode } from "./Schema"
 import { nodeBy } from "./Node"
-
-export type Marker = {
-  mark: Mark,
-  start: number,
-  end: number
-}
-
-export const getMarkupMarksAround = (at: ResolvedPos): string[] => {
-  const { parent, pos, nodeBefore, nodeAfter } = at
-  const index = at.index()
-
-  // const nodeBefore = getNodeBefore(at)
-  // const nodeAfter = getNodeAfter(at)
-  const marks = [
-    ...at.marks(),
-    ...(nodeBefore ? nodeBefore.marks : Mark.none),
-    ...(nodeAfter ? nodeAfter.marks : Mark.none)
-  ]
-
-  const markMarkup = new Set()
-  for (const mark of marks) {
-    const markup: string = mark.attrs.markup || ""
-    if (markup != "") {
-      markMarkup.add(markup)
-    }
-
-    const marks = mark.attrs.marks || ""
-    if (marks != "") {
-      for (const markup of marks.split(" ")) {
-        markMarkup.add(markup)
-      }
-    }
-  }
-  return [...markMarkup]
-}
 
 export const getMarks = (node: Node): Mark[] => {
   let marks = node.marks
@@ -53,45 +19,6 @@ export const getMarks = (node: Node): Mark[] => {
     }
   }
   return marks
-}
-
-export const getMarkup = (node: Node): string[] => {
-  let result = new Set()
-
-  const marks = node.marks
-  for (const mark of marks) {
-    const markup: string = mark.attrs.markup || ""
-    if (markup != "") {
-      result.add(markup)
-    }
-
-    const marks = mark.attrs.marks
-    if (marks) {
-      for (const markup of marks.split(" ")) {
-        result.add(markup)
-      }
-    }
-  }
-
-  const nodeMarks = node.attrs.marks
-  if (nodeMarks) {
-    if (marks) {
-      for (const markup of nodeMarks.split(" ")) {
-        result.add(markup)
-      }
-    }
-  }
-
-  return [...result]
-}
-
-export const findBoundry = (anchor: ResolvedPos, dir: -1 | 1) => {
-  let offset = anchor.pos
-
-  const next = dir > 0 ? anchor.nodeAfter : anchor.nodeBefore
-  if (next && isEditNode(next)) {
-    offset += dir * next.nodeSize
-  }
 }
 
 export const findNodeBoundry = (
@@ -128,8 +55,6 @@ export const findMarkedBoundry = (
       boundry = dir < 0 ? offset : offset + node.nodeSize
 
       void ({ offset, node } = nodeBy(root, boundry, dir))
-      // const next = dir < 0 ? offset + dir : offset
-      // node = next >= 0 && next < size ? root.nodeAt(next) : null
     } else {
       mark = marks[--n]
     }
@@ -171,49 +96,6 @@ export const findEditRange = (
   return [start, end]
 }
 
-// export const geMarks = (anchor: ResolvedPos): string[] => {
-//   const { parent, pos, nodeBefore, nodeAfter } = anchor
-//   const index = anchor.index()
-
-//   // const nodeBefore = getNodeBefore(at)
-//   // const nodeAfter = getNodeAfter(at)
-//   const marks = [
-//     ...anchor.marks(),
-//     ...(nodeBefore ? nodeBefore.marks : Mark.none),
-//     ...(nodeAfter ? nodeAfter.marks : Mark.none)
-//   ]
-
-//   const markMarkup = new Set()
-//   for (const mark of marks) {
-//     const markup: string = mark.attrs.markup || ""
-//     if (markup != "") {
-//       markMarkup.add(markup)
-//     }
-
-//     const marks = mark.attrs.marks || ""
-//     if (marks != "") {
-//       for (const markup of marks.split(" ")) {
-//         markMarkup.add(markup)
-//       }
-//     }
-//   }
-//   return [...markMarkup]
-// }
-
-const getNodeBoundry = (anchor: ResolvedPos, dir: -1 | 1): number => {
-  const { pos, parent, textOffset } = anchor
-  if (dir > 0) {
-    return pos - textOffset
-  } else {
-    const index = anchor.index()
-    if (index < parent.childCount) {
-      return pos - textOffset + parent.child(index).nodeSize
-    } else {
-      return pos
-    }
-  }
-}
-
 export const isMarkedWith = (node: Node, mark: Mark): boolean =>
   isNodeMarkedWith(node, mark) || isInlineNodeContentMarkedWith(node, mark)
 
@@ -247,19 +129,4 @@ export const isMarkup = (mark: Mark) => {
   return group && group.includes("markup")
 }
 
-export const isntMarkup = (mark: Mark) => !isMarkup(mark)
-
-export const isMarkupNode = (node: Node) => node.marks.some(isMarkup)
-
-export const isntMarkupNode = (node: Node): boolean =>
-  !node.marks.some(isMarkup)
-
-export const isEditNode = (node: Node): boolean => {
-  const { nodes } = node.type.schema
-  switch (node.type) {
-    case nodes.link:
-      return true
-    default:
-      return false
-  }
-}
+export const isEditNode = (node: Node): boolean => node.type instanceof EditNode

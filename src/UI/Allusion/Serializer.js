@@ -1,6 +1,6 @@
 // @flow
 
-import Serializer from "../Markdown/Serializer"
+import Serializer from "../../prosemirror-markedown/Serializer"
 import schema from "./Schema"
 import header from "./Parser/header"
 

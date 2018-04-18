@@ -361,7 +361,7 @@ type ParseRule<a> =
 // [markdown-it](https://github.com/markdown-it/markdown-it) to
 // tokenize a file, and then runs the custom rules it is given over
 // the tokens to create a ProseMirror document tree.
-export class MarkdownParser extends FragmentParser {
+export default class MarkdownParser extends FragmentParser {
   rules: ?Rules
   schema: Schema
   tokenizer: Tokenizer

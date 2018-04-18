@@ -14,15 +14,13 @@ import { dropCursor } from "prosemirror-dropcursor"
 import { gapCursor } from "prosemirror-gapcursor"
 import { menuBar, type MenuItem } from "prosemirror-menu"
 import * as Placeholder from "./ProseMirror/Placeholder"
-import * as Markup from "./ProseMirror/Markup"
+import * as Markedown from "../prosemirror-markedown/Plugin"
 import * as TabIndex from "./ProseMirror/TabIndex"
 import keyBindings from "./Allusion/KeyBindings"
 import CodeBlock from "./ProseMirror/CodeBlock"
 import Image from "./ProseMirror/View/Image"
-import { updateRange } from "./ProseMirror/EditRange"
 import Parser from "./Allusion/Parser"
 import Serializer from "./Allusion/Serializer"
-import { createFrom } from "./ProseMirror/Node"
 import panic from "panic.flow"
 
 export type Model = EditorState
@@ -30,7 +28,6 @@ export type Model = EditorState
 export type Message = { transaction: Transaction }
 
 const editorPlugins = [
-  //   Allusion(),
   keyBindings(schema),
   keymap(baseKeymap),
   dropCursor(),
@@ -39,7 +36,7 @@ const editorPlugins = [
   Placeholder.plugin(),
   CodeBlock.plugin(),
   TabIndex.plugin(),
-  Markup.plugin()
+  Markedown.plugin(Parser, Serializer)
 ]
 
 export const init = () => parse("")

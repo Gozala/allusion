@@ -3,7 +3,7 @@
 import type { DatArchive, DatURL } from "../DatArchive"
 import * as Editor from "../Editor"
 import Archive from "../DatArchive"
-import { always } from "./Util"
+import always from "always.flow"
 import type { Mailbox } from "../Program"
 import match from "match.flow"
 

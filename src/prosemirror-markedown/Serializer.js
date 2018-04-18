@@ -27,7 +27,7 @@ type SerializerOptions = {
 
 // // ::- A specification for serializing a ProseMirror document as
 // // Markdown/CommonMark text.
-export default class MarkdownSerializer {
+export default class Serializer {
   //   // :: (Object<(state: MarkdownSerializerState, node: Node, parent: Node, index: number)>, Object)
   //   // Construct a serializer with the given configuration. The `nodes`
   //   // object should map node names in a given schema to function that
@@ -369,5 +369,3 @@ class MarkdownSerializerState {
     }
   }
 }
-
-export type Serializer = MarkdownSerializer

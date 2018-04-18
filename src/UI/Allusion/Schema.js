@@ -1,11 +1,12 @@
 // @flow strict
 
-import Schema from "../Markdown/Schema"
+import Schema from "../../prosemirror-markedown/Schema"
+import { EditBlock, EditNode } from "../../prosemirror-markedown/Schema"
 import type {
   AttributeParseRule,
   NodeParseRule,
   MarkParseRule
-} from "../Markdown/Schema"
+} from "../../prosemirror-markedown/Schema"
 import OrderedMap from "orderedmap"
 import type {
   DOMOutputSpec,
@@ -16,77 +17,6 @@ import type {
   SchemaSpec
 } from "prosemirror-model"
 import { Mark } from "prosemirror-model"
-
-export class Block {
-  content: string
-  group: string
-  selectable: boolean
-  inline: boolean = false
-  atom: boolean = false
-  draggable: boolean
-  code: boolean
-  defining: boolean
-  toDOM: (node: Node) => DOMOutputSpec
-  parseDOM: ParseRule[]
-  parseMarkdown: (AttributeParseRule | NodeParseRule<*>)[]
-  attrs: Object
-
-  static parseMarkdown = []
-  static toDOM(node: Node) {
-    return ["div", node.attrs, 0]
-  }
-
-  static attrs = Object.create(null)
-
-  constructor(spec: NodeSpec) {
-    this.content = spec.content || ""
-    this.group = spec.group || ""
-    this.selectable = spec.selectable || true
-    this.draggable = spec.draggable || false
-    this.defining = spec.defining || false
-    this.code = spec.code || false
-    this.attrs = spec.attrs || this.constructor.attrs
-    this.toDOM = spec.toDOM || this.constructor.toDOM
-    this.parseMarkdown = spec.parseMarkdown || this.constructor.parseMarkdown
-  }
-}
-
-export class Inline {
-  content: string
-  group: string
-  selectable: boolean
-  inline: boolean = true
-  atom: boolean
-  draggable: boolean
-  code: boolean
-  defining: boolean
-  toDOM: (node: Node) => DOMOutputSpec
-  parseDOM: ParseRule[]
-  parseMarkdown: (AttributeParseRule | NodeParseRule<*>)[]
-  attrs: Object
-
-  static toDOM(node: Node) {
-    return ["span", node.attrs, 0]
-  }
-  static parseMarkdown = []
-
-  static attrs = Object.create(null)
-
-  constructor(spec: NodeSpec) {
-    this.content = spec.content || ""
-    this.group = spec.group || ""
-    this.selectable = spec.selectable || true
-    this.draggable = spec.draggable || false
-    this.defining = spec.defining || false
-    this.atom = spec.atom || false
-    this.attrs = spec.attrs || this.constructor.attrs
-    this.toDOM = spec.toDOM || this.constructor.toDOM
-    this.parseMarkdown = spec.parseMarkdown || this.constructor.parseMarkdown
-  }
-}
-
-export class EditBlock extends Block {}
-export class EditNode extends Inline {}
 
 export default new Schema({
   nodes: {

@@ -4,7 +4,7 @@ import { Plugin, TextSelection } from "prosemirror-state"
 import type { Node, ResolvedPos } from "prosemirror-model"
 import type { EditorView } from "prosemirror-view"
 import type { EditorState, Selection, Transaction } from "prosemirror-state"
-import { EditBlock, EditNode } from "../Allusion/Schema"
+import { EditBlock, EditNode } from "./Schema"
 import { nodePosition } from "./Position"
 import { findEditRange } from "./Marks"
 import { updateMarkup } from "./EditRange"
@@ -13,7 +13,9 @@ import {
   DecorationSet,
   type InlineDecorationSpec
 } from "prosemirror-view"
-import { debounce } from "../Allusion/Util"
+import { debounce } from "./Util"
+import type Serializer from "./Serializer"
+import type Parser from "./Parser"
 
 export const isEditBlock = (node: Node): boolean =>
   node.type.spec instanceof EditBlock
@@ -168,14 +170,14 @@ class Model {
       this.block,
       this.editRange,
       this.decorations.map(tr.mapping, tr.doc),
-      tr.docChanged ? tr.selectTime : tr.time,
+      tr.docChanged ? this.selectTime : tr.time,
       tr.docChanged ? tr.time : this.editTime,
       tr.time
     )
   }
 }
 
-export const plugin = () => {
+export const plugin = (parser: Parser, serializer: Serializer) => {
   let timer = null
   let id = 0
 
@@ -211,7 +213,7 @@ export const plugin = () => {
       const state = plugin.getState(newState)
       switch (tr.getMeta(plugin)) {
         case "edit":
-          return updateMarkup(tr)
+          return updateMarkup(tr, parser, serializer)
         default:
           return null
       }
