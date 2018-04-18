@@ -10,102 +10,95 @@ const unmarkedMarkup = (_, mark) =>
 export default new Serializer(
   {
     blockquote(state, node) {
-      state.wrapBlock("> ", null, node, () => state.renderContent(node))
+      return state.wrapBlock("> ", null, node, node =>
+        state.renderContent(node)
+      )
     },
-    code_block(state, node) {
-      state.write("```" + node.attrs.params + "\n")
-      state.text(node.textContent, false)
-      state.ensureNewLine()
-      state.write("```")
-      state.closeBlock(node)
+    code_block(buffer, node) {
+      return buffer
+        .write("```" + node.attrs.params + "\n")
+        .text(node.textContent, false)
+        .ensureNewLine()
+        .write("```")
+        .closeBlock(node)
     },
-    heading(state, node) {
-      if (!node.attrs.marked != null) {
-        state.write(state.repeat("#", node.attrs.level) + " ")
-      }
-      state.renderInline(node)
-      state.closeBlock(node)
+    heading(buffer, node) {
+      return buffer.renderInline(node).closeBlock(node)
     },
-    horizontal_rule(state, node) {
-      state.write(node.attrs.markup || "---")
-      state.closeBlock(node)
+    horizontal_rule(buffer, node) {
+      return buffer.write(node.attrs.markup || "---").closeBlock(node)
     },
-    bullet_list(state, node) {
-      state.renderList(node, "  ", item => `${item.attrs.markup} `)
+    bullet_list(buffer, node) {
+      return buffer.renderList(node, "  ", item => `${item.attrs.markup} `)
     },
-    ordered_list(state, node) {
-      let start = node.attrs.order || 1
-      let maxW = String(start + node.childCount - 1).length
-      let space = state.repeat(" ", maxW + 2)
-      state.renderList(node, space, (child, i) => {
-        let nStr = String(start + i)
-        return state.repeat(" ", maxW - nStr.length) + nStr + ". "
+    ordered_list(buffer, node) {
+      const start = node.attrs.order || 1
+      const maxW = String(start + node.childCount - 1).length
+      const space = buffer.repeat(" ", maxW + 2)
+      return buffer.renderList(node, space, (child, i) => {
+        const nStr = String(start + i)
+        return buffer.repeat(" ", maxW - nStr.length) + nStr + ". "
       })
     },
-    list_item(state, node) {
-      state.renderContent(node)
+    list_item(buffer, node) {
+      return buffer.renderContent(node)
     },
-    checkbox(state, node) {
-      if (node.attrs.checked == null) {
-        state.write("[ ]")
-      } else {
-        state.write("[x]")
-      }
-      state.renderContent(node)
+    checkbox(buffer, node) {
+      const status = node.attrs.checked == null ? "[ ]" : "[x]"
+      return buffer.write(status).renderContent(node)
     },
-    label(state, node) {
-      state.renderInline(node)
+    label(buffer, node) {
+      return buffer.renderInline(node)
     },
-    paragraph(state, node) {
-      state.renderInline(node)
-      state.closeBlock(node)
+    paragraph(buffer, node) {
+      return buffer.renderInline(node).closeBlock(node)
     },
 
-    image(state, node) {
-      state.write(
+    image(buffer, node) {
+      return buffer.write(
         "![" +
-          state.esc(node.attrs.alt || "") +
+          buffer.escape(node.attrs.alt || "") +
           "](" +
-          state.esc(node.attrs.src) +
-          (node.attrs.title ? " " + state.quote(node.attrs.title) : " ") +
+          buffer.escape(node.attrs.src) +
+          (node.attrs.title ? " " + buffer.quote(node.attrs.title) : " ") +
           ")"
       )
     },
-    hard_break(state, node, parent, index) {
-      for (let i = index + 1; i < parent.childCount; i++)
+    hard_break(buffer, node, parent, index) {
+      for (let i = index + 1; i < parent.childCount; i++) {
         if (parent.child(i).type != node.type) {
-          state.write("\\\n")
-          return
+          return buffer.write("\\\n")
         }
+      }
+      return buffer
     },
-    text(state, node) {
-      state.text(node.text, false)
+    text(buffer, node) {
+      return buffer.text(node.text, false)
     },
-    Markup(state, node) {},
-    header(state, node) {
-      state.write("/ ")
-      state.text(node.textContent, false)
-      state.closeBlock(node)
+    header(buffer, node) {
+      return buffer
+        .write("/ ")
+        .text(node.textContent, false)
+        .closeBlock(node)
     },
-    link(state, node) {
+    link(buffer, node) {
       if (node.attrs.marked != null) {
-        state.renderContent(node)
+        return buffer.renderContent(node)
       } else {
-        state.write(`[`)
-        state.renderInline(node)
-        state.write(`](`)
-        state.write(state.esc(node.attrs.href))
-        state.write(
-          node.attrs.title ? " " + state.quote(node.attrs.title) : " "
-        )
-        state.write(")")
+        return buffer
+          .write(`[`)
+          .renderInline(node)
+          .write(`](`)
+          .write(buffer.escape(node.attrs.href))
+          .write(node.attrs.title ? " " + buffer.quote(node.attrs.title) : " ")
+          .write(")")
       }
     },
-    expandedHorizontalRule(state, node) {
-      state.write(node.textContent)
+    expandedHorizontalRule(buffer, node) {
+      return buffer.write(node.textContent)
     },
-    expandedImage(state, node) {
-      state.write(node.textContent)
+    expandedImage(buffer, node) {
+      return buffer.write(node.textContent)
     }
   },
   {
@@ -114,7 +107,7 @@ export default new Serializer(
         return `[`
       },
       close(state, mark) {
-        const url = state.esc(mark.attrs.href)
+        const url = state.escape(mark.attrs.href)
         const title = mark.attrs.title ? state.quote(mark.attrs.title) : ""
         return `](${url} ${title})`
       }

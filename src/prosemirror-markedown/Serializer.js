@@ -4,15 +4,15 @@ import { Mark } from "prosemirror-model"
 import type { Schema, NodeType, Node, Fragment } from "prosemirror-model"
 
 type NodeSerializer = (
-  MarkdownSerializerState,
+  SerializerBuffer,
   Node,
   Node | Fragment,
   number
-) => void
+) => SerializerBuffer
 
 type MarkSerializer = {
-  open: string | ((MarkdownSerializerState, Mark) => string),
-  close: string | ((MarkdownSerializerState, Mark) => string),
+  open: string | ((SerializerBuffer, Mark) => string),
+  close: string | ((SerializerBuffer, Mark) => string),
   mixable?: boolean,
   ignore?: boolean,
   expelEnclosingWhitespace?: boolean
@@ -25,59 +25,50 @@ type SerializerOptions = {
   tightLists?: boolean
 }
 
-// // ::- A specification for serializing a ProseMirror document as
-// // Markdown/CommonMark text.
 export default class Serializer {
-  //   // :: (Object<(state: MarkdownSerializerState, node: Node, parent: Node, index: number)>, Object)
-  //   // Construct a serializer with the given configuration. The `nodes`
-  //   // object should map node names in a given schema to function that
-  //   // take a serializer state and such a node, and serialize the node.
-  //   //
-  //   // The `marks` object should hold objects with `open` and `close`
-  //   // properties, which hold the strings that should appear before and
-  //   // after a piece of text marked that way, either directly or as a
-  //   // function that takes a serializer state and a mark, and returns a
-  //   // string.
-  //   //
-  //   // Mark information objects can also have a `mixable` property
-  //   // which, when `true`, indicates that the order in which the mark's
-  //   // opening and closing syntax appears relative to other mixable
-  //   // marks can be varied. (For example, you can say `**a *b***` and
-  //   // `*a **b***`, but not `` `a *b*` ``.)
-  //   //
-  //   // The `expelEnclosingWhitespace` mark property causes the
-  //   // serializer to move enclosing whitespace from inside the marks to
-  //   // outside the marks. This is necessary for emphasis marks as
-  //   // CommonMark does not permit enclosing whitespace inside emphasis
-  //   // marks, see: http://spec.commonmark.org/0.26/#example-330
   nodes: NodeSerializers
   marks: MarkSerializers
   constructor(nodes: NodeSerializers, marks: MarkSerializers) {
-    // :: Object<(MarkdownSerializerState, Node)> The node serializer
-    // functions for this serializer.
     this.nodes = nodes
-    // :: Object The mark serializer info.
     this.marks = marks
   }
-  // :: (Node, ?Object) → string
-  // Serialize the content of the given node to
-  // [CommonMark](http://commonmark.org/).
   serialize(content: Node | Fragment, options?: SerializerOptions) {
-    let state = new MarkdownSerializerState(this.nodes, this.marks, options)
-    state.renderContent(content)
-    return state.out
+    const markdown = new MarkdownSerializer(this.nodes, this.marks, options)
+    markdown.renderContent(content)
+    return markdown.out
   }
   serializeInline(content: Node | Fragment, options?: SerializerOptions) {
-    let state = new MarkdownSerializerState(this.nodes, this.marks, options)
-    state.renderContentInline(content)
-    return state.out
+    let markdown = new MarkdownSerializer(this.nodes, this.marks, options)
+    markdown.renderContentInline(content)
+    return markdown.out
   }
 }
 
-// // ::- This is an object used to track state and expose
-// // methods related to markdown serialization. Instances are passed to
-// // node and mark serialization methods (see `toMarkdown`).
-class MarkdownSerializerState {
+interface SerializerBuffer {
+  quote(string): string;
+  escape(string): string;
+  repeat(string, number): string;
+
+  wrapBlock(
+    string,
+    ?string,
+    Node,
+    (Node) => SerializerBuffer
+  ): SerializerBuffer;
+  ensureNewLine(): SerializerBuffer;
+  write(content?: string): SerializerBuffer;
+  closeBlock(node?: Node): SerializerBuffer;
+  text(content?: string, escape?: boolean): SerializerBuffer;
+  renderInline(node: Node): SerializerBuffer;
+  renderContent(node: Node): SerializerBuffer;
+  renderList(
+    node: Node,
+    delimiter: string,
+    firstDelimiter: (Node, number) => string
+  ): SerializerBuffer;
+}
+
+class MarkdownSerializer implements SerializerBuffer {
   nodes: NodeSerializers
   marks: MarkSerializers
   options: SerializerOptions
@@ -125,21 +116,25 @@ class MarkdownSerializerState {
   // line in `firstDelim`. `node` should be the node that is closed at
   // the end of the block, and `f` is a function that renders the
   // content of the block.
-  wrapBlock(delim: string, firstDelim: ?string, node: Node, f: () => void) {
+  wrapBlock(
+    delim: string,
+    firstDelim: ?string,
+    node: Node,
+    f: Node => SerializerBuffer
+  ) {
     let old = this.delim
     this.write(firstDelim || delim)
     this.delim += delim
-    f()
+    f(node)
     this.delim = old
-    this.closeBlock(node)
+    return this.closeBlock(node)
   }
   atBlank(): boolean {
     return /(^|\n)$/.test(this.out)
   }
-  // :: ()
-  // Ensure the current content ends with a newline.
-  ensureNewLine(): void {
+  ensureNewLine() {
     if (!this.atBlank()) this.out += "\n"
+    return this
   }
   // :: (?string)
   // Prepare the state for writing output (closing closed paragraphs,
@@ -149,28 +144,31 @@ class MarkdownSerializerState {
     this.flushClose()
     if (this.delim && this.atBlank()) this.out += this.delim
     if (content) this.out += content
+    return this
   }
   // :: (Node)
   // Close the block for the given node.
-  closeBlock(node?: Node): void {
+  closeBlock(node?: Node) {
     this.closed = node != null
+    return this
   }
   // :: (string, ?bool)
   // Add the given text to the document. When escape is not `false`,
   // it will be escaped.
-  text(text: string = "", escape?: boolean) {
+  text(text: string = "", escape: boolean = false) {
     let lines = text.split("\n")
     for (let i = 0; i < lines.length; i++) {
       var startOfLine = this.atBlank() || this.closed
       this.write()
       this.out +=
-        escape !== false ? this.esc(lines[i], !!startOfLine) : lines[i]
+        escape !== false ? this.escape(lines[i], !!startOfLine) : lines[i]
       if (i != lines.length - 1) this.out += "\n"
     }
+    return this
   }
   // :: (Node)
   // Render the given node as a block.
-  render(node: Node, parent: Node | Fragment, index: number): void {
+  render(node: Node, parent: Node | Fragment, index: number) {
     if (typeof parent == "number") throw new Error("!")
     if (!node.marks.some(mark => this.marks[mark.type.name].ignore)) {
       const nodeSerializer = this.nodes[node.type.name]
@@ -180,16 +178,19 @@ class MarkdownSerializerState {
         throw RangeError(`Serializer for "${node.type.name}" node not found`)
       }
     }
+    return this
   }
   // :: (Node)
   // Render the contents of `parent` as block nodes.
-  renderContent(parent: Node | Fragment): void {
-    parent.forEach((node, _, i) => this.render(node, parent, i))
+  renderContent(parent: Node | Fragment) {
+    parent.forEach((node, _, i) => void this.render(node, parent, i))
+    return this
   }
   // :: (Node)
   // Render the contents of `parent` as inline content.
-  renderInline(parent: Node): void {
+  renderInline(parent: Node) {
     this.renderContentInline(parent, parent.marks)
+    return this
   }
   renderContentInline(
     parent: Node | Fragment,
@@ -321,17 +322,18 @@ class MarkdownSerializerState {
     this.inTightList = Boolean(isTight)
     node.forEach((child, _, i) => {
       if (i && isTight) this.flushClose(1)
-      this.wrapBlock(delim, firstDelim(child, i), node, () =>
+      this.wrapBlock(delim, firstDelim(child, i), node, node =>
         this.render(child, node, i)
       )
     })
     this.inTightList = prevTight
+    return this
   }
   // :: (string, ?bool) → string
   // Escape the given string so that it can safely appear in Markdown
   // content. If `startOfLine` is true, also escape characters that
   // has special meaning only at the start of the line.
-  esc(input: string, startOfLine?: boolean): string {
+  escape(input: string, startOfLine?: boolean): string {
     let str = input.replace(/[`*\\~\[\]]/g, "\\$&")
     if (startOfLine)
       str = str.replace(/^[:#-*+]/, "\\$&").replace(/^(\d+)\./, "$1\\.")
