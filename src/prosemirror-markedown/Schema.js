@@ -134,13 +134,13 @@ export class Inline {
 
 export class EditBlock extends Block {
   static is(node: Node): boolean {
-    return node instanceof EditBlock
+    return node.type.spec instanceof EditBlock
   }
 }
 
 export class EditNode extends Inline {
   static is(node: Node): boolean {
-    return node instanceof EditNode
+    return node.type.spec instanceof EditNode
   }
 }
 

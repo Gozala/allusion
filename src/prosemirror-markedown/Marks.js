@@ -8,6 +8,8 @@ import { nodePosition, resolvePosition } from "./Position"
 import { EditNode } from "./Schema"
 import { nodeBy } from "./Node"
 
+export const isEditNode = EditNode.is
+
 export const getMarks = (node: Node): Mark[] => {
   let marks = node.marks
   for (const mark of marks) {
@@ -128,5 +130,3 @@ export const isMarkup = (mark: Mark) => {
   const { group } = mark.type.spec
   return group && group.includes("markup")
 }
-
-export const isEditNode = (node: Node): boolean => node.type instanceof EditNode
