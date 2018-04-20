@@ -3,7 +3,13 @@
 import type { Token } from "markdown-it"
 import type Serializer from "./Serializer"
 import * as ProseMirror from "prosemirror-model"
-import type { Node, Mark, DOMOutputSpec, ParseRule } from "prosemirror-model"
+import type {
+  Node,
+  Fragment,
+  Mark,
+  DOMOutputSpec,
+  ParseRule
+} from "prosemirror-model"
 
 export type AttributeParseRule = {
   type: string,
@@ -38,7 +44,20 @@ export type NodeParseRule<a> = {
   createNode: (Schema, a, ProseMirror.Node[], Mark[]) => Node
 }
 
-export type SerilizedNode = {}
+export type NodeSerializer = (
+  SerializerBuffer,
+  Node,
+  Node | Fragment,
+  number
+) => SerializerBuffer
+
+export type MarkSerializer = {
+  open: string | ((SerializerBuffer, Mark) => string),
+  close: string | ((SerializerBuffer, Mark) => string),
+  mixable?: boolean,
+  ignore?: boolean,
+  expelEnclosingWhitespace?: boolean
+}
 
 export type SerilizedMark = {
   open: string,
@@ -48,14 +67,38 @@ export type SerilizedMark = {
   expelEnclosingWhitespace?: boolean
 }
 
+export interface SerializerBuffer {
+  quote(string): string;
+  escape(string): string;
+  repeat(string, number): string;
+
+  wrapBlock(
+    string,
+    ?string,
+    Node,
+    (Node) => SerializerBuffer
+  ): SerializerBuffer;
+  ensureNewLine(): SerializerBuffer;
+  write(content?: string): SerializerBuffer;
+  closeBlock(node?: Node): SerializerBuffer;
+  text(content?: string, escape?: boolean): SerializerBuffer;
+  renderInline(node: Node): SerializerBuffer;
+  renderContent(node: Node): SerializerBuffer;
+  renderList(
+    node: Node,
+    delimiter: string,
+    firstDelimiter: (Node, number) => string
+  ): SerializerBuffer;
+}
+
 export type NodeSpec = ProseMirror.NodeSpec & {
   parseMarkdown?: (AttributeParseRule | NodeParseRule<*>)[],
-  serializeMarkdown?: (Node, Serializer) => SerilizedNode
+  serializeMarkdown?: NodeSerializer
 }
 
 export type MarkSpec = ProseMirror.MarkSpec & {
   parseMarkdown?: (AttributeParseRule | MarkParseRule<*>)[],
-  serializeMarkdown?: Mark => SerilizedMark
+  serializeMarkdown?: MarkSerializer
 }
 
 export type SchemaSpec = {
@@ -144,7 +187,7 @@ export class EditNode extends Inline {
   }
 }
 
-export default class Schema extends ProseMirror.Schema {
+export class Schema extends ProseMirror.Schema {
   markdownSpec: SchemaSpec
   constructor(spec: SchemaSpec) {
     super(spec)

@@ -1,22 +1,13 @@
 // @flow strict
 
 import { Mark } from "prosemirror-model"
-import type { Schema, NodeType, Node, Fragment } from "prosemirror-model"
-
-type NodeSerializer = (
-  SerializerBuffer,
-  Node,
-  Node | Fragment,
-  number
-) => SerializerBuffer
-
-type MarkSerializer = {
-  open: string | ((SerializerBuffer, Mark) => string),
-  close: string | ((SerializerBuffer, Mark) => string),
-  mixable?: boolean,
-  ignore?: boolean,
-  expelEnclosingWhitespace?: boolean
-}
+import type { NodeType, Node, Fragment } from "prosemirror-model"
+import type {
+  Schema,
+  NodeSerializer,
+  MarkSerializer,
+  SerializerBuffer
+} from "./Schema"
 
 type NodeSerializers = { [string]: NodeSerializer }
 type MarkSerializers = { [string]: MarkSerializer }
@@ -28,6 +19,29 @@ type SerializerOptions = {
 export default class Serializer {
   nodes: NodeSerializers
   marks: MarkSerializers
+  static fromSchema(schema: Schema): Serializer {
+    const nodeSerializer = {}
+    const markSerializer = {}
+
+    const { nodes, marks } = schema.markdownSpec
+    for (const name in nodes) {
+      const { serializeMarkdown } = nodes[name]
+      if (serializeMarkdown) {
+        nodeSerializer[name] = serializeMarkdown
+      }
+    }
+
+    if (marks) {
+      for (const name in marks) {
+        const { serializeMarkdown } = marks[name]
+        if (serializeMarkdown) {
+          markSerializer[name] = serializeMarkdown
+        }
+      }
+    }
+
+    return new Serializer(nodeSerializer, markSerializer)
+  }
   constructor(nodes: NodeSerializers, marks: MarkSerializers) {
     this.nodes = nodes
     this.marks = marks
@@ -42,30 +56,6 @@ export default class Serializer {
     markdown.renderContentInline(content)
     return markdown.out
   }
-}
-
-interface SerializerBuffer {
-  quote(string): string;
-  escape(string): string;
-  repeat(string, number): string;
-
-  wrapBlock(
-    string,
-    ?string,
-    Node,
-    (Node) => SerializerBuffer
-  ): SerializerBuffer;
-  ensureNewLine(): SerializerBuffer;
-  write(content?: string): SerializerBuffer;
-  closeBlock(node?: Node): SerializerBuffer;
-  text(content?: string, escape?: boolean): SerializerBuffer;
-  renderInline(node: Node): SerializerBuffer;
-  renderContent(node: Node): SerializerBuffer;
-  renderList(
-    node: Node,
-    delimiter: string,
-    firstDelimiter: (Node, number) => string
-  ): SerializerBuffer;
 }
 
 class MarkdownSerializer implements SerializerBuffer {

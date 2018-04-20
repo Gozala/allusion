@@ -4,8 +4,12 @@ import Tokenizer from "markdown-it"
 import type { Token } from "markdown-it"
 import { Mark, Fragment, MarkType, NodeType } from "prosemirror-model"
 import type { Node } from "prosemirror-model"
-import type Schema from "./Schema"
-import type { NodeParseRule, MarkParseRule, AttributeParseRule } from "./Schema"
+import type {
+  Schema,
+  NodeParseRule,
+  MarkParseRule,
+  AttributeParseRule
+} from "./Schema"
 import {
   withoutTrailingNewline,
   priority,

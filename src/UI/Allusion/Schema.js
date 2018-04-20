@@ -1,6 +1,6 @@
 // @flow strict
 
-import Schema from "../../prosemirror-markedown/Schema"
+import { Schema } from "../../prosemirror-markedown/Schema"
 import { EditBlock, EditNode } from "../../prosemirror-markedown/Schema"
 import type {
   AttributeParseRule,
@@ -28,6 +28,12 @@ export default new Schema({
       content: "title author",
       toDOM(node) {
         return ["header", 0]
+      },
+      serializeMarkdown(buffer, node) {
+        return buffer
+          .write("/ ")
+          .text(node.textContent, false)
+          .closeBlock(node)
       }
     },
     title: new EditBlock({
@@ -88,6 +94,9 @@ export default new Schema({
       group: "block",
       parseDOM: [{ tag: "p" }],
       parseMarkdown: [{ type: "paragraph" }],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node).closeBlock(node)
+      },
       attrs: {
         marked: {
           default: null
@@ -102,6 +111,11 @@ export default new Schema({
       group: "block",
       parseDOM: [{ tag: "blockquote" }],
       parseMarkdown: [{ type: "blockquote" }],
+      serializeMarkdown(buffer, node) {
+        return buffer.wrapBlock("> ", null, node, node =>
+          buffer.renderContent(node)
+        )
+      },
       toDOM(node) {
         return ["blockquote", 0]
       }
@@ -114,6 +128,9 @@ export default new Schema({
       },
       parseDOM: [{ tag: "hr" }],
       parseMarkdown: [{ type: "hr" }],
+      serializeMarkdown(buffer, node) {
+        return buffer.write(node.attrs.markup || "---").closeBlock(node)
+      },
       toDOM() {
         return ["div", { class: "horizontal-rule" }, ["hr"]]
       }
@@ -153,6 +170,9 @@ export default new Schema({
           }
         }
       ],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node).closeBlock(node)
+      },
       parseDOM: [
         { tag: "h1", attrs: { level: 1 } },
         { tag: "h2", attrs: { level: 2 } },
@@ -184,6 +204,14 @@ export default new Schema({
           }
         }
       ],
+      serializeMarkdown(buffer, node) {
+        return buffer
+          .write("```" + node.attrs.params + "\n")
+          .text(node.textContent, false)
+          .ensureNewLine()
+          .write("```")
+          .closeBlock(node)
+      },
       parseDOM: [
         {
           tag: "pre",
@@ -230,6 +258,15 @@ export default new Schema({
           }
         }
       ],
+      serializeMarkdown(buffer, node) {
+        const start = node.attrs.order || 1
+        const maxW = String(start + node.childCount - 1).length
+        const space = buffer.repeat(" ", maxW + 2)
+        return buffer.renderList(node, space, (child, i) => {
+          const nStr = String(start + i)
+          return buffer.repeat(" ", maxW - nStr.length) + nStr + ". "
+        })
+      },
       toDOM(node) {
         return [
           "ol",
@@ -265,7 +302,10 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderList(node, "  ", item => `${item.attrs.markup} `)
+      }
     },
 
     list_item: {
@@ -299,13 +339,19 @@ export default new Schema({
             ])
           }
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderContent(node)
+      }
     },
 
     text: {
       group: "inline",
       toDOM(node): string {
         return node.text || ""
+      },
+      serializeMarkdown(buffer, node) {
+        return buffer.text(node.text, false)
       }
     },
 
@@ -347,7 +393,17 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node) {
+        return buffer.write(
+          "![" +
+            buffer.escape(node.attrs.alt || "") +
+            "](" +
+            buffer.escape(node.attrs.src) +
+            (node.attrs.title ? " " + buffer.quote(node.attrs.title) : " ") +
+            ")"
+        )
+      }
     }),
 
     hard_break: {
@@ -362,7 +418,15 @@ export default new Schema({
         {
           type: "hardbreak"
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node, parent, index) {
+        for (let i = index + 1; i < parent.childCount; i++) {
+          if (parent.child(i).type != node.type) {
+            return buffer.write("\\\n")
+          }
+        }
+        return buffer
+      }
     },
 
     checkbox: {
@@ -402,7 +466,11 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node) {
+        const status = node.attrs.checked == null ? "[ ]" : "[x]"
+        return buffer.write(status).renderContent(node)
+      }
     },
     label: {
       group: "inline",
@@ -433,73 +501,11 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node)
+      }
     },
-    // link: new EditNode({
-    //   inline: true,
-    //   group: "inline",
-    //   content: "inline+",
-    //   // Otherwise node get's selected here and there.
-    //   selectable: false,
-    //   isolating: true,
-    //   marks: "_",
-
-    //   attrs: {
-    //     href: {},
-    //     title: { default: null },
-    //     marked: { default: null }
-    //   },
-    //   parseDOM: [
-    //     {
-    //       tag: "a[href]",
-    //       getAttrs(dom) {
-    //         return {
-    //           href: dom.getAttribute("href"),
-    //           title: dom.getAttribute("title"),
-    //           marked: dom.getAttribute("marked")
-    //         }
-    //       }
-    //     }
-    //   ],
-    //   toDOM(node) {
-    //     return ["a", node.attrs, 0]
-    //   },
-    //   parseMarkdown: [
-    //     {
-    //       type: "link",
-    //       getAttrs(token) {
-    //         return {
-    //           href: token.attrGet("href"),
-    //           title: token.attrGet("title")
-    //         }
-    //       },
-    //       createNode(schema, attrs, content, marks) {
-    //         const markup = [
-    //           schema.mark("markup", {
-    //             class: "inline markup"
-    //           }),
-    //           ...marks
-    //         ]
-    //         const title =
-    //           attrs.title == null ? "" : JSON.stringify(String(attrs.title))
-    //         const href = attrs.href || "#"
-
-    //         return schema.node(
-    //           "link",
-    //           attrs,
-    //           [
-    //             schema.text("[", markup),
-    //             ...content,
-    //             schema.text("](", markup),
-    //             schema.text(`${href} ${title}`, markup),
-    //             schema.text(")", markup)
-    //           ],
-    //           marks
-    //         )
-    //       }
-    //     }
-    //   ]
-    // }),
     expandedImage: new EditNode({
       inline: true,
       isolating: true,
@@ -560,7 +566,10 @@ export default new Schema({
             )
           }
         }
-      ]
+      ],
+      serializeMarkdown(buffer, node) {
+        return buffer.write(node.textContent)
+      }
     }),
     expandedHorizontalRule: new EditBlock({
       group: "block",
@@ -590,6 +599,9 @@ export default new Schema({
           }
         }
       ],
+      serializeMarkdown(buffer, node) {
+        return buffer.write(node.textContent)
+      },
       toDOM() {
         return [
           "div",
@@ -605,16 +617,6 @@ export default new Schema({
     })
   },
   marks: {
-    edit: {
-      group: "edit",
-      inclusive: false,
-      attrs: {
-        edit: { default: true }
-      },
-      toDOM(node) {
-        return ["span", 0]
-      }
-    },
     markup: {
       group: "markup code",
       inclusive: false,
@@ -634,6 +636,10 @@ export default new Schema({
           },
           0
         ]
+      },
+      serializeMarkdown: {
+        open: "",
+        close: ""
       }
     },
     code: {
@@ -676,7 +682,12 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown: {
+        open: "",
+        close: "",
+        mixable: false
+      }
     },
     link: {
       inclusive: false,
@@ -746,32 +757,18 @@ export default new Schema({
               ]
             ]
           }
-          // createNode(schema, attrs, content, marks) {
-          //   const markup = [
-          //     schema.mark("markup", {
-          //       class: "inline markup"
-          //     }),
-          //     ...marks
-          //   ]
-          //   const title =
-          //     attrs.title == null ? "" : JSON.stringify(String(attrs.title))
-          //   const href = attrs.href || "#"
-
-          //   return schema.node(
-          //     "link",
-          //     attrs,
-          //     [
-          //       schema.text("[", markup),
-          //       ...content,
-          //       schema.text("](", markup),
-          //       schema.text(`${href} ${title}`, markup),
-          //       schema.text(")", markup)
-          //     ],
-          //     marks
-          //   )
-          // }
         }
-      ]
+      ],
+      serializeMarkdown: {
+        open(state, mark) {
+          return `[`
+        },
+        close(state, mark) {
+          const url = state.escape(mark.attrs.href)
+          const title = mark.attrs.title ? state.quote(mark.attrs.title) : ""
+          return `](${url} ${title})`
+        }
+      }
     },
     strong: {
       group: "inline",
@@ -798,7 +795,16 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown: {
+        open(state, mark) {
+          return mark.attrs.markup
+        },
+        close(state, mark) {
+          return mark.attrs.markup
+        },
+        mixable: true
+      }
     },
     em: {
       group: "inline",
@@ -822,7 +828,16 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown: {
+        mixable: true,
+        open(state, mark) {
+          return mark.attrs.markup
+        },
+        close(state, mark) {
+          return mark.attrs.markup
+        }
+      }
     },
     strike_through: {
       group: "inline",
@@ -849,7 +864,16 @@ export default new Schema({
             }
           }
         }
-      ]
+      ],
+      serializeMarkdown: {
+        open(state, mark) {
+          return mark.attrs.markup
+        },
+        close(state, mark) {
+          return mark.attrs.markup
+        },
+        mixable: true
+      }
     }
   }
 })
