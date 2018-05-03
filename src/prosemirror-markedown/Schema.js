@@ -93,12 +93,12 @@ export interface SerializerBuffer {
 
 export type NodeSpec = ProseMirror.NodeSpec & {
   parseMarkdown?: (AttributeParseRule | NodeParseRule<*>)[],
-  serializeMarkdown?: NodeSerializer
+  serializeMarkdown: NodeSerializer
 }
 
 export type MarkSpec = ProseMirror.MarkSpec & {
   parseMarkdown?: (AttributeParseRule | MarkParseRule<*>)[],
-  serializeMarkdown?: MarkSerializer
+  serializeMarkdown: MarkSerializer
 }
 
 export type SchemaSpec = {
@@ -119,6 +119,7 @@ export class Block {
   toDOM: (node: Node) => DOMOutputSpec
   parseDOM: ParseRule[]
   parseMarkdown: (AttributeParseRule | NodeParseRule<*>)[]
+  serializeMarkdown: NodeSerializer
   attrs: Object
 
   static parseMarkdown = []
@@ -138,6 +139,7 @@ export class Block {
     this.attrs = spec.attrs || this.constructor.attrs
     this.toDOM = spec.toDOM || this.constructor.toDOM
     this.parseMarkdown = spec.parseMarkdown || this.constructor.parseMarkdown
+    this.serializeMarkdown = spec.serializeMarkdown
   }
 }
 
@@ -153,6 +155,7 @@ export class Inline {
   toDOM: (node: Node) => DOMOutputSpec
   parseDOM: ParseRule[]
   parseMarkdown: (AttributeParseRule | NodeParseRule<*>)[]
+  serializeMarkdown: NodeSerializer
   attrs: Object
 
   static toDOM(node: Node) {
@@ -172,6 +175,7 @@ export class Inline {
     this.attrs = spec.attrs || this.constructor.attrs
     this.toDOM = spec.toDOM || this.constructor.toDOM
     this.parseMarkdown = spec.parseMarkdown || this.constructor.parseMarkdown
+    this.serializeMarkdown = spec.serializeMarkdown
   }
 }
 

@@ -21,8 +21,11 @@ import { Mark } from "prosemirror-model"
 export default new Schema({
   nodes: {
     doc: {
-      content: "header article"
+      content: "header article",
       // content: "heading paragraph block+"
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node).closeBlock(node)
+      }
     },
     header: {
       content: "title author",
@@ -53,6 +56,9 @@ export default new Schema({
         //   tag: "h1"
         // }
       ],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node).closeBlock(node)
+      },
       toDOM(node) {
         return ["h1", node.attrs, 0]
       }
@@ -69,10 +75,11 @@ export default new Schema({
         tabindex: { default: 0 }
       },
       parseMarkdown: [
-        {
-          type: "paragrpah"
-        }
+        // i
       ],
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node).closeBlock(node)
+      },
       toDOM(node) {
         return ["address", node.attrs, 0]
       }
@@ -87,6 +94,9 @@ export default new Schema({
       },
       toDOM(node) {
         return ["article", node.attrs, 0]
+      },
+      serializeMarkdown(buffer, node) {
+        return buffer.renderInline(node).closeBlock(node)
       }
     },
     paragraph: new EditBlock({
@@ -94,8 +104,14 @@ export default new Schema({
       group: "block",
       parseDOM: [{ tag: "p" }],
       parseMarkdown: [{ type: "paragraph" }],
-      serializeMarkdown(buffer, node) {
-        return buffer.renderInline(node).closeBlock(node)
+      serializeMarkdown(buffer, node, parent) {
+        const { nodes } = node.type.schema
+        switch (parent.type || null) {
+          case nodes.list_item:
+            return buffer.renderContent(node)
+          default:
+            return buffer.renderInline(node).closeBlock(node)
+        }
       },
       attrs: {
         marked: {
@@ -110,7 +126,17 @@ export default new Schema({
       content: "block+",
       group: "block",
       parseDOM: [{ tag: "blockquote" }],
-      parseMarkdown: [{ type: "blockquote" }],
+      parseMarkdown: [
+        {
+          type: "blockquote"
+          // TODO: At the moment when paragraph with content `paragrpah(> foo)` is
+          // parsed it produces `blockquote(foo)` which confuses selection restore
+          // logic in `EditRange.updateMarkup` as text offset no longer correponds
+          // in a new node due to missing `> ` characters. This can be resolved by
+          // adding `> ` markup in front of each child node like it's done in
+          // list-item.
+        }
+      ],
       serializeMarkdown(buffer, node) {
         return buffer.wrapBlock("> ", null, node, node =>
           buffer.renderContent(node)
@@ -304,7 +330,7 @@ export default new Schema({
         }
       ],
       serializeMarkdown(buffer, node) {
-        return buffer.renderList(node, "  ", item => `${item.attrs.markup} `)
+        return buffer.renderList(node, "  ", item => "")
       }
     },
 
@@ -325,10 +351,10 @@ export default new Schema({
               markup: token.markup
             }
           },
-          _createNode(schema, attributes, content, marks) {
+          createNode(schema, attributes, content, marks) {
             return schema.node("list_item", attributes, [
               schema.node("paragraph", null, [
-                schema.text(attributes.markup, [
+                schema.text(`${attributes.markup} `, [
                   schema.mark("markup", {
                     class: "list markup",
                     marks
@@ -760,14 +786,16 @@ export default new Schema({
         }
       ],
       serializeMarkdown: {
-        open(state, mark) {
-          return `[`
-        },
-        close(state, mark) {
-          const url = state.escape(mark.attrs.href)
-          const title = mark.attrs.title ? state.quote(mark.attrs.title) : ""
-          return `](${url} ${title})`
-        }
+        open: "",
+        close: ""
+        // open(state, mark) {
+        //   return `[`
+        // },
+        // close(state, mark) {
+        //   const url = state.escape(mark.attrs.href)
+        //   const title = mark.attrs.title ? state.quote(mark.attrs.title) : ""
+        //   return `](${url} ${title})`
+        // }
       }
     },
     strong: {
@@ -797,12 +825,14 @@ export default new Schema({
         }
       ],
       serializeMarkdown: {
-        open(state, mark) {
-          return mark.attrs.markup
-        },
-        close(state, mark) {
-          return mark.attrs.markup
-        },
+        // open(state, mark) {
+        //   return mark.attrs.markup
+        // },
+        // close(state, mark) {
+        //   return mark.attrs.markup
+        // },
+        open: "",
+        close: "",
         mixable: true
       }
     },
@@ -831,12 +861,14 @@ export default new Schema({
       ],
       serializeMarkdown: {
         mixable: true,
-        open(state, mark) {
-          return mark.attrs.markup
-        },
-        close(state, mark) {
-          return mark.attrs.markup
-        }
+        open: "",
+        close: ""
+        // open(state, mark) {
+        //   return mark.attrs.markup
+        // },
+        // close(state, mark) {
+        //   return mark.attrs.markup
+        // }
       }
     },
     strike_through: {
@@ -866,12 +898,14 @@ export default new Schema({
         }
       ],
       serializeMarkdown: {
-        open(state, mark) {
-          return mark.attrs.markup
-        },
-        close(state, mark) {
-          return mark.attrs.markup
-        },
+        // open(state, mark) {
+        //   return mark.attrs.markup
+        // },
+        // close(state, mark) {
+        //   return mark.attrs.markup
+        // },
+        open: "",
+        close: "",
         mixable: true
       }
     }

@@ -166,14 +166,26 @@ class Model {
     return Model.new(tr, this.selectTime, this.editTime, tr.time)
   }
   transact(tr: Transaction) {
-    return new Model(
-      this.block,
-      this.editRange,
-      this.decorations.map(tr.mapping, tr.doc),
-      tr.docChanged ? this.selectTime : tr.time,
-      tr.docChanged ? tr.time : this.editTime,
-      tr.time
-    )
+    try {
+      return new Model(
+        this.block,
+        this.editRange,
+        this.decorations.map(tr.mapping, tr.doc),
+        tr.docChanged ? this.selectTime : tr.time,
+        tr.docChanged ? tr.time : this.editTime,
+        tr.time
+      )
+    } catch (error) {
+      // This is not ideal solution but unfortunately prose-mirrror throws when
+      // this.decorations.map is called on a bloquote node decoration that is
+      // deleted. TODO: Submit a bug for prose-mirror.
+      return Model.new(
+        tr,
+        tr.docChanged ? this.selectTime : tr.time,
+        tr.docChanged ? tr.time : this.editTime,
+        tr.time
+      )
+    }
   }
 }
 

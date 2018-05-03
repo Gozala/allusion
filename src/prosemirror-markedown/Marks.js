@@ -55,7 +55,6 @@ export const findMarkedBoundry = (
   while (node && mark) {
     if (isMarkedWith(node, mark)) {
       boundry = dir < 0 ? offset : offset + node.nodeSize
-
       void ({ offset, node } = nodeBy(root, boundry, dir))
     } else {
       mark = marks[--n]

@@ -44,7 +44,9 @@ export const updateMarkup = (
       return null
     }
 
-    if (markup === serializer.serialize(output)) {
+    // Trim left because paragraph turned into a list will have added white
+    // spaces on the left.
+    if (markup.trimLeft() === serializer.serialize(output).trimLeft()) {
       const offset = textOffsetFromPosition(tr.doc, tr.selection.from)
       if (offset) {
         tr.replaceRangeWith(index, index + node.nodeSize, output)

@@ -1,7 +1,7 @@
 // @flow strict
 
-import { Mark } from "prosemirror-model"
-import type { NodeType, Node, Fragment } from "prosemirror-model"
+import { Mark, Fragment } from "prosemirror-model"
+import type { NodeType, Node } from "prosemirror-model"
 import type {
   Schema,
   NodeSerializer,
@@ -46,12 +46,12 @@ export default class Serializer {
     this.nodes = nodes
     this.marks = marks
   }
-  serialize(content: Node | Fragment, options?: SerializerOptions) {
+  serialize(content: Node, options?: SerializerOptions) {
     const markdown = new MarkdownSerializer(this.nodes, this.marks, options)
-    markdown.renderContent(content)
+    markdown.render(content, Fragment.empty, 0)
     return markdown.out
   }
-  serializeInline(content: Node | Fragment, options?: SerializerOptions) {
+  serializeInline(content: Node, options?: SerializerOptions) {
     let markdown = new MarkdownSerializer(this.nodes, this.marks, options)
     markdown.renderContentInline(content)
     return markdown.out
@@ -158,7 +158,7 @@ class MarkdownSerializer implements SerializerBuffer {
   }
   // :: (Node)
   // Render the given node as a block.
-  render(node: Node, parent: Node | Fragment, index: number) {
+  render(node: Node, parent: Node | Fragment, index) {
     if (typeof parent == "number") throw new Error("!")
     if (!node.marks.some(mark => this.marks[mark.type.name].ignore)) {
       const nodeSerializer = this.nodes[node.type.name]

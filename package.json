@@ -19,14 +19,14 @@
     "babel-preset-flow-syntax": "1.0.1",
     "babel-register": "^6.26.0",
     "blue-tape": "^1.0.0",
-    "documentation": "^6.2.0",
+    "documentation": "^6.3.2",
     "flow-bin": "0.70.0",
     "flow-copy-source": "^1.3.0",
     "husky": "^0.14.0",
-    "lint-staged": "^7.0.4",
+    "lint-staged": "^7.0.5",
     "prettier": "^1.12.1",
-    "rollup": "0.58.0",
-    "rollup-plugin-babel": "3.0.3",
+    "rollup": "0.58.2",
+    "rollup-plugin-babel": "3.0.4",
     "rollup-plugin-commonjs": "9.1.0",
     "rollup-plugin-flow": "1.1.1",
     "rollup-plugin-json": "2.3.0",
@@ -34,7 +34,7 @@
     "rollup-plugin-node-resolve": "3.3.0",
     "rollup-plugin-postcss": "1.6.1",
     "rollup-plugin-serve": "0.4.2",
-    "source-map-support": "0.5.4"
+    "source-map-support": "0.5.5"
   },
   "scripts": {
     "test": "npm run build:node && npm run test:flow && npm run test:tape",
@@ -72,7 +72,7 @@
   "dependencies": {
     "@beaker/webdb": "4.1.1",
     "always.flow": "1.0.0",
-    "codemirror": "5.36.0",
+    "codemirror": "5.37.0",
     "fast-diff": "1.1.2",
     "markdown-it": "8.4.1",
     "markdown-it-checkbox": "1.1.0",
@@ -91,7 +91,7 @@
     "prosemirror-schema-basic": "1.0.0",
     "prosemirror-schema-list": "1.0.1",
     "prosemirror-state": "1.2.0",
-    "prosemirror-view": "1.2.0",
+    "prosemirror-view": "1.3.0",
     "unreachable": "0.2.0"
   }
 }
