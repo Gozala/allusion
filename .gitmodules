@@ -1,0 +1,60 @@
+[submodule "src/prosemirror-commands"]
+	path = src/prosemirror-commands
+	url = git@github.com:Gozala/prosemirror-commands.git
+	branch = beaker
+[submodule "src/prosemirror-dropcursor"]
+	path = src/prosemirror-dropcursor
+	url = git@github.com:Gozala/prosemirror-dropcursor.git
+	branch = beaker
+[submodule "src/prosemirror-gapcursor"]
+	path = src/prosemirror-gapcursor
+	url = git@github.com:Gozala/prosemirror-gapcursor.git
+	branch = beaker
+[submodule "src/prosemirror-history"]
+	path = src/prosemirror-history
+	url = git@github.com:Gozala/prosemirror-history.git
+	branch = beaker
+[submodule "src/prosemirror-inputrules"]
+	path = src/prosemirror-inputrules
+	url = git@github.com:Gozala/prosemirror-inputrules.git
+	branch = beaker
+[submodule "src/prosemirror-keymap"]
+	path = src/prosemirror-keymap
+	url = git@github.com:Gozala/prosemirror-keymap.git
+	branch = beaker
+[submodule "src/prosemirror-model"]
+	path = src/prosemirror-model
+	url = git@github.com:Gozala/prosemirror-model.git
+	branch = beaker
+[submodule "src/prosemirror-schema-basic"]
+	path = src/prosemirror-schema-basic
+	url = git@github.com:Gozala/prosemirror-schema-basic.git
+	branch = beaker
+[submodule "src/prosemirror-schema-list"]
+	path = src/prosemirror-schema-list
+	url = git@github.com:Gozala/prosemirror-schema-list.git
+	branch = beaker
+[submodule "src/prosemirror-state"]
+	path = src/prosemirror-state
+	url = git@github.com:Gozala/prosemirror-state.git
+	branch = beaker
+[submodule "src/prosemirror-transform"]
+	path = src/prosemirror-transform
+	url = git@github.com:Gozala/prosemirror-transform.git
+	branch = beaker
+[submodule "src/prosemirror-view"]
+	path = src/prosemirror-view
+	url = git@github.com:Gozala/prosemirror-view.git
+	branch = beaker
+[submodule "src/rope-sequence"]
+	path = src/rope-sequence
+	url = git@github.com:Gozala/rope-sequence.git
+	branch = beaker
+[submodule "src/orderedmap"]
+	path = src/orderedmap
+	url = git@github.com:Gozala/orderedmap.git
+	branch = beaker
+[submodule "src/w3c-keyname"]
+	path = src/w3c-keyname
+	url = git@github.com:Gozala/w3c-keyname.git
+	branch = beaker

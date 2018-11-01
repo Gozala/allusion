@@ -1,0 +1,15 @@
+.ProseMirror .CodeMirror {
+  font-family: Consolas, "Lucida Console", Monaco, monospace;
+  border: none;
+  height: auto;
+
+  padding: 1rem;
+
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin: 1.5rem 0.2rem;
+}
+
+.ProseMirror .CodeMirror pre {
+  white-space: pre !important;
+}

@@ -9,5 +9,6 @@
 
 [options]
 module.name_mapper='allusion' -> '<PROJECT_ROOT>/src/allusion'
+module.name_mapper='<PROJECT_ROOT>/src/prosemirror-mirror' -> 'prosemirror-view'
 suppress_comment= \\(.\\|\n\\)*\\@FlowIssue
 suppress_comment= \\(.\\|\n\\)*\\@FlowIgnore
