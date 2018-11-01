@@ -36,10 +36,7 @@ export default new Schema({
         return ["header", 0]
       },
       serializeMarkdown(buffer, node) {
-        return buffer
-          .write("/ ")
-          .text(node.textContent, false)
-          .closeBlock(node)
+        return buffer.renderInline(node).closeBlock(node)
       }
     },
     title: new EditBlock({
@@ -60,7 +57,7 @@ export default new Schema({
         // }
       ],
       serializeMarkdown(buffer, node) {
-        return buffer.renderInline(node).closeBlock(node)
+        return buffer.write("# ").renderInline(node).closeBlock(node)
       },
       toDOM(node) {
         return ["h1", node.attrs, 0]
