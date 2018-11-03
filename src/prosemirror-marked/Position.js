@@ -50,7 +50,7 @@ export const positionFromTextOffset = (
   let stack = [root]
   while (index < offset) {
     if (stack.length === 0) {
-      return null
+      return position - 1
     } else {
       const node = stack.shift()
       if (node === null) {

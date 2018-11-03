@@ -58,3 +58,7 @@
 	path = src/w3c-keyname
 	url = git@github.com:Gozala/w3c-keyname.git
 	branch = beaker
+[submodule "src/codemirror"]
+	path = src/codemirror
+	url = git@github.com:Gozala/codemirror.git
+	branch = beaker

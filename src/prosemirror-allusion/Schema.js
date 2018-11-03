@@ -216,7 +216,7 @@ export default new Schema({
       group: "block",
       code: true,
       defining: true,
-      attrs: { params: { default: "" } },
+      attrs: { syntax: { default: "" } },
       parseMarkdown: [
         { type: "code_block" },
         {
@@ -224,7 +224,7 @@ export default new Schema({
           tag: "code",
           getAttrs(token) {
             return {
-              params: token.info || "",
+              syntax: token.info || "",
               markup: token.markup
             }
           }
@@ -232,7 +232,7 @@ export default new Schema({
       ],
       serializeMarkdown(buffer, node) {
         return buffer
-          .write("```" + node.attrs.params + "\n")
+          .write("```" + node.attrs.syntax + "\n")
           .text(node.textContent, false)
           .ensureNewLine()
           .write("```")
@@ -244,7 +244,7 @@ export default new Schema({
           preserveWhitespace: true,
           getAttrs(node) {
             return {
-              params: node.getAttribute("data-params")
+              syntax: node.getAttribute("data-syntax")
             }
           }
         }
@@ -252,8 +252,8 @@ export default new Schema({
       toDOM(node) {
         return [
           "pre",
-          node.attrs.params ? { "data-params": node.attrs.params } : {},
-          ["code", 0]
+          node.attrs.syntax ? { "data-syntax": node.attrs.syntax } : {},
+          ["pre", 0]
         ]
       }
     },

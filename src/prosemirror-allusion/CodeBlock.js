@@ -2,8 +2,10 @@
 
 // import "codemirror/lib/codemirror.css"
 
-import CodeMirror from "../codemirror/index.js"
-import "../codemirror/mode/javascript/javascript.js"
+import CodeMirror from "../codemirror/src/codemirror.js"
+import MetaMode from "../codemirror/mode/meta.js"
+import MatchBrackets from "../codemirror/addon/edit/matchbrackets.js"
+import ImportMode from "../codemirror-mode-import/index.js"
 import { Plugin } from "../prosemirror-state/src/index.js"
 import { exitCode } from "../prosemirror-commands/src/commands.js"
 import { undo, redo } from "../prosemirror-history/src/history.js"
@@ -16,12 +18,18 @@ import { Fragment } from "../prosemirror-model/src/index.js"
 import keyDownHandler from "./CodeBlock/KeyDownHandler.js"
 
 /*::
-import type { Editor, EditorChangeLinkedList } from "../codemirror/index.js"
+import type { Editor, EditorChangeLinkedList } from "../codemirror/src/codemirror.js"
 import type { EditorView } from "../prosemirror-view/src/index.js"
 import type { Node } from "../prosemirror-model/src/index.js"
 type Direction = -1 | 1
 type Unit = "line" | "char"
 */
+
+MetaMode(CodeMirror)
+MatchBrackets(CodeMirror)
+const CodeMirrorWithMeta/*:any*/ = CodeMirror
+const findModeByName = CodeMirrorWithMeta.findModeByName
+const setMode = ImportMode(CodeMirror, "/src/codemirror/mode/%N/%N.js")
 
 export default class CodeBlockView {
   /*::
@@ -46,9 +54,15 @@ export default class CodeBlockView {
     // Create a CodeMirror instance
     self.cm = CodeMirror(null, {
       value: self.node.textContent,
+      matchBrackets: true,
       lineNumbers: false,
       extraKeys: self.codeMirrorKeymap()
     })
+
+    const syntax = findModeByName(node.attrs.syntax)
+    if (syntax) {
+      setMode(self.cm, syntax.mode)
+    }
 
     // The editor's outer node is our DOM representation
     self.dom = self.cm.getWrapperElement()
@@ -87,6 +101,8 @@ export default class CodeBlockView {
         self.delete()
       }
     })
+
+    window.codeBlock = self
 
     return self
   }

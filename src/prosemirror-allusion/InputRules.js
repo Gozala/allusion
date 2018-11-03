@@ -1,64 +1,43 @@
-// @noflow
+// @flow strict
 
-import { Plugin } from "prosemirror-state"
+import { Plugin } from "../prosemirror-state/src/index.js"
+import {
+  inputRules,
+  wrappingInputRule,
+  textblockTypeInputRule,
+  smartQuotes,
+  emDash,
+  ellipsis
+} from "../prosemirror-inputrules/src/index.js"
 
-// ::- Input rules are regular expressions describing a piece of text
-// that, when typed, causes something to happen. This might be
-// changing two dashes into an emdash, wrapping a paragraph starting
-// with `"> "` into a blockquote, or something entirely different.
-export class InputRule {
-  // :: (RegExp, union<string, (state: EditorState, match: [string], start: number, end: number) → ?Transaction>)
-  // Create an input rule. The rule applies when the user typed
-  // something and the text directly in front of the cursor matches
-  // `match`, which should probably end with `$`.
-  //
-  // The `handler` can be a string, in which case the matched text, or
-  // the first matched group in the regexp, is replaced by that
-  // string.
-  //
-  // Or a it can be a function, which will be called with the match
-  // array produced by
-  // [`RegExp.exec`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/exec),
-  // as well as the start and end of the matched range, and which can
-  // return a [transaction](#state.Transaction) that describes the
-  // rule's effect, or null to indicate the input was not handled.
-  constructor(match, handler, preventDefault = true) {
-    this.match = match
-    this.handler = typeof handler == "string" ? stringHandler(handler) : handler
-    this.preventDefault = preventDefault
-  }
+/*::
+import type {Rule, RuleHandler} from "../prosemirror-inputrules/src/index.js"
+import type {Schema, NodeType} from "../prosemirror-model/src/index.js"
+
+interface InputRule extends Rule {
+  +preventDefault?:boolean
 }
+*/
 
-function stringHandler(string) {
-  return function(state, match, start, end) {
-    let insert = string
-    if (match[1]) {
-      let offset = match[0].lastIndexOf(match[1])
-      insert += match[0].slice(offset + match[1].length)
-      start += offset
-      let cutOff = start - end
-      if (cutOff > 0) {
-        insert = match[0].slice(offset - cutOff, offset) + insert
-        start = end
-      }
-    }
-    let marks = state.doc.resolve(start).marks()
-    return state.tr.replaceWith(start, end, state.schema.text(insert, marks))
+export class TheInputRule /*::implements InputRule*/ {
+  /*::
+  match:RegExp
+  handler:RuleHandler
+  preventDefault:boolean
+  */
+  constructor(match/*:RegExp*/, handler/*:RuleHandler*/, preventDefault/*:boolean*/ = true) {
+    this.match = match
+    this.handler = handler
+    this.preventDefault = preventDefault
   }
 }
 
 const MAX_MATCH = 500
 
-// :: (config: {rules: [InputRule]}) → Plugin
-// Create an input rules plugin. When enabled, it will cause text
-// input that matches any of the given rules to trigger the rule's
-// action.
-export function inputRules({ rules }) {
+export const InputRules = ({rules}/*:{rules:InputRule[]}*/)/*:Plugin<null>*/ => {
   return new Plugin({
     state: {
-      init() {
-        return null
-      },
+      init() { return null },
       apply(tr, prev) {
         let stored = tr.getMeta(this)
         if (stored) return stored
@@ -67,34 +46,51 @@ export function inputRules({ rules }) {
     },
 
     props: {
+      handleKeyDown(view, event) {
+        const { state } = view
+        if (event.key != "Enter") {
+          return false
+        } else if (!state.selection.empty) {
+          return false
+        } else {
+          const position = state.selection.$to
+          if (position.parent.type.spec.code) {
+            return false
+          } else {
+            const { from, to } = state.selection
+            return this.props.handleTextInput(view, from, to, "\n")
+          //   const {parent, parentOffset} = position
+          //   const from = Math.max(0, parentOffset - MAX_MATCH)
+          //   const to = parentOffset
+          //   const text = "\n"
+          //   const textBefore = parent.textBetween(from, to, null, "\ufffc") + text
+          //   for (const rule of rules) {
+          //     let match = rule.match.exec(textBefore)
+          //     let tr = match && rule.handler(state, match, from - match[0].length, to)
+          //     if (!tr) continue
+          //     view.dispatch(tr.setMeta(this, {transform: tr, from, to, text}))
+          //     return rule.preventDefault || false
+          //   }
+          //   return false
+          // }
+          }
+        }
+      },
       handleTextInput(view, from, to, text) {
-        let state = view.state,
-          $from = state.doc.resolve(from)
-
+        let state = view.state, $from = state.doc.resolve(from)
         if ($from.parent.type.spec.code) return false
-
-        let textBefore =
-          $from.parent.textBetween(
-            Math.max(0, $from.parentOffset - MAX_MATCH),
-            $from.parentOffset,
-            null,
-            "\ufffc"
-          ) + text
-
-        for (let i = 0; i < rules.length; i++) {
-          const rule = rules[i]
+        let textBefore = $from.parent.textBetween(
+          Math.max(0, $from.parentOffset - MAX_MATCH),
+          $from.parentOffset,
+          null,
+          "\ufffc"
+        ) + text
+        for (const rule of rules) {
           let match = rule.match.exec(textBefore)
-          let tr =
-            match &&
-            rule.handler(
-              state,
-              match,
-              from - (match[0].length - text.length),
-              to
-            )
+          let tr = match && rule.handler(state, match, from - (match[0].length - text.length), to)
           if (!tr) continue
-          view.dispatch(tr.setMeta(this, { transform: tr, from, to, text }))
-          return rule.preventDefault === true
+          view.dispatch(tr.setMeta(this, {transform: tr, from, to, text}))
+          return rule.preventDefault || false
         }
         return false
       }
@@ -104,31 +100,32 @@ export function inputRules({ rules }) {
   })
 }
 
-// :: (EditorState, ?(Transaction)) → bool
-// This is a command that will undo an input rule, if applying such a
-// rule was the last thing that the user did.
-export function undoInputRule(state, dispatch) {
-  let plugins = state.plugins
-  for (let i = 0; i < plugins.length; i++) {
-    let plugin = plugins[i],
-      undoable
-    if (plugin.spec.isInputRules && (undoable = plugin.getState(state))) {
-      if (dispatch) {
-        let tr = state.tr,
-          toUndo = undoable.transform
-        for (let j = toUndo.steps.length - 1; j >= 0; j--)
-          tr.step(toUndo.steps[j].invert(toUndo.docs[j]))
-        let marks = tr.doc.resolve(undoable.from).marks()
-        dispatch(
-          tr.replaceWith(
-            undoable.from,
-            undoable.to,
-            state.schema.text(undoable.text, marks)
-          )
-        )
-      }
-      return true
-    }
-  }
-  return false
+
+const textblockRule = (match/*:RegExp*/) => (nodeType/*:NodeType*/) =>
+  textblockTypeInputRule(match, nodeType)
+
+const wrappingRule = (match/*:RegExp*/) => (nodeType/*:NodeType*/) =>
+  wrappingInputRule(match, nodeType)
+
+export const blockQuoteRule = wrappingRule(/^\s*>\s$/)
+export const orderedListRule = (nodeType/*:NodeType*/) => wrappingInputRule(
+    /^(\d+)\.\s$/,
+    nodeType,
+    match => ({order: +match[1]}),
+    (match, node) => node.childCount + node.attrs.order == +match[1]
+  )
+
+export const bulletListRule = wrappingRule(/^\s*([-+*])\s$/)
+export const codeBlockRule = (nodeType/*:NodeType*/) =>
+  textblockTypeInputRule(/^```(\S*)\n$/, nodeType, (match) => ({syntax:match[1] || ""}))
+
+export const buildInputRules = (schema/*:Schema*/)/*:Plugin<null>*/ => {
+  let type, rules = []
+  if (type = schema.nodes.blockquote) rules.push(blockQuoteRule(type))
+  if (type = schema.nodes.ordered_list) rules.push(orderedListRule(type))
+  if (type = schema.nodes.bullet_list) rules.push(bulletListRule(type))
+  if (type = schema.nodes.code_block) rules.push(codeBlockRule(type))
+  return InputRules({rules})
 }
+
+export default buildInputRules
