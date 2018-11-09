@@ -1,0 +1,7 @@
+src/codemirror/*
+src/prosemirror-*/*
+src/orderedmap/
+src/rope-sequence/*
+src/w3c-keyname/*
+!src/prosemirror-allusion/*
+**.min.js

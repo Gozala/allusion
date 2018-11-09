@@ -41,7 +41,7 @@ export default new Schema({
     },
     title: new EditBlock({
       content: "inline*",
-      group: "heading paragraph",
+      group: "heading",
       defining: true,
       attrs: {
         markup: { default: "" },
@@ -57,7 +57,10 @@ export default new Schema({
         // }
       ],
       serializeMarkdown(buffer, node) {
-        return buffer.write("# ").renderInline(node).closeBlock(node)
+        return buffer
+          .write("# ")
+          .renderInline(node)
+          .closeBlock(node)
       },
       toDOM(node) {
         return ["h1", node.attrs, 0]
@@ -78,7 +81,14 @@ export default new Schema({
         // i
       ],
       serializeMarkdown(buffer, node) {
-        return buffer.renderInline(node).closeBlock(node)
+        if (node.content.size > 0) {
+          return buffer
+            .write("Author: ")
+            .renderInline(node)
+            .closeBlock(node)
+        } else {
+          return buffer.renderInline(node).closeBlock(node)
+        }
       },
       toDOM(node) {
         return ["address", node.attrs, 0]
@@ -373,7 +383,7 @@ export default new Schema({
 
     text: {
       group: "inline",
-      toDOM(node)/* : string */ {
+      toDOM(node) /* : string */ {
         return node.text || ""
       },
       serializeMarkdown(buffer, node) {
@@ -467,7 +477,7 @@ export default new Schema({
       parseDOM: [
         {
           tag: `input[type="checkbox"]`,
-          getAttrs(node/* : Element */) {
+          getAttrs(node /* : Element */) {
             return {
               type: node.getAttribute("type"),
               checked: node.getAttribute("checked"),
@@ -508,7 +518,7 @@ export default new Schema({
       parseDOM: [
         {
           tag: "label",
-          getAttrs(node/* : Element */) {
+          getAttrs(node /* : Element */) {
             return {
               for: node.getAttribute("for")
             }

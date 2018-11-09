@@ -3,6 +3,7 @@
 import { always } from "../../reflex/Basics.js"
 /*::
 import * as Notebook from "../Notebook.js"
+import * as Library from "../Library.js"
 
 export type Route =
   | { tag: "navigate", value:URL }
@@ -12,14 +13,20 @@ export type Route =
 export type Message =
   | { tag: "route", value: Route }
   | { tag: "notebook", value: Notebook.Message }
-  | { tag: "save", value:true }
-  | { tag: "published", value:URL }
+  | { tag: "library", value: Library.Message }
+  // | { tag: "save", value:true }
+  // | { tag: "published", value:URL }
   | { tag: "saved", value:true }
   | { tag: "saveError", value:Error }
 */
 
 export const notebook = (value /*:Notebook.Message*/) /*:Message*/ => ({
   tag: "notebook",
+  value
+})
+
+export const library = (value /*:Library.Message*/) /*:Message*/ => ({
+  tag: "library",
   value
 })
 
@@ -30,9 +37,9 @@ export const route = (value /*:Route*/) /*:Message*/ => ({
 
 export const onSaved = always({ tag: "saved", value: true })
 
-export const onSaveError = (value /*: Error*/) => ({
+export const onSaveError = (value /*: mixed*/) => ({
   tag: "saveError",
-  value
+  value: value instanceof Error ? value : new Error(value)
 })
 
 export const onPublished = (value /*: URL*/) => ({

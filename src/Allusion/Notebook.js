@@ -1,7 +1,7 @@
 // @flow strict
 
 import { nofx, fx, batch } from "../reflex/Effect.js"
-import { text, customElement } from "../reflex/Element.js"
+import { text, customElement, div } from "../reflex/Element.js"
 import {
   className,
   on,
@@ -26,7 +26,7 @@ export type Model = Data.Model
 export type Message = Inbox.Message
 */
 
-export const draft = () => {
+const draft = () => {
   return [Data.draft(""), nofx]
 }
 
@@ -55,7 +55,6 @@ export const update = (message /*:Message*/, state /*:Model*/) => {
   }
 }
 
-
 export const view = (state /*:Model*/) => {
   switch (state.status) {
     case "loading":
@@ -63,19 +62,19 @@ export const view = (state /*:Model*/) => {
     case "error":
       return viewError(state.url, state.message)
     case "draft":
-      return viewDraft(state.editorState)
+      return viewDraft(state.document)
     default:
-      return viewDocument(state.isOwner, state.editorState)
+      return viewDocument(state.isOwner, state.document)
   }
 }
 
-
-const viewLoading = (url) => text(`Loading document ${url.href}`)
-const viewError = (url, reason) => text(`Failed to load ${url.href} : ${reason}`)
-const viewDraft = (state) => viewDocument(true, state)
-const viewDocument = (isOwner, state) =>
+const viewLoading = url => div([], [text(`Loading document ${url.href}`)])
+const viewError = (url, reason) =>
+  div([], [text(`Failed to load ${url.href} : ${reason}`)])
+const viewDraft = document => viewDocument(true, document)
+const viewDocument = (isOwner, document) =>
   customElement("text-editor", Editor, [
-    className("flex"),
+    className("flex min-vh-100 w-100 measure-wide f4"),
     on("change", Decoder.onEdit),
-    property("state", state)
+    property("document", document)
   ])

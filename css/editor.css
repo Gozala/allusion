@@ -441,19 +441,14 @@ article h1 {
   white-space: pre !important;
 }
 
-body {
-  /* background-color: rgb(240, 240, 240); */
-  color: rgb(28, 28, 23);
-}
-
 .markup {
   text-decoration: none;
   color: initial;
 }
 
 .markup.heading {
-  margin-left: -50px;
-  width: 50px;
+  margin-left: -66px;
+  width: 66px;
   display: inline-block;
   line-height: 90%;
 }
@@ -464,7 +459,8 @@ u {
   text-decoration-style: dotted;
 }
 
-:root {
+:root,
+:host {
   --markup-color: #ccc;
   --markup-font: Consolas, "Lucida Console", Monaco, monospace;
   --edit-block-color: rgb(152, 243, 152);
@@ -599,7 +595,7 @@ address {
   position: relative;
 }
 
-[label]::after {
+[data-edit-block][label]::after {
   position: absolute;
   content: attr(label);
   color: rgba(0, 0, 0, 0.44);
@@ -616,7 +612,7 @@ address {
   white-space: nowrap;
 }
 
-[label]::after {
+[data-edit-block][label]::after {
   opacity: 1;
   visibility: visible;
 }
@@ -624,6 +620,13 @@ address {
 [label][empty]::after {
   opacity: 0;
   visibility: hidden;
+}
+
+@media (max-width: 58em) {
+  [data-edit-block][label]::after {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 a {

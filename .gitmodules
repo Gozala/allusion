@@ -62,3 +62,7 @@
 	path = src/codemirror
 	url = git@github.com:Gozala/codemirror.git
 	branch = beaker
+[submodule "src/reflex"]
+	path = src/reflex
+	url = git@github.com:Gozala/reflex.git
+	branch = esm

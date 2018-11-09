@@ -570,17 +570,36 @@ code-block:focus-within {
   }
 }
 
+main > aside {
+  margin-top: -76px;
+}
+
+.sticky {
+  position: sticky;
+}
+
+.events-none {
+  pointer-events: none;
+}
+
+.events-all {
+  pointer-events: all;
+}
+
+.events {
+  pointer-events: auto;
+}
+
 .publish {
   outline: none;
   border: none;
-  background: #ff4700;
   box-shadow: 0 5px 10px -5px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   height: 44px;
-  width: 150px;
+  width: 44px;
   padding: 10px;
   box-sizing: border-box;
   border-radius: 5px;
@@ -600,6 +619,46 @@ code-block:focus-within {
   align-items: center;
   justify-content: center;
   opacity: 0;
+}
+
+.share {
+  transform: scale(0);
+  outline: none;
+  border: none;
+  box-shadow: 0 5px 10px -5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 44px;
+  border-radius: 44px;
+  box-sizing: border-box;
+  transition: transform 0.2s ease 0.2s;
+  position: relative;
+}
+
+.share.ready {
+  transform: scale(1);
+}
+
+.share.ready::after {
+  content: " ";
+  border: none;
+  position: absolute;
+  top: 0px;
+  width: inherit;
+  opacity: 1;
+  height: inherit;
+  left: -2px;
+  mask: url(/icons/ionicons.com/md-share.svg?1) no-repeat 50% 50% / 25px;
+  -webkit-mask: url(/icons/ionicons.com/md-share.svg?1) no-repeat 50% 50% / 25px;
+  background: white;
+  transform: scale(1);
+}
+
+.publish.publishing:after {
+  opacity: 1;
+  transition: opacity 0.25s ease 0.5s;
 }
 
 .publish.publishing {
@@ -731,8 +790,7 @@ code-block:focus-within {
   }
 }
 
-
-body {
+.body {
   font-family: "San Francisco Text", "Helvetica Neue", "Helvetica", sans-serif;
   margin: 10px auto;
   max-width: 650px;

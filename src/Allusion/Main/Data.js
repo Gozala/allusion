@@ -1,12 +1,14 @@
 // @flow strict
 
 import * as Notebook from "../Notebook/Data.js"
+import * as Library from "../Library/Data.js"
 import { always } from "../../reflex/Basics.js"
 
 /*::
 export type Model = {
   notebook: MaybeSaved<Notebook.Model>;
   saveRequest:SaveRequest;
+  library:Library.Model;
 }
 
 export type SaveRequest =
@@ -27,9 +29,13 @@ const savingFailed = (error /*:Error*/) => ({
   value: error
 })
 
-export const init = (notebook /*:Notebook.Model*/) /*:Model*/ => ({
+export const init = (
+  notebook /*:Notebook.Model*/,
+  library /*:Library.Model*/
+) /*:Model*/ => ({
   saveRequest: { tag: "NotSaving" },
-  notebook: { before: notebook, after: notebook }
+  notebook: { before: notebook, after: notebook },
+  library
 })
 
 export const saved = (state /*:Model*/) /*:Model*/ => ({
@@ -53,9 +59,8 @@ export const save = (state /*:Model*/) /*:Model*/ => ({
   notebook: { before: state.notebook.after, after: state.notebook.after }
 })
 
-
-export const edit = (editorState/*:Notebook.EditorState*/, state/*:Model*/) => 
-  updateNotebook(state, Notebook.edit(editorState, notebook(state)))
+export const edit = (document /*:Notebook.Document*/, state /*:Model*/) =>
+  updateNotebook(state, Notebook.edit(document, notebook(state)))
 
 export const updateNotebook = (
   state /*:Model*/,
@@ -70,8 +75,34 @@ export const updateNotebook = (
   }
 }
 
+export const updateLibrary = (
+  library /*:Library.Model*/,
+  state /*:Model*/
+) /*:Model*/ => {
+  return {
+    ...state,
+    library
+  }
+}
+
 export const notebook = (state /*:Model*/) /*:Notebook.Model*/ =>
   state.notebook.after
+
+export const library = (state /*:Model*/) /*:Library.Model*/ => state.library
+
+export const isReadyForShare = (state /*:Model*/) /*:boolean*/ => {
+  const doc = Notebook.toDocument(notebook(state))
+  if (doc == null) {
+    return false
+  } else {
+    const { title, author, article } = doc
+    if (title != "" && article.indexOf("\n") > 0) {
+      return true
+    } else {
+      return false
+    }
+  }
+}
 
 export const isModified = (state /*:Model*/) /*:boolean*/ =>
   Notebook.toString(state.notebook.before) !==
@@ -83,13 +114,38 @@ export const toURL = (state /*:Model*/) /*:?URL*/ =>
 export const toText = (state /*:Model*/) /*:?string*/ =>
   Notebook.toString(notebook(state))
 
+export const toUpdatedDocument = (state /*:Model*/) /*:?Notebook.Document*/ => {
+  switch (state.saveRequest.tag) {
+    case "NotSaving":
+    case "SavingFailed": {
+      const after = Notebook.toDocument(state.notebook.after)
+      if (after && after.title.length > 0 && after.article.length > 30) {
+        const before = Notebook.toDocument(state.notebook.before)
+        if (!before || before.markup != after.markup) {
+          return after
+        } else {
+          return null
+        }
+      } else {
+        return null
+      }
+    }
+    default: {
+      return null
+    }
+  }
+}
+
+export const toDocument = (state /*:Model*/) /*:?Notebook.Document*/ =>
+  Notebook.toDocument(notebook(state))
+
 export const isOwner = (state /*:Model*/) /*:boolean*/ =>
   Notebook.isOwner(notebook(state))
 
 export const status = (state /*:Model*/) /*:string*/ => {
   switch (state.saveRequest.tag) {
     case "NotSaving": {
-      return isModified(state) ? "" : "published"
+      return isReadyForShare(state) ? "share" : "published"
     }
     case "Saving": {
       return "publishing"

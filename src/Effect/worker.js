@@ -1,7 +1,7 @@
 // @flow status
 
 import { never } from "../reflex/Basics.js"
-import { future } from "../reflex/Future.js"
+import Future from "../Future/Future.js"
 
 class Service {
   static spawn(url /*:URL*/) /*:Service*/ {
@@ -73,21 +73,23 @@ class Service {
   }
 }
 
-export const spawn = future((url /*:URL*/) => {
-  Service.spawn(url)
-})
+export const spawn = (url /*:URL*/) =>
+  new Future(async () => Service.spawn(url))
 
-export const kill = future((url /*:URL*/, reason /*:?Error*/ = null) => {
-  const service = Worker[`@${url.href}`]
-  if (service) {
-    service.kill()
-  }
-})
+export const kill = (url /*:URL*/, reason /*:?Error*/ = null) =>
+  new Future(async () => {
+    const service = Worker[`@${url.href}`]
+    if (service) {
+      service.kill()
+    }
+  })
 
-export const send = future((url /*:URL*/, message /*:mixed*/) => {
-  Service.spawn(url).send(message)
-})
+export const send = (url /*:URL*/, message /*:mixed*/) =>
+  new Future(async () => {
+    Service.spawn(url).send(message)
+  })
 
-export const request = future((url /*:URL*/, message /*:mixed*/) => {
-  return Service.spawn(url).request(message)
-})
+export const request = (url /*:URL*/, message /*:mixed*/) =>
+  new Future(async () => {
+    Service.spawn(url).request(message)
+  })

@@ -16,7 +16,7 @@ interface Link {
   title?:string;
 }
 
-interface Create {
+export interface Create {
   title: string;
   description: string;
   type?:string[];
@@ -74,7 +74,7 @@ export interface Archive extends NetworkActivityStream {
   readdir(
     Path,
     options: { recursive?: boolean, timeout?: number, stat: true }
-  ): Promise<DirectoryEntry>;
+  ): Promise<DirectoryEntry[]>;
   
   writeFile(Path, string, options?: { encoding: Encoding }): Promise<void>;
   writeFile(Path, ArrayBuffer, options?: { encoding: "binary" }): Promise<void>;

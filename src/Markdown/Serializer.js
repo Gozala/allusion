@@ -221,9 +221,8 @@ class MarkdownSerializerState {
           return info && info.expelEnclosingWhitespace
         })
       ) {
-        let [_, lead, inner, trail] = (/^(\s*)(.*?)(\s*)$/.exec(
-          node.text || node.textContent
-        ) || [])
+        let [_, lead, inner, trail] =
+          /^(\s*)(.*?)(\s*)$/.exec(node.text || node.textContent) || []
         leading += lead
         trailing = trail
         if (lead || trail) {

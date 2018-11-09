@@ -1,14 +1,13 @@
 // @flow strict
 
-
-import { fromText, toText } from "../../prosemirror-allusion/Editor.js"
+import { parse } from "../../prosemirror-allusion/Editor.js"
 
 /*::
-import { EditorState } from "../../prosemirror-state/src/index.js"
+import type { Document } from "../../prosemirror-allusion/Editor.js"
 
 type Draft = {
   status: "draft";
-  editorState:EditorState;
+  document:Document;
 }
 
 type Loading = {
@@ -26,7 +25,7 @@ type Published = {
   status: "published";
   url:URL;
   isOwner: boolean;
-  editorState:EditorState;
+  document:Document;
 }
 
 export type Model =
@@ -35,29 +34,51 @@ export type Model =
   | Failed
   | Published
 
-export type { EditorState }
+export type { Document }
 */
 
+export const toDocument = (state /*:Model*/) /*:?Document*/ => {
+  switch (state.status) {
+    case "published":
+    case "draft": {
+      return state.document
+    }
+    default: {
+      return null
+    }
+  }
+}
 
-export const draft = (text/*:string*/="")/*:Model*/ =>
-  ({ status:"draft", editorState: fromText(text) })
+export const draft = (text /*:string*/ = "") /*:Model*/ => ({
+  status: "draft",
+  document: parse(text)
+})
 
-export const load = (url /*:URL*/) /*:Model*/ =>
-  ({ status:"loading", url })
+export const load = (url /*:URL*/) /*:Model*/ => ({ status: "loading", url })
 
-export const fail = ({message}/*:Error*/, state /*:Model*/)/*:Model*/ =>
-  state.status === "loading" ? {status:"error", url:state.url, message} : state
+export const fail = ({ message } /*:Error*/, state /*:Model*/) /*:Model*/ =>
+  state.status === "loading"
+    ? { status: "error", url: state.url, message }
+    : state
 
-export const open = (url /*:URL*/, isOwner /*:boolean*/, text /*:string*/)/*:Model*/ =>
-  ({status:"published", url, isOwner, editorState: fromText(text) })
+export const open = (
+  url /*:URL*/,
+  isOwner /*:boolean*/,
+  text /*:string*/
+) /*:Model*/ => ({
+  status: "published",
+  url,
+  isOwner,
+  document: parse(text)
+})
 
-export const edit = (editorState/*:EditorState*/, state/*:Model*/) => {
+export const edit = (document /*:Document*/, state /*:Model*/) => {
   switch (state.status) {
     case "draft": {
-      return {...state, editorState }
+      return { ...state, document }
     }
     case "published": {
-      return {...state, editorState}
+      return { ...state, document }
     }
     default: {
       return state
@@ -65,13 +86,18 @@ export const edit = (editorState/*:EditorState*/, state/*:Model*/) => {
   }
 }
 
-export const published = (url/*:URL*/, state/*:Model*/) => {
+export const published = (url /*:URL*/, state /*:Model*/) => {
   switch (state.status) {
     case "draft": {
-      return {status:"published", url, isOwner:true, editorState: state.editorState }
+      return {
+        status: "published",
+        url,
+        isOwner: true,
+        document: state.document
+      }
     }
     case "published": {
-      return {...state, url, isOwner:true}
+      return { ...state, url, isOwner: true }
     }
     default: {
       return state
@@ -79,17 +105,17 @@ export const published = (url/*:URL*/, state/*:Model*/) => {
   }
 }
 
-export const toString = (model/*:Model*/)/*:?string*/ => {
+export const toString = (model /*:Model*/) /*:?string*/ => {
   switch (model.status) {
     case "draft":
     case "published":
-      return toText(model.editorState)
+      return model.document.markup
     default:
       return null
   }
 }
 
-export const toURL = (state/*:Model*/)/*:?URL*/ => {
+export const toURL = (state /*:Model*/) /*:?URL*/ => {
   switch (state.status) {
     case "loading":
     case "error":
@@ -100,9 +126,9 @@ export const toURL = (state/*:Model*/)/*:?URL*/ => {
   }
 }
 
-export const isOwner = (state/*:Model*/)/*:boolean*/ => {
+export const isOwner = (state /*:Model*/) /*:boolean*/ => {
   switch (state.status) {
-    case "draft": 
+    case "draft":
       return true
     case "published":
       return state.isOwner

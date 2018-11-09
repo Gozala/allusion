@@ -1,5 +1,6 @@
 // @flow strict
 
+import { idle } from "../Effect/scheduler.js"
 import { EditorView } from "../prosemirror-view/src/index.js"
 import { EditorState } from "../prosemirror-state/src/index.js"
 import { keymap } from "../prosemirror-keymap/src/keymap.js"
@@ -18,9 +19,11 @@ import schema from "./Schema.js"
 import InputRules from "./InputRules.js"
 import Parser from "./Parser.js"
 import Serializer from "./Serializer.js"
+import { mark } from "../reflex/Element.js"
 
 /*::
 import type { Node, Fragment } from "../prosemirror-model/src/index.js"
+export type { Node, Fragment }
 */
 
 const editorPlugins = [
@@ -36,20 +39,29 @@ const editorPlugins = [
   Marked.plugin(Parser, Serializer)
 ]
 
-const parseTitle = (content/*:Fragment*/)/*:[Node, Fragment]*/ => {
+const parseTitle = (content /*:Fragment*/) /*:[Node, Fragment]*/ => {
   const node = content.firstChild
   if (node && node.type === schema.nodes.heading && node.attrs.level === 1) {
-    return [schema.node("title", null, node.content), content.cut(node.nodeSize)]
+    return [
+      schema.node("title", null, schema.text(node.textContent.slice(2))),
+      content.cut(node.nodeSize)
+    ]
   } else {
     return [schema.node("title"), content]
   }
 }
 
-const parseAuthor = (content/*:Fragment*/)/*:[Node, Fragment]*/ => {
+const AUTHOR_PREFIX = "Author: "
+const parseAuthor = (content /*:Fragment*/) /*:[Node, Fragment]*/ => {
   const node = content.firstChild
-  if (node && node.type === schema.nodes.paragraph) {
+  if (
+    node &&
+    node.type === schema.nodes.paragraph &&
+    node.nodeSize > AUTHOR_PREFIX.length &&
+    node.textBetween(0, AUTHOR_PREFIX.length) === AUTHOR_PREFIX
+  ) {
     return [
-      schema.node("author", null, node.content),
+      schema.node("author", null, node.slice(AUTHOR_PREFIX.length).content),
       content.cut(node.nodeSize)
     ]
   } else {
@@ -57,53 +69,125 @@ const parseAuthor = (content/*:Fragment*/)/*:[Node, Fragment]*/ => {
   }
 }
 
-const toDocument = (root/*:Node*/)/*:Node*/ => {
+const toDocument = (root /*:Node*/) /*:Node*/ => {
   const [title, content] = parseTitle(root.content)
   const [author, body] = parseAuthor(content)
-  const article = content.size === 0 ? schema.node("paragraph") : content
+  const article = body.size === 0 ? schema.node("paragraph") : body
   return schema.node("doc", null, [
     schema.node("header", null, [title, author]),
     schema.node("article", null, article)
   ])
 }
 
-const emptyDocument = ()/*:Node*/ =>
-  schema.node("doc", null, [
-    schema.node("header", null, [
-      schema.node("title"),
-      schema.node("author")
-    ]),
-    schema.node(
-      "article",
-      null,
-      schema.node("paragraph")
-    )
-  ]) 
+const emptyDocument /*:Node*/ = schema.node("doc", null, [
+  schema.node("header", null, [schema.node("title"), schema.node("author")]),
+  schema.node("article", null, schema.node("paragraph"))
+])
 
-const parseDocument = (text/*:string*/)/*:Node*/ => {
+const parseDocument = (text /*:string*/) /*:Node*/ => {
   const root = Parser.parse(text + `\n\n`)
   if (root instanceof Error) {
-    return emptyDocument()
+    return emptyDocument
   } else {
     return toDocument(root)
   }
 }
 
-export const fromText = (text/*:string*/="")/*:EditorState*/ => {
-  const doc = text === "" ? emptyDocument() : parseDocument(text)
-  return EditorState.create({ doc, schema, plugins: editorPlugins })
+/*::
+export interface Document {
+  +state:EditorState;
+  +node:Node;
+  +title:string;
+  +author:string;
+  +article:string;
+  +markup:string;
+}
+*/
+
+export const parse = (markup /*:string*/) => {
+  const doc = markup === "" ? emptyDocument : parseDocument(markup)
+
+  return new EditorDocument(
+    EditorState.create({
+      doc,
+      schema,
+      plugins: editorPlugins
+    })
+  )
 }
 
-export const toText = (state/*:EditorState*/)/*:string*/ =>
-  Serializer.serialize(state.doc)
-
-
+class EditorDocument /*::implements Document*/ {
+  /*::
+  _node:Node
+  _markup:?string
+  _title:?string
+  _author:?string
+  _article:?string
+  +state: EditorState
+  */
+  constructor(state /*:EditorState*/) {
+    this.state = state
+    this._markup = null
+    this._title = null
+    this._author = null
+    this._article = null
+  }
+  get node() {
+    return this.state.doc
+  }
+  get markup() {
+    const { _markup } = this
+    if (_markup) {
+      return _markup
+    } else {
+      const markup = Serializer.serialize(this.node)
+      this._markup = markup
+      return markup
+    }
+  }
+  get title() {
+    const { _title } = this
+    if (_title != null) {
+      return _title
+    } else {
+      const { markup } = this
+      const title = markup.substring(2, markup.indexOf("\n"))
+      this._title = title
+      return title
+    }
+  }
+  get author() {
+    const { _author } = this
+    if (_author != null) {
+      return _author
+    } else {
+      const { markup } = this
+      const offset = markup.indexOf("\n") + 2
+      const line = markup.substring(offset, markup.indexOf("\n", offset))
+      if (line.startsWith(AUTHOR_PREFIX)) {
+        const author = line.slice(AUTHOR_PREFIX.length)
+        this._author = author
+        return author
+      } else {
+        return ""
+      }
+    }
+  }
+  get article() {
+    const { author, title, markup } = this
+    let offset = 2 + title.length + 2
+    if (author.length > 0) {
+      return markup.slice(offset + AUTHOR_PREFIX.length + author.length + 2)
+    } else {
+      return markup.slice(offset)
+    }
+  }
+}
 
 export default class Editor extends HTMLElement {
   /*::
   root:ShadowRoot
   editor:EditorView
-  state:EditorState
   initState:?EditorState
   */
   constructor() {
@@ -111,30 +195,41 @@ export default class Editor extends HTMLElement {
     this.root = this.attachShadow({ mode: "open", delegatesFocus: true })
   }
 
-  get state() {
-    const { editor } = this
-    return editor ? editor.state : null
-  }
-  set state(state/*:EditorState*/) {
+  get document() {
     const { editor } = this
     if (editor) {
-      editor.updateState(state)
+      return new EditorDocument(editor.state)
     } else {
-      this.initState = state
+      return null
     }
   }
-
-  get text() /*:string*/ {
-    return toText(this.editor.state)
+  set document(document /*:Document*/) {
+    if (this.editor && this.editor.state !== document.state) {
+      this.editor.updateState(document.state)
+    } else {
+      this.initState = document.state
+    }
   }
-  set text(text /*:string*/) {
-    this.editor.updateState(fromText(text))
+  onChange() {
+    this.dispatchEvent(new CustomEvent("change"))
   }
   async connectedCallback() {
-    const self = this
-    this.root.appendChild(createStyleSheet(this.ownerDocument, "/css/editor.css"))
-    this.root.appendChild(createStyleSheet(this.ownerDocument, "/src/codemirror/lib/codemirror.css"))
-    const state = this.initState || fromText()
+    const onChange = idle.debounce(() => this.onChange())
+    this.root.appendChild(
+      createStyleSheet(this.ownerDocument, "/css/editor.css")
+    )
+    this.root.appendChild(
+      createStyleSheet(this.ownerDocument, "/src/codemirror/lib/codemirror.css")
+    )
+
+    const state =
+      this.initState ||
+      EditorState.create({
+        doc: emptyDocument,
+        schema,
+        plugins: editorPlugins
+      })
+
     this.initState = null
     const editor = new EditorView(this.root, {
       state,
@@ -143,7 +238,8 @@ export default class Editor extends HTMLElement {
       },
       dispatchTransaction(transaction) {
         const state = editor.state.apply(transaction)
-        self.dispatchEvent(new CustomEvent("change", { detail: state }))
+        editor.updateState(state)
+        onChange()
       }
     })
     this.editor = editor
