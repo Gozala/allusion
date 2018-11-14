@@ -8,8 +8,8 @@ const NAV = { type: "navigate" }
 
 const { history, location } = window.top
 const dispatch = _ => {
-  if (window.top.onnavigate) {
-    window.top.onnavigate.handleEvent(NAV)
+  if (window.onnavigate) {
+    window.onnavigate.handleEvent(NAV)
   }
 }
 
@@ -28,26 +28,26 @@ export const replaceURL = (url /*:URL*/) =>
   })
 
 export const back = (n /*:number*/) =>
-  new Future(async () => window.top.history.go(-1 * n))
+  new Future(async () => window.history.go(-1 * n))
 
 export const forward = (n /*:number*/) =>
-  new Future(async () => window.top.history.go(n))
+  new Future(async () => window.history.go(n))
 
 export const load = (url /*:URL*/) =>
   new Future(async () => {
     try {
-      window.top.location = url
+      window.location = url
     } catch (error) {
-      window.top.location.reload(false)
+      window.location.reload(false)
     }
   })
 
 export const reload = () =>
   new Future(async () => {
-    window.top.location.reload(false)
+    window.location.reload(false)
   })
 
 export const reloadAndSkipCache = () =>
   new Future(async () => {
-    window.top.location.reload(true)
+    window.location.reload(true)
   })

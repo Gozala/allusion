@@ -5,6 +5,7 @@ import * as Library from "../Library/Data.js"
 import { always } from "../../reflex/Basics.js"
 
 /*::
+export type Document = Notebook.Document
 export type Model = {
   notebook: MaybeSaved<Notebook.Model>;
   saveRequest:SaveRequest;
@@ -59,7 +60,7 @@ export const save = (state /*:Model*/) /*:Model*/ => ({
   notebook: { before: state.notebook.after, after: state.notebook.after }
 })
 
-export const edit = (document /*:Notebook.Document*/, state /*:Model*/) =>
+export const edit = (document /*:Document*/, state /*:Model*/) =>
   updateNotebook(state, Notebook.edit(document, notebook(state)))
 
 export const updateNotebook = (
@@ -114,18 +115,21 @@ export const toURL = (state /*:Model*/) /*:?URL*/ =>
 export const toText = (state /*:Model*/) /*:?string*/ =>
   Notebook.toString(notebook(state))
 
-export const toUpdatedDocument = (state /*:Model*/) /*:?Notebook.Document*/ => {
+/*::
+export type DocumentUpdate = {
+  before:?Document,
+  after:Document
+}
+*/
+
+export const toDocumentUpdate = (state /*:Model*/) /*:?DocumentUpdate*/ => {
   switch (state.saveRequest.tag) {
     case "NotSaving":
     case "SavingFailed": {
       const after = Notebook.toDocument(state.notebook.after)
       if (after && after.title.length > 0 && after.article.length > 30) {
         const before = Notebook.toDocument(state.notebook.before)
-        if (!before || before.markup != after.markup) {
-          return after
-        } else {
-          return null
-        }
+        return { before, after }
       } else {
         return null
       }
@@ -142,19 +146,23 @@ export const toDocument = (state /*:Model*/) /*:?Notebook.Document*/ =>
 export const isOwner = (state /*:Model*/) /*:boolean*/ =>
   Notebook.isOwner(notebook(state))
 
+const isDraft = (state /*:Model*/) => Notebook.isDraft(notebook(state))
+
 export const status = (state /*:Model*/) /*:string*/ => {
+  const role = isDraft(state) ? "share" : "publish"
   switch (state.saveRequest.tag) {
     case "NotSaving": {
-      return isReadyForShare(state) ? "share" : "published"
+      const ready = `${isReadyForShare(state) ? "ready" : "idle"}`
+      return `${role} ready`
     }
     case "Saving": {
-      return "publishing"
+      return `${role} active`
     }
     case "SavingFailed": {
-      return "retry"
+      return `${role} error`
     }
     default: {
-      return "unknown"
+      return ""
     }
   }
 }

@@ -41,7 +41,7 @@ export const getInfo = (url /*:URL*/, options /*::?:Timeout*/) =>
 export const stat = (url /*:URL*/, options /*::?:Timeout*/) =>
   new Future(async () => {
     const archive = await load(url)
-    const stat = await archive.stat(url.pathname, options)
+    const stat = await archive.stat(decodeURIComponent(url.pathname), options)
     return stat
   })
 
@@ -51,7 +51,10 @@ export const readFile = (
 ) =>
   new Future(async () => {
     const archive = await load(url)
-    const content = await archive.readFile(url.pathname, options)
+    const content = await archive.readFile(
+      decodeURIComponent(url.pathname),
+      options
+    )
     return content
   })
 
@@ -62,14 +65,14 @@ export const writeFile = (
 ) =>
   new Future(async () => {
     const archive = await load(url)
-    await archive.writeFile(url.pathname, content, options)
+    await archive.writeFile(decodeURIComponent(url.pathname), content, options)
   })
 
 export const readFileBuffer = (url /*:URL*/, options /*:Timeout*/ = none) =>
   new Future(async () => {
     const archive = await load(url)
     const { timeout } = options
-    const buffer = await archive.readFile(url.pathname, {
+    const buffer = await archive.readFile(decodeURIComponent(url.pathname), {
       encoding: "binary",
       timeout
     })
@@ -84,7 +87,7 @@ export const writeFileBuffer = (
   new Future(async () => {
     const archive = await load(url)
     const { timeout } = options
-    await archive.writeFile(url.pathname, buffer, {
+    await archive.writeFile(decodeURIComponent(url.pathname), buffer, {
       encoding: "binary",
       timeout
     })
@@ -103,7 +106,7 @@ export const readDirectoryPaths = async (
   new Future(async () => {
     const archive = await load(url)
     const { recursive, timeout } = options
-    return await archive.readdir(url.pathname, {
+    return await archive.readdir(decodeURIComponent(url.pathname), {
       recursive,
       timeout,
       stat: false
@@ -117,7 +120,7 @@ export const readDirectoryEntries = (
   new Future(async () => {
     const archive = await load(url)
     const { recursive, timeout } = options
-    return await archive.readdir(url.pathname, {
+    return await archive.readdir(decodeURIComponent(url.pathname), {
       recursive,
       timeout,
       stat: true
@@ -130,14 +133,18 @@ export const removeDirectory = (
 ) =>
   new Future(async () => {
     const archive = await load(url)
-    await archive.rmdir(url.pathname, options)
+    await archive.rmdir(decodeURIComponent(url.pathname), options)
   })
 
 export const move = (from /*:URL*/, to /*:URL*/, options /*:Timeout*/ = none) =>
   new Future(async () => {
     const source = await load(from)
     if (from.host === to.host) {
-      await source.rename(from.pathname, to.pathname, options)
+      await source.rename(
+        decodeURIComponent(from.pathname),
+        decodeURIComponent(to.pathname),
+        options
+      )
     } else {
       const { timeout } = options
       const target = await load(to)
@@ -152,7 +159,11 @@ export const copy = (from /*:URL*/, to /*:URL*/, options /*:Timeout*/ = none) =>
   new Future(async () => {
     const source = await load(from)
     if (from.host === to.host) {
-      await source.copy(from.pathname, to.pathname, options)
+      await source.copy(
+        decodeURIComponent(from.pathname),
+        decodeURIComponent(to.pathname),
+        options
+      )
     } else {
       const { timeout } = options
       const target = await load(to)

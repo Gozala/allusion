@@ -9,7 +9,7 @@ import * as Library from "../Library/Effect.js"
 import { digest } from "../Notebook/Effect.js"
 
 /*::
-import type { Document } from "../Notebook/Data.js"
+import type { Document, DocumentUpdate } from "./Data.js"
 */
 
 export const saveAs = (content /*:string*/, name /*:string*/) =>
@@ -18,11 +18,21 @@ export const saveAs = (content /*:string*/, name /*:string*/) =>
     return await library.saveFileAs(name, encoder.encode(content).buffer)
   })
 
-export const save = (document /*:Document*/) =>
+export const saveChanges = ({ before, after } /*:DocumentUpdate*/) =>
   new Future(async () /*:Promise<URL>*/ => {
     const storeURL = await Library.requestSiteStore()
-    const url = new URL(`/${document.title}.md`, storeURL)
-    await Dat.writeFile(url, document.markup)
+    const url = new URL(`/${after.title}.md`, storeURL)
+    if (before != null && before.title !== after.title) {
+      const oldURL = new URL(`/${before.title}.md`, storeURL)
+      if (before.article === after.article && before.author && after.author) {
+        await Dat.move(oldURL, url)
+      } else {
+        await Dat.writeFile(url, after.markup)
+        await Dat.removeFile(oldURL)
+      }
+    } else if (before == null || before.markup !== after.markup) {
+      await Dat.writeFile(url, after.markup)
+    }
     return url
   })
 

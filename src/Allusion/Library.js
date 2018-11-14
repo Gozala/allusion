@@ -54,7 +54,7 @@ const viewCards = function*(state /*:Model*/) {
 const viewCard = (key, state) =>
   a(
     [
-      href(`#${key}`),
+      href(`/~/${key}`),
       className(
         "br2 ba w5 b--black-10 bg-white ma3 pa3 link dim pointer shadow-4"
       )

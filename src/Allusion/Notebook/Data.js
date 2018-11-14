@@ -1,6 +1,7 @@
 // @flow strict
 
 import { parse } from "../../prosemirror-allusion/Editor.js"
+import { data } from "../../reflex/Attribute.js"
 
 /*::
 import type { Document } from "../../prosemirror-allusion/Editor.js"
@@ -65,12 +66,15 @@ export const open = (
   url /*:URL*/,
   isOwner /*:boolean*/,
   text /*:string*/
-) /*:Model*/ => ({
-  status: "published",
-  url,
-  isOwner,
-  document: parse(text)
-})
+) /*:Model*/ =>
+  url.protocol === "draft:"
+    ? draft(text)
+    : {
+        status: "published",
+        url,
+        isOwner,
+        document: parse(text)
+      }
 
 export const edit = (document /*:Document*/, state /*:Model*/) => {
   switch (state.status) {
@@ -132,6 +136,15 @@ export const isOwner = (state /*:Model*/) /*:boolean*/ => {
       return true
     case "published":
       return state.isOwner
+    default:
+      return false
+  }
+}
+
+export const isDraft = (state /*:Model*/) /*:boolean*/ => {
+  switch (state.status) {
+    case "draft":
+      return true
     default:
       return false
   }

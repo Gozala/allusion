@@ -2,12 +2,21 @@
 
 import Future from "../../Future/Future.js"
 import * as Dat from "../../Effect/dat.js"
+import * as Library from "../Library/Effect.js"
 
 export const load = (url /*:URL*/) =>
   new Future(async () => {
     const content = await Dat.readFile(url)
     const { isOwner } = await Dat.getInfo(url)
     return { url, content, isOwner }
+  })
+
+export const open = (name /*:string*/) =>
+  new Future(async () => {
+    const store = await Library.requestSiteStore()
+    const content = await Dat.readFile(new URL(`/${name}.md`, store))
+    const url = new URL(`draft:${name}.md`)
+    return { url, content, isOwner: true }
   })
 
 /*::

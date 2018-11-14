@@ -14,8 +14,8 @@ export type Message =
   | { tag: "route", value: Route }
   | { tag: "notebook", value: Notebook.Message }
   | { tag: "library", value: Library.Message }
-  // | { tag: "save", value:true }
-  // | { tag: "published", value:URL }
+  | { tag: "share", value:true }
+  | { tag: "published", value:URL }
   | { tag: "saved", value:true }
   | { tag: "saveError", value:Error }
 */

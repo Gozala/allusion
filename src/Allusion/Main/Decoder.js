@@ -4,7 +4,7 @@ import * as Decoder from "../../Decoder.flow/Decoder.js"
 
 export const save = Decoder.ok({
   message: {
-    tag: "save",
+    tag: "share",
     value: true
   }
 })

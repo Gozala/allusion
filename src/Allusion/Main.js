@@ -19,6 +19,7 @@ import { on, className } from "../reflex/Attribute.js"
 import { never } from "../reflex/Basics.js"
 
 import * as Data from "./Main/Data.js"
+import * as Router from "./Main/Router.js"
 import * as Inbox from "./Main/Inbox.js"
 import * as Effect from "./Main/Effect.js"
 import * as Decoder from "./Main/Decoder.js"
@@ -34,14 +35,26 @@ export const init = (options /*:?{state:Model}*/, url /*:URL*/) => {
   if (options) {
     return [options.state, nofx]
   } else {
-    const path = url.pathname.substr(1)
-    const notebookURL = path === "" ? null : new URL(`//${path}`, url)
-    const [notebook, noteEffect] = Notebook.open(notebookURL)
     const [library, libEffect] = Library.init()
+    const [notebook, noteEffect] = initNotebook(url)
     return [
       Data.init(notebook, library),
       batch(noteEffect.map(Inbox.notebook), libEffect.map(Inbox.library))
     ]
+  }
+}
+
+const initNotebook = url => {
+  const route = Router.fromURL(url)
+  switch (route.tag) {
+    case "root":
+      return Notebook.draft()
+    case "draft":
+      return Notebook.open(route.value)
+    case "published":
+      return Notebook.load(route.value)
+    default:
+      return never(route)
   }
 }
 
@@ -60,10 +73,10 @@ export const update = (
       )
       const newState = Data.updateNotebook(state, notebook)
       const noteEffect = effect.map(Inbox.notebook)
-      const document = Data.toUpdatedDocument(newState)
-      if (document) {
+      const delta = Data.toDocumentUpdate(newState)
+      if (delta) {
         const saveEffect = fx(
-          Effect.save(document),
+          Effect.saveChanges(delta),
           Inbox.onSaved,
           Inbox.onSaveError
         )
@@ -76,34 +89,31 @@ export const update = (
       const [library, fx] = Library.update(message.value, Data.library(state))
       return [Data.updateLibrary(library, state), fx.map(Inbox.library)]
     }
-    // case "save": {
-    //   const url = Data.toURL(state)
-    //   const content = Data.toText(state) || ""
-    //   const title = content.slice(1, content.indexOf("\n") + 1).trim()
-    //   const effect =
-    //     url && Data.isOwner(state)
-    //       ? fx(Effect.save(url, content), Inbox.onSaved, Inbox.onSaveError)
-    //       : fx(
-    //           Effect.saveAs(content, `${title}.md`),
-    //           Inbox.onPublished,
-    //           Inbox.onSaveError
-    //         )
-    //   return [Data.save(state), effect]
-    // }
+    case "share": {
+      const url = Data.toURL(state)
+      const content = Data.toText(state) || ""
+      const title = content.slice(1, content.indexOf("\n") + 1).trim()
+      const effect = fx(
+        Effect.saveAs(content, `${title}.md`),
+        Inbox.onPublished,
+        Inbox.onSaveError
+      )
+      return [Data.save(state), effect]
+    }
     case "saved": {
       return [Data.saved(state), nofx]
     }
-    // case "published": {
-    //   const url = message.value
-    //   return [
-    //     Data.published(url, state),
-    //     fx(
-    //       Effect.navigate(
-    //         new URL(`/${url.hostname}${url.pathname}`, location.href)
-    //       )
-    //     )
-    //   ]
-    // }
+    case "published": {
+      const url = message.value
+      return [
+        Data.published(url, state),
+        fx(
+          Effect.navigate(
+            new URL(`/${url.hostname}${url.pathname}`, location.href)
+          )
+        )
+      ]
+    }
     case "saveError": {
       return [Data.saveFailed(message.value, state), nofx]
     }
@@ -116,7 +126,8 @@ export const update = (
 const route = (message, state) => {
   switch (message.tag) {
     case "navigate": {
-      return init(null, message.value)
+      const [state, effect] = init(null, message.value)
+      return [state, batch(fx(Effect.navigate(message.value)), effect)]
     }
     case "navigated": {
       return [state, nofx]
@@ -139,7 +150,7 @@ export const view = (state /*:Model*/) =>
         main(
           [
             className(
-              "flex bb b--black-10  bg-white flex-column items-center relative"
+              "flex bb b--black-10 bg-white flex-column min-vh-100 items-center relative"
             )
           ],
           [
@@ -162,11 +173,7 @@ export const view = (state /*:Model*/) =>
 const viewSaveButton = state =>
   button(
     [
-      className(
-        `bg-silver events pointer share ${
-          Data.isReadyForShare(state) ? "ready" : ""
-        }`
-      ),
+      className(`bg-silver events pointer ${Data.status(state)}`),
       on("click", Decoder.save)
     ],
     []

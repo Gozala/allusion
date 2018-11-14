@@ -26,7 +26,7 @@ export type Model = Data.Model
 export type Message = Inbox.Message
 */
 
-const draft = () => {
+export const draft = () => {
   return [Data.draft(""), nofx]
 }
 
@@ -35,7 +35,10 @@ export const load = (url /*:URL*/) => [
   fx(Effect.load(url), Inbox.onLoaded, Inbox.onLoadError)
 ]
 
-export const open = (url /*:?URL*/) => (url ? load(url) : draft())
+export const open = (name /*:string*/) => [
+  Data.load(new URL(`draft:${name}`)),
+  fx(Effect.open(name), Inbox.onLoaded, Inbox.onLoadError)
+]
 
 export const update = (message /*:Message*/, state /*:Model*/) => {
   switch (message.tag) {
@@ -74,7 +77,7 @@ const viewError = (url, reason) =>
 const viewDraft = document => viewDocument(true, document)
 const viewDocument = (isOwner, document) =>
   customElement("text-editor", Editor, [
-    className("flex min-vh-100 w-100 measure-wide f4"),
+    className("min-vh-100 w-100 measure-wide f4"),
     on("change", Decoder.onEdit),
     property("document", document)
   ])
