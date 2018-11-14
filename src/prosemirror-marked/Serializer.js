@@ -53,7 +53,7 @@ export default class Serializer {
   }
   serialize(content /*: Node*/, options /*::?: SerializerOptions*/) {
     const markdown = new MarkdownSerializer(this.nodes, this.marks, options)
-    markdown.render(content, Fragment.empty, 0)
+    markdown.render(content, Fragment.empty, 0).ensureNewLine()
     return markdown.out
   }
   serializeInline(content /*: Node*/, options /*::?: SerializerOptions*/) {

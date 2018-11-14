@@ -636,7 +636,7 @@ export default new Schema({
         }
       ],
       serializeMarkdown(buffer, node) {
-        return buffer.write(node.textContent)
+        return buffer.write(node.textContent).closeBlock(node)
       },
       toDOM() {
         return [
