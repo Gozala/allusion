@@ -1,10 +1,12 @@
 // @flow strict
 
 import { DatArchive } from "../beaker/DatArchive.js"
+import { library } from "../beaker/library.js"
 import Future from "../Future/Future.js"
 
 /*::
 import type { Archive, Select, Create, ArchiveInfo, Timeout, Stat, DirectoryEntry, Encoding } from "../beaker/DatArchive.js"
+import type { Query as LibraryQuery } from "../beaker/library.js"
 */
 
 const archives /*:{[string]:Archive}*/ = {}
@@ -178,3 +180,33 @@ export const create = (options /*:Create*/) =>
     const archive = await DatArchive.create(options)
     return new URL(archive.url)
   })
+
+/*::
+type Query = LibraryQuery & {
+  type?:string[]
+
+}
+*/
+export const queryLibrary = (query /*:Query*/) =>
+  new Future(async () /*:Promise<ArchiveInfo[]>*/ => {
+    const type = query.type || []
+    const entries = await library.list(query)
+    const matches = []
+    for (const entry of entries) {
+      const url = new URL(entry.url)
+      const info = await getInfo(url)
+      if (includes(info.type, type)) {
+        matches.push(info)
+      }
+    }
+    return matches
+  })
+
+const includes = /*::<a>*/ (xs /*:a[]*/, ys /*:a[]*/) /*:boolean*/ => {
+  for (const y of ys) {
+    if (!xs.includes(y)) {
+      return false
+    }
+  }
+  return true
+}
