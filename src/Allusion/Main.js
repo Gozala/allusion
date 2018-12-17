@@ -94,7 +94,7 @@ export const update = (
       const content = Data.toText(state) || ""
       const title = content.slice(1, content.indexOf("\n") + 1).trim()
       const effect = fx(
-        Effect.saveAs(content, `${title}.md`),
+        Effect.publish(content, title),
         Inbox.onPublished,
         Inbox.onSaveError
       )
@@ -104,15 +104,16 @@ export const update = (
       return [Data.saved(state), nofx]
     }
     case "published": {
-      const url = message.value
-      return [
-        Data.published(url, state),
-        fx(
-          Effect.navigate(
-            new URL(`/${url.hostname}${url.pathname}`, location.href)
-          )
-        )
-      ]
+      return [state, nofx]
+      // const url = message.value
+      // return [
+      //   Data.published(url, state),
+      //   fx(
+      //     Effect.navigate(
+      //       new URL(`/${url.hostname}${url.pathname}`, location.href)
+      //     )
+      //   )
+      // ]
     }
     case "saveError": {
       return [Data.saveFailed(message.value, state), nofx]
